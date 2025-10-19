@@ -1,9 +1,5 @@
 #pragma once
 #include "storm.h"
-#include "stormc_hash.h"
-#include "stormc_hashmap.h"
-#include "stormc_runtime.c"
-#include <time.h>
 
 typedef struct Vec2 Vec2;
 
