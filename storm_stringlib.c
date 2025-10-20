@@ -3,7 +3,7 @@
 #include <immintrin.h>
 
 
-#define STR(x) (String){.str = (x), .len = sizeof((x))}
+#define STR(x) (String){.str = (x), .len = sizeof((x)) - 1}
 
 static inline u32 sstrlenx(const char *string)
 {

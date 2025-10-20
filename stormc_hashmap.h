@@ -20,22 +20,6 @@ enum StormC_HashMap_State{
 	OCCUPIED,
 };
 
-static inline bool is_power_of_2(u64 n)
-{
-	return (n != 0) && (n & (n-1)) == 0;
-}
-static inline u64 next_power_of_2(u64 n)
-{
-	n--;
-	n |= n >> 1;
-	n |= n >> 2;
-	n |= n >> 4;
-	n |= n >> 8;
-	n |= n >> 16;
-	n |= n >> 32;
-	n++;
-	return n;
-}
 
 #define STORMC_MAKE_HMAP(NAME, TYPE_KEY, TYPE_VALUE, STARTING_SIZE, CMP_FN, HASH_FN)		\
 	typedef struct NAME NAME;								\
@@ -46,117 +30,105 @@ static inline u64 next_power_of_2(u64 n)
 	 	u64    ct_elems;								\
 	 	u64    capacity;								\
 	};											\
+	thisfile void stormc_##NAME##_add_entry(NAME *hmap, TYPE_KEY key, TYPE_VALUE value);	\
 	thisfile inline bool stormc_##NAME##_has_key(NAME *hmap, TYPE_KEY key)			\
 	{											\
-		u64 idx, cur_hash_id;								\
+		u64 i, idx, cur_hash_id;							\
 		bool exists = false;								\
-		for (idx = 0; idx < hmap->capacity; idx++){					\
+		u64 hash = HASH_FN(key);							\
+		u64 hash_id = hash % hmap->capacity;						\
+		u64 step = 1 | (hash >> 16);							\
+		for (i = 0; i < hmap->capacity; i++){						\
+			idx = (hash_id + i) % hmap->capacity;					\
 			if (CMP_FN(hmap->key[idx], key)){					\
 				return true;							\
 			}									\
 		}										\
 		return exists;									\
 	}											\
-	thisfile NAME *stormc_##NAME##_expand(NAME *hmap)					\
+												\
+	thisfile void stormc_##NAME##_expand(NAME *hmap)					\
 	{											\
-		u8 *temp;									\
-		u64 cur_elements = hmap->ct_elems;						\
-		size_t old_size = hmap->capacity;						\
-		size_t new_size = hmap->capacity * 2;						\
-		u64 offset = 0;									\
-		size_t old_size_state = sizeof(StormC_HashMap_State) * old_size;		\
-		size_t old_size_keys = sizeof(TYPE_KEY) * old_size;				\
-		size_t old_size_values = sizeof(TYPE_VALUE) * old_size;				\
-		size_t old_size_final = old_size_state + old_size_keys + old_size_values;	\
-		size_t new_size_state = sizeof(StormC_HashMap_State) * new_size;		\
-		size_t new_size_keys = sizeof(TYPE_KEY) * new_size;				\
-		size_t new_size_values = sizeof(TYPE_VALUE) * new_size;				\
-		size_t new_size_final = new_size_state + new_size_keys + new_size_values;	\
-		temp = (u8*)stormc_alloc(new_size_final);					\
-		memcpy(temp, hmap->state, old_size_state);					\
-		memcpy(temp + new_size_state, hmap->key, old_size_keys);			\
-		memcpy(temp + new_size_state + new_size_keys, hmap->value, old_size_values);	\
-		munmap(hmap, old_size_final);							\
-		hmap = (NAME*)temp;								\
-		hmap->state = (StormC_HashMap_State*)(temp + offset);				\
-		offset += new_size_state;							\
-		hmap->key = (TYPE_KEY*)(temp + offset);						\
-		offset += new_size_keys;							\
-		hmap->value = (TYPE_VALUE*)(temp + offset);					\
-		offset += new_size_values;							\
-		hmap->capacity = new_size;							\
-		hmap->ct_elems = cur_elements;							\
-		return hmap;									\
+		u64 old_cap = hmap->capacity;							\
+		u64 new_cap = old_cap * 2;							\
+		StormC_HashMap_State *old_state = hmap->state;					\
+		TYPE_KEY *old_keys = hmap->key;							\
+		TYPE_VALUE *old_values = hmap->value;						\
+												\
+		StormC_HashMap_State *new_state =						\
+		(StormC_HashMap_State *)stormc_alloc(sizeof(*new_state) * new_cap);		\
+		TYPE_KEY *new_keys = (TYPE_KEY *)stormc_alloc(sizeof(*new_keys) * new_cap);	\
+		TYPE_VALUE *new_values =							\
+		(TYPE_VALUE *)stormc_alloc(sizeof(*new_values) * new_cap);			\
+		hmap->state = new_state;							\
+		hmap->key = new_keys;								\
+		hmap->value = new_values;							\
+		hmap->capacity = new_cap;							\
+		hmap->ct_elems = 0;								\
+		for (u64 idx = 0; idx < old_cap; idx++){					\
+			if (old_state[idx] == OCCUPIED){					\
+			stormc_##NAME##_add_entry(hmap, old_keys[idx], old_values[idx]);	\
+			}									\
+		}										\
+		stormc_free(old_state, sizeof(*old_state) * old_cap);				\
+		stormc_free(old_keys, sizeof(*old_keys) * old_cap);				\
+		stormc_free(old_values, sizeof(*old_values) * old_cap);				\
 	}											\
+												\
 	thisfile void stormc_##NAME##_add_entry(NAME *hmap, TYPE_KEY key, TYPE_VALUE value)	\
 	{											\
-		u64 hash_id = HASH_FN(&key, sizeof(TYPE_KEY)) & (hmap->capacity - 1);	\
-		bool key_exists = false;							\
-		if (hmap->state[hash_id] == OCCUPIED){						\
-			key_exists = true;							\
-		}										\
-		if (key_exists){								\
-			u64 i = 1;								\
-			u64 new_idx = (hash_id + i * i) & (hmap->capacity - 1);			\
-			while (hmap->state[new_idx] == OCCUPIED && i < hmap->capacity){		\
-				new_idx = (hash_id + i * i) & (hmap->capacity - 1);		\
-				i++;								\
+		u64 new_idx;									\
+		u64 hash = HASH_FN(key);							\
+		u64 hash_id = hash % hmap->capacity;						\
+		u64 step = 1 | (hash >> 16);							\
+		u64 i = 0;									\
+		while (i < hmap->capacity){							\
+			new_idx = (hash_id + i) % hmap->capacity;				\
+			if (hmap->state[new_idx] == FREE){					\
+				hmap->key[new_idx] = key;					\
+				hmap->value[new_idx] = value;					\
+				hmap->state[new_idx] = OCCUPIED;				\
+				hmap->ct_elems++;						\
+				break;								\
 			}									\
-			if (i >= hmap->capacity){						\
-				stormc_##NAME##_expand(hmap);					\
-				i = 1;								\
-				new_idx = (hash_id + i * i) & (hmap->capacity - 1);		\
-				while (hmap->state[new_idx] == OCCUPIED){			\
-					i++;							\
-					new_idx = (hash_id + i * i) & (hmap->capacity - 1);	\
-				}								\
+			if (hmap->state[new_idx] == OCCUPIED &&					\
+			    CMP_FN(hmap->key[new_idx], key)){					\
+				hmap->value[new_idx] = value;					\
+				break;								\
 			}									\
-			hmap->key[new_idx] = key;						\
-			hmap->value[new_idx] = value;						\
-			hmap->state[new_idx] = OCCUPIED;					\
-			hmap->ct_elems++;							\
+			i++;									\
 		}										\
-		if (!key_exists){								\
-			hmap->key[hash_id] = key;						\
-			hmap->value[hash_id] = value;						\
-			hmap->state[hash_id] = OCCUPIED;					\
-			hmap->ct_elems++;							\
+		if (hmap->ct_elems >= (hmap->capacity * 0.70)){					\
+			stormc_##NAME##_expand(hmap);						\
+												\
 		}										\
 	}											\
 	thisfile TYPE_VALUE stormc_##NAME##_get(NAME *hmap, TYPE_KEY key)			\
 	{											\
 		TYPE_VALUE empty_stub = {};							\
-		u64 hash_id = HASH_FN(&key, sizeof(TYPE_KEY)) & (hmap->capacity - 1);		\
+		u64 hash = HASH_FN(key);							\
+		u64 hash_id = hash % hmap->capacity;						\
+		u64 step = 1 | (hash >> 16);							\
 		u64 i = 0;									\
-		while (hmap->state[hash_id] == OCCUPIED){					\
-			if (CMP_FN(hmap->key[hash_id], key)) return hmap->value[hash_id];	\
+		while (i < hmap->capacity){							\
+			u64 idx = (hash_id + i) % hmap->capacity;				\
+			if (CMP_FN(hmap->key[idx], key) && hmap->state[idx] == OCCUPIED) {	\
+				return hmap->value[idx];					\
+			}									\
 			i++;									\
-			hash_id = (hash_id + i * i) & (hmap->capacity - 1);			\
 		}										\
 		return empty_stub;								\
 	}											\
 	thisfile NAME *stormc_emit_##NAME(void)							\
 	{											\
 		u64 starting_size = STARTING_SIZE;						\
-		if (!is_power_of_2(STARTING_SIZE)){						\
-			starting_size = next_power_of_2(STARTING_SIZE);				\
-		}										\
-		size_t size_final, size_key, size_value, size_state;				\
-		u64 offset;									\
-		size_state = sizeof(StormC_HashMap_State) * starting_size;			\
-		size_key = sizeof(TYPE_KEY) * starting_size;					\
-		size_value =  sizeof(TYPE_VALUE) * starting_size;				\
-		size_final = size_key + size_value + starting_size;				\
-		NAME *pl =									\
-		(NAME*)stormc_alloc(sizeof(NAME) + size_final);					\
-		offset = sizeof(NAME);								\
-		pl->state = (StormC_HashMap_State*)((u8*)pl + offset);				\
-		offset += size_state;								\
-		pl->key = (TYPE_KEY*)((u8*)pl + offset);					\
-		offset += size_key;								\
-		pl->value = (TYPE_VALUE*)((u8*)pl + offset);					\
-		offset += size_value;								\
-		pl->capacity = STARTING_SIZE;							\
+		NAME *pl = (NAME *)stormc_alloc(sizeof(NAME));					\
+		pl->state =									\
+		(StormC_HashMap_State*)stormc_alloc(						\
+		sizeof(StormC_HashMap_State) * starting_size);					\
+		pl->key = (TYPE_KEY*)stormc_alloc(sizeof(TYPE_KEY) * starting_size);		\
+		pl->value = (TYPE_VALUE*)stormc_alloc(sizeof(TYPE_VALUE) * starting_size);	\
+		pl->capacity = starting_size;							\
 		pl->ct_elems = 0;								\
 		return pl;									\
 	}											\
