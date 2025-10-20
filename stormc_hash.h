@@ -6,8 +6,13 @@
 #define thisfile static
 
 
-#define FNV_OFFSET_BASIS 14695981039346656037lu
-#define FNV_PRIME 1099511628211lu
+
+/*
+Implementation derived from XXHASH Spec
+https://fossies.org/linux/xxHash/doc/xxhash_spec.md
+Only tested on x86-64 ISA;
+*/
+
 
 #define XXH_PRIME64_1 0x9E3779B185EBCA87ULL
 #define XXH_PRIME64_2 0xC2B2AE3D27D4EB4FULL
