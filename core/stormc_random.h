@@ -14,14 +14,19 @@ thisfile inline u64 stormc_random_xorshift(void)
 	return pl;
 }
 
+thisfile inline u64 stormc_random(void)
+{
+	return stormc_random_xorshift();
+}
 
 thisfile inline u64 stormc_random_range(u64 min, u64 max)
 {
 	u64 pl;
 
-	pl = stormc_random_xorshift();
+	pl = stormc_random();
 
 	pl = min + (pl % (max - min + 1));
 
 	return pl;
 }
+

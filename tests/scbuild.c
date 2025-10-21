@@ -3,8 +3,8 @@
 
 int main(int argc, char *argv[])
 {
-	build.in = STR("test_arena.c");
-	build.out = STR("arena_t");
+	build.in = STR("test_dice.c");
+	build.out = STR("dice_t");
 	build.compiler = STR("gcc");
 
 	SET_FLAGS(WALL, WPEDANTIC, MARCH_NATIVE, ALLSAN, STD_C99, OPTIM_1);
