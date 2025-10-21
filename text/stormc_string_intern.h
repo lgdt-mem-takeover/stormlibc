@@ -1,6 +1,6 @@
 #pragma once
-#include "storm.h"
-#include "glibc_parts/str-two-way.h"
+#include "../core/stormc_base.h"
+#include "../glibc_parts/str-two-way.h"
 
 
 #define OOM (1U << 27)
@@ -83,7 +83,7 @@ static inline const char * scrt_string_as_char(SString str)
 
 static inline void scrt_init_strings()
 {
-  u8 *blk = mmap(NULL, SCRT_Size_Strings, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+  u8 *blk = (u8*)mmap(NULL, SCRT_Size_Strings, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
   scrt_strings = (SCRT_Strings *)blk;
   scrt_strings->cap = SCRT_Size_Strings;
   scrt_strings->off = 0;
@@ -152,7 +152,7 @@ static SString _scrt_sstring_concat(const SString arr[], u64 len)
 		buff_len += arr[begin].len;
 		begin++;
 	}
-	u8 *buff = malloc(buff_len + 1);
+	u8 *buff = (u8*)malloc(buff_len + 1);
 	u64 buff_idx = 0;
 	u64 idx = 0;
 	u64 inner_idx;
@@ -186,7 +186,7 @@ static SString _scrt_string_concat(const char *arr[], u64 len)
 		idx_lengths++;
 	}
 
-	u8 *buff = malloc(buff_len + 1);
+	u8 *buff = (u8*)malloc(buff_len + 1);
 	u64 buff_idx = 0;
 	u64 idx = 0;
 	u64 inner_idx;

@@ -1,6 +1,5 @@
 #pragma once
-#include "storm.h"
-#include <immintrin.h>
+#include "../core/stormc_types.h"
 
 
 #define STR(x) (String){.str = (x), .len = sizeof((x)) - 1}
@@ -18,7 +17,7 @@ static inline String make_string(char *ch)
 {
     if(ch[0] == '\0') return (String){.err = -1};
     u64 len = sstrlenx(ch);
-    char *buf = mmap(NULL, len + 1, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    char *buf = (char *)mmap(NULL, len + 1, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
 
     u64 idx = 0;
     while(idx < len)
@@ -34,7 +33,7 @@ static inline String make_string(char *ch)
 
 static inline String emit_empty_string_with_size(size_t size)
 {
-    char *buf = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1 , 0);
+    char *buf = (char *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1 , 0);
 
     return (String){.str = buf, .len = 0};
 }
@@ -53,40 +52,6 @@ static inline void smemsetx_avx2(void * restrict target, u8 set_to, size_t size)
     for (; i < size; i++) {
         ptr[i] = set_to;
     }
-}
-
-static inline bool sstrcmpx_8(const Storm_String8 a, const Storm_String8 b)
-{
-
-    simd_32_u8 a_load = _mm256_loadu_si256((const simd_32_u8*)a.str);
-    simd_32_u8 b_load = _mm256_loadu_si256((const simd_32_u8*)b.str);
-    simd_32_u8 cmp = _mm256_cmpeq_epi8(a_load, b_load);
-
-    int mask = (1 << a.len) - 1;
-    return (_mm256_movemask_epi8(cmp) & mask) == mask;
-}
-
-static inline bool sstrcmpx_16(const Storm_String16 a, const Storm_String16 b)
-{
-
-
-    simd_32_u8 a_load = _mm256_loadu_si256((const simd_32_u8*)a.str);
-    simd_32_u8 b_load = _mm256_loadu_si256((const simd_32_u8*)b.str);
-    simd_32_u8 cmp = _mm256_cmpeq_epi8(a_load, b_load);
-
-    int mask = (1 << a.len) - 1;
-    return (_mm256_movemask_epi8(cmp) & mask) == mask;
-}
-
-static inline bool sstrcmpx_32(const Storm_String32 a, const Storm_String32 b)
-{
-
-    simd_32_u8 a_load = _mm256_loadu_si256((const simd_32_u8 *)a.str);
-    simd_32_u8 b_load = _mm256_loadu_si256((const simd_32_u8 *)b.str);
-    simd_32_u8 cmp = _mm256_cmpeq_epi8(a_load, b_load);
-
-    int mask = (1 << a.len) - 1;
-    return (_mm256_movemask_epi8(cmp) & mask) == mask;
 }
 
 static inline bool sstrcmpx(const String a, const String b)
@@ -143,47 +108,6 @@ static inline bool is_null(char *  ptr)
     }
     return false;
 
-}
-static inline int sstrcpyx_8(Storm_String8 *dest, const Storm_String8 *source)
-{
-
-    if(sizeof(*dest) < sizeof(*source)) return -1;
-
-    int begin = 0;
-    while(begin < 8){
-        dest->str[begin] = source->str[begin];
-        begin++;
-    }
-    dest->len = source->len;
-    return 0;
-}
-
-
-static inline int sstrcpyx_16(Storm_String16 *dest, const Storm_String16 *source)
-{
-
-    if(sizeof(*dest) < sizeof(*source)) return -1;
-
-    int begin = 0;
-    while(begin < 16){
-        dest->str[begin] = source->str[begin];
-        begin++;
-    }
-    dest->len = source->len;
-    return 0;
-}
-
-static inline int sstrcpyx_32(Storm_String32 *dest, const Storm_String32 *source)
-{
-
-    if(sizeof(*dest) < sizeof(*source)) return -1;
-
-
-    simd_32_u8 source_v = _mm256_loadu_si256((const simd_32_u8 *)((const char *)source));
-    _mm256_storeu_si256((simd_32_u8 *)((char *)dest), source_v);
-
-    dest->len = source->len;
-    return 0;
 }
 
 static inline int sstrcpyx(String * restrict dest, const String * restrict source)

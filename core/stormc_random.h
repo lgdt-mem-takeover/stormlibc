@@ -1,5 +1,5 @@
 #pragma once
-#include "storm.h"
+#include "stormc_types.h"
 
 global_persist uint_fast64_t state = __TIME__[7] | __COUNTER__;
 

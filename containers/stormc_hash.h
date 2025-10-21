@@ -2,7 +2,8 @@
 #include <immintrin.h>
 
 #pragma once
-#include "storm.h"
+#include "../core/stormc_base.h"
+#include "../core/stormc_types.h"
 #define thisfile static
 
 
@@ -23,7 +24,7 @@ Only tested on x86-64 ISA;
 
 typedef u64 v4u64 __attribute__((vector_size(32)));
 
-thisfile u64 stormc_hash_scalar(const void *value, const u64 len)
+thisfile inline u64 stormc_hash_scalar(const void *value, const u64 len)
 {
 	u64 idx, hash, seed, acc0, acc1, acc2, acc3;
 	u64 input0, input1, input2, input3;
@@ -87,7 +88,7 @@ thisfile inline v4u64 stormc_rotl64_v4u64(v4u64 x, u32 bits)
 }
 
 
-thisfile u64 stormc_hash_v4u64(const void *value, const u64 len)
+thisfile inline u64 stormc_hash_v4u64(const void *value, const u64 len)
 {
 	u64 idx, seed;
 

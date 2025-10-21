@@ -1,8 +1,6 @@
-#include <unistd.h>
-
 #pragma once
-#include "storm_stringlib.c"
-#include "storm.h"
+#include "stormc_base.h"
+#include "../text/stormc_string.h"
 
 static inline void print_string(String string)
 {
@@ -40,7 +38,7 @@ static Storm_File* Storm_Open_File_RO(String path)
   size_t file_path_size = (sstrlenx(path.str) * sizeof(char));
   size_t file_content_size = st.st_size;
   size_t sizes = storm_struct_size + file_path_size + file_content_size;
-  Storm_File *output = mmap(NULL, sizes, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+  Storm_File *output = (Storm_File*)mmap(NULL, sizes, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
   output->path.str = (char *)output + storm_struct_size;
   output->content.str = (char *)output + storm_struct_size + file_path_size;
   output->content.len = st.st_size;

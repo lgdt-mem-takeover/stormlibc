@@ -1,6 +1,5 @@
 #pragma once
-#include "storm.h"
-#include "stormc_random.h"
+#include "../core/stormc_random.h"
 
 
 thisfile u64 stormc_diceroll(u64 count, u64 sides)

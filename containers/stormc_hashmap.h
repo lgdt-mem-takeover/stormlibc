@@ -1,6 +1,5 @@
 #pragma once
-#include "storm.h"
-#include <string.h>
+#include "../core/stormc_types.h"
 #include "stormc_hash.h"
 
 #define COLL_RES_TABLE_SIZE 1 << 12
