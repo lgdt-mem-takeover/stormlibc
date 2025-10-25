@@ -2,42 +2,89 @@
 #include "stormc_base.h"
 #include "stormc_types.h"
 
+#define _GNU_SOURCE 1
+#include <sys/mman.h>
+
 #define STORMC_ALIGN_UP(x, align) (((x) + ((align)-1)) & ~((align)-1))
 #define STORMC_ALIGN_DOWN(x, align) ((x) & ~((align)-1))
-#define STORMC_ARENA_FULL(arena, count) ((arena)->offset + (count) > (arena)->capacity)
+#define STORMC_ARENA_FULL(arena, count) ((arena)->offset + (count) > (arena)->max_capacity)
+
+
+static inline void * stormc_get_rawptr(void *ptr)
+{
+	void *raw;
+	raw = (u8*)ptr - sizeof(size_t);
+	return raw;
+}
+
+static inline size_t stormc_get_alloc_size(void *ptr)
+{
+	size_t pl;
+	void *raw = stormc_get_rawptr(ptr);
+	pl = *(size_t*)raw;
+	return pl;
+}
 
 static inline void* stormc_alloc(size_t size)
 {
+	void *raw;
+	size_t total  = size + sizeof(size_t);
 #ifdef _WIN32
-  return VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	raw = VirtualAlloc(NULL, total, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #else
-  return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1 , 0);
+
+	raw = mmap(NULL, total, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1 , 0);
 #endif
+	*(size_t*)raw = total;
+	return (u8*)raw + sizeof(size_t);
 }
 
-static inline void stormc_free(void *ptr, size_t size)
+static inline void stormc_free(void *ptr)
 {
-#ifdef _WIN32
-    (void)size;               // size ignored on Windows
-    VirtualFree(ptr, 0, MEM_RELEASE);
-#else
-    munmap(ptr, size);
-#endif
+	size_t size;
+	void * raw;
+	size = stormc_get_alloc_size(ptr);
+	raw = stormc_get_rawptr(ptr);
+
+	#ifdef _WIN32
+	    VirtualFree(raw, 0, MEM_RELEASE);
+	#else
+	munmap(raw, size);
+	#endif
 }
 
-static inline void *stormc_resize(void *ptr, size_t old_size, size_t new_size)
+static inline void *stormc_resize(void *ptr, size_t new_size)
 {
+	void *raw;
+	void *next_raw;
+	size_t old_total, new_total;
+
+	raw = stormc_get_rawptr(ptr);
+	old_total = stormc_get_alloc_size(ptr);
+	new_total = new_size + sizeof(size_t);
 #ifdef _WIN32
 	void *new_ptr = stormc_alloc(new_size);
 	if (new_ptr && ptr) {
-		memcpy(new_ptr, ptr, old_size < new_size ? old_size : new_size);
-		stormc_free(ptr, old_size);
+		memcpy(new_ptr, ptr, old_total < new_size ? old_total : new_size);
+		stormc_free(ptr);
 	}
 	return new_ptr;
 #else
-    return mremap(ptr, old_size, new_size, MREMAP_MAYMOVE);
+	next_raw = mremap(raw, old_total, new_total, MREMAP_MAYMOVE);
+	if (next_raw == MAP_FAILED) return NULL;
+	*(size_t*)next_raw = new_total;
+	return (u8*)next_raw + sizeof(size_t);
 #endif
 
+}
+
+static inline void* stormc_calloc(size_t n, size_t sz)
+{
+    size_t total = n * sz;
+    if (__builtin_mul_overflow(n, sz, &total)) return NULL;
+    void *p = stormc_alloc(total);
+    if (p) memset(p, 0, total);
+    return p;
 }
 
 
@@ -51,7 +98,7 @@ static inline StormC_Arena *stormc_arena_emit(size_t max_cap)
 {
 	StormC_Arena *pl;
 
-	pl = (StormC_Arena*)stormc_alloc(max_cap);
+	pl = (StormC_Arena*)stormc_alloc(max_cap + sizeof(StormC_Arena));
 
 
 	pl->block = (u8*)pl + sizeof(StormC_Arena);

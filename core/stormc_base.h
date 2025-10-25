@@ -1,7 +1,5 @@
 #pragma once
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
+#define _GNU_SOURCE 1
 
 #include <stddef.h>
 #include <stdint.h>
@@ -9,9 +7,9 @@
 #include <unistd.h>
 #include <immintrin.h>
 #include <stdint.h>
-#include <sys/mman.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/mman.h>
 
 #define thisfile static
 #define global_persist static
