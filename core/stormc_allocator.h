@@ -12,6 +12,7 @@
 
 static inline void * stormc_get_rawptr(void *ptr)
 {
+	if (ptr == NULL) return NULL;
 	void *raw;
 	raw = (u8*)ptr - sizeof(size_t);
 	return raw;
@@ -19,6 +20,7 @@ static inline void * stormc_get_rawptr(void *ptr)
 
 static inline size_t stormc_get_alloc_size(void *ptr)
 {
+	if (ptr == NULL) return 0;
 	size_t pl;
 	void *raw = stormc_get_rawptr(ptr);
 	pl = *(size_t*)raw;
@@ -41,6 +43,7 @@ static inline void* stormc_alloc(size_t size)
 
 static inline void stormc_free(void *ptr)
 {
+	if (ptr == NULL) return;
 	size_t size;
 	void * raw;
 	size = stormc_get_alloc_size(ptr);
@@ -55,6 +58,13 @@ static inline void stormc_free(void *ptr)
 
 static inline void *stormc_resize(void *ptr, size_t new_size)
 {
+	if (ptr == NULL) return stormc_alloc(new_size);
+
+	if (new_size == 0){
+		stormc_free(ptr);
+		return NULL;
+	}
+
 	void *raw;
 	void *next_raw;
 	size_t old_total, new_total;
@@ -111,22 +121,28 @@ static inline void stormc_arena_reset(StormC_Arena *a)
 {
 	a->offset = 0;
 }
-
-                                                                                         \
-#define STORMC_SETUP_ARENA_TYPE(NAME, TYPE)                                              \
-static inline TYPE *stormc_alloc_arena_##NAME(StormC_Arena *a, size_t count_elem)        \
-{                                                                                        \
-	const size_t type_size = sizeof(TYPE);                                           \
-	const size_t type_align = __alignof(TYPE);                                       \
-                                                                                         \
-	count_elem = (count_elem == 0 ? 1 : count_elem) * type_size;                     \
-	TYPE *pl;                                                                        \
-	size_t offset = STORMC_ALIGN_UP(a->offset, type_align);		                 \
-                                                                                         \
-	if ((offset + count_elem) > a->max_capacity) return NULL;			 \
-                                                                                         \
-	a->offset = offset + count_elem;	                                         \
-	pl = (TYPE*)(a->block + offset);                                                 \
-                                                                                         \
-	return pl;                                                                       \
-}
+                                                                                                 \
+                                                                                                 \
+#define STORMC_SETUP_ARENA_TYPE(NAME, TYPE)                                                      \
+typedef struct{                                                                                  \
+	TYPE *arr;                                                                               \
+	u64 len;                                                                                 \
+}StormC_Array_##NAME;                                                                            \
+static inline StormC_Array_##NAME stormc_alloc_arena_##NAME(StormC_Arena *a, size_t count_elem)  \
+{                                                                                                \
+	StormC_Array_##NAME null_stub = {.arr = NULL, .len = 0};				 \
+	const size_t type_size = sizeof(TYPE);                                                   \
+	const size_t type_align = __alignof(TYPE);                                               \
+                                                                                                 \
+	count_elem = (count_elem == 0 ? 1 : count_elem) * type_size;                             \
+	TYPE *pl;										 \
+	size_t offset = STORMC_ALIGN_UP(a->offset, type_align);                                  \
+                                                                                                 \
+	if ((offset + count_elem) > a->max_capacity) return null_stub;                           \
+                                                                                                 \
+	a->offset = offset + count_elem;                                                         \
+	pl = (TYPE*)(a->block + offset);							 \
+                                                                                                 \
+	return (StormC_Array_##NAME){.arr = pl, .len = count_elem};                              \
+}                                                                                                \
+                                                                                                 \
