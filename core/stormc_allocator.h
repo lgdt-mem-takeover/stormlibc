@@ -143,6 +143,6 @@ static inline StormC_Array_##NAME stormc_alloc_arena_##NAME(StormC_Arena *a, siz
 	a->offset = offset + count_elem;                                                         \
 	pl = (TYPE*)(a->block + offset);							 \
                                                                                                  \
-	return (StormC_Array_##NAME){.arr = pl, .len = count_elem};                              \
+	return (StormC_Array_##NAME){.arr = pl, .len = count_elem / type_size};                  \
 }                                                                                                \
                                                                                                  \
