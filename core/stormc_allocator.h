@@ -1,6 +1,7 @@
 #pragma once
 #include "stormc_base.h"
 #include "stormc_types.h"
+#include "stormc_bitops.h"
 
 #define _GNU_SOURCE 1
 #include <sys/mman.h>
@@ -134,7 +135,7 @@ static inline StormC_Array_##NAME stormc_alloc_arena_##NAME(StormC_Arena *a, siz
 	const size_t type_size = sizeof(TYPE);                                                   \
 	const size_t type_align = __alignof(TYPE);                                               \
                                                                                                  \
-	count_elem = (count_elem == 0 ? 1 : count_elem) * type_size;                             \
+	count_elem = SELECT(count_elem == 0, 1, count_elem) * type_size;			 \
 	TYPE *pl;										 \
 	size_t offset = STORMC_ALIGN_UP(a->offset, type_align);                                  \
                                                                                                  \

@@ -10,6 +10,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <fcntl.h>
+#include <ctype.h>
+#include <sys/stat.h>
 
 #define thisfile static
 #define global_persist static
@@ -34,6 +37,9 @@
 #  define inline
 # endif
 #endif
+
+
+#define ALIGNOF(type) __alignof__(type)
 
 #define OFFSETOF(type, member) \
   __builtin_offsetof(type, member) \
