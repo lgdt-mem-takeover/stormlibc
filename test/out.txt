@@ -1,0 +1,3 @@
+[32mclang++ -march=native -std=c++23 -O3 -I//data/site_packages/raylib/zig-out/include src/main.cpp -Wl,-rpath,'$ORIGIN' -L/data/site_packages/raylib/zig-out/lib/ -lraylib -lm -lGL -lpthread -ldl -g -o src/main
+[0m[32mclang++ -march=native -std=c++23 -O3 -I//data/site_packages/raylib/zig-out/include src/main.cpp -Wl,--no-relax,-rpath,'$ORIGIN' -L/data/site_packages/raylib/zig-out/lib/ -lraylib -lm -lGL -lpthread -ldl -g -o src/main
+[0m
