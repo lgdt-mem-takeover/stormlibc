@@ -487,7 +487,7 @@ static void exec_uf(StormC_Main_Entry_Process s)
 
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
 	int ret;
 	int status;

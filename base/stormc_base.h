@@ -21,6 +21,7 @@
 #define local_persist static
 #define ALIGNOF(type) __alignof__(type)
 #define OFFSETOF(type, member) __builtin_offsetof(type, member)
+#define TYPEOF(v) __typeof__(v)
 #define unreachable __builtin_unreachable()
 #define KILOBYTE(x) ((x) * 1024ull)
 #define MEGABYTE(x) ((x) * 1024ull * 1024ull)
@@ -85,13 +86,13 @@ typedef  float			f32;
 
 
 #ifndef bool16
-	typedef u8 bool16;
+	typedef u16 bool16;
 #endif
 #ifndef bool32
-	typedef u8 bool32;
+	typedef u32 bool32;
 #endif
 #ifndef bool64
-	typedef u8 bool64;
+	typedef u64 bool64;
 #endif
 
 typedef u8	uflags_8;

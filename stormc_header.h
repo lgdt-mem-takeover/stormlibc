@@ -67,6 +67,11 @@
 	#include "/data/site_packages/raylib/src/raymath.h"
 #endif
 
+
+#ifdef STORMC_WEBGPU
+	#include "webgpu/wgpu.h"
+#endif
+
 #include "base/stormc_base.h"
 #include <stdio.h>
 #include <stdarg.h>
@@ -206,15 +211,8 @@ static void			stc_stack_free(struct stc_stack *stack, void* mem_addrs, u64 len);
 #define STC_ALIGN_DOWN(x, align) ((x) & ~((align)-1))
 
 
-#define stc_stack_start(stack)\
-	stack->checkpoint_offset = stack->base_offset
-
-#define stc_stack_end(stack)\
-	stack->base_offset = stack->checkpoint_offset
 
 
-#define stc_stack_push(stack, type, count)\
-	_stc_stack_push(stack, ALIGNOF(type), sizeof(type) * count)
 
 
 

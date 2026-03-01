@@ -1,8 +1,8 @@
 // #include "/data/stormlibc/core/stormc_types.h"
 // #include "stc_utils.h"
 
-#define STORMC_STRING
 #define STORMC_ALLOCATOR
+#define STORMC_STRING
 
 #include "/data/2026-projs/c/stormlibc/stormc_header.h"
 #include <stdio.h>
@@ -17,6 +17,10 @@
 #define MAX_INCLUDES 4096
 #define MAX_FILES 1024
 #define MAX_DIRS 1024
+
+
+
+#define STR_NULL (struct stc_string8){.str = NULL, .len = 0}
 
 #define ARRAY_LEN(x) (sizeof(x) / sizeof(*x))
 

@@ -201,6 +201,7 @@ void make_layout(struct stc_string8 string, struct layout layouts)
 /*@INITBOXES_START*/
 void init_boxes(void)
 {
+	const u32 RSRV = 1 << 24;
 	stack_boxes = stc_stack_gen(1llu << 32);
 	stack_hashes = stc_stack_gen(1llu << 32);
 	stack_layouts = stc_stack_gen(1llu << 32);
@@ -212,10 +213,10 @@ void init_boxes(void)
 	gui.ilt = (struct stack_frame *)stc_stack_push(stack_boxes, struct stack_frame, STARTING_BOXES);
 
 	for (u64 i = 0; i < STARTING_BOXES; ++i) {
-		gui.ilt[i].children = (u64 *)stc_os_mem_rsrv(1llu << 24);
+		gui.ilt[i].children = (u64 *)stc_os_mem_rsrv(RSRV);
 		allocate_children_at_root(i);
 		gui.ilt[i].cmt = sizeof(u64) * STARTING_BOXES;
-		gui.ilt[i].rsrv = (1llu << 24);
+		gui.ilt[i].rsrv = (RSRV);
 	}
 
 
@@ -567,7 +568,6 @@ void ui_layout(void)
 
 			}
 			ui_context_menu_end();
-
 		}
 		thread(1) {
 			/* only some top pparents rooted to the screen */

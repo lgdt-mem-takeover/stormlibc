@@ -31,6 +31,16 @@ struct stc_stack {
 };
 #define STACK_HEADER_SIZE sizeof(struct stc_stack)
 
+#define stc_stack_start(stack)\
+	stack->checkpoint_offset = stack->base_offset
+
+#define stc_stack_end(stack)\
+	stack->base_offset = stack->checkpoint_offset
+
+#define stc_stack_push(__stack, __type, __count)\
+	_stc_stack_push((__stack), ALIGNOF(__type), (sizeof(__type) * (__count)))
+
+
 struct stc_stack *stc_stack_gen(u64 rsrv)
 {
 

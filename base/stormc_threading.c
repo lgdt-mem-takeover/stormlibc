@@ -94,7 +94,11 @@ static void stc_threads_create(
 static void stc_threads_destroy(stc_thread *thread);
 static void stc_threads_join(stc_thread thread, void **thread_return);
 
-static STC_T_FUN(stormc_main, param);
+#ifndef STC_ENTRY_POINT
+	#define STC_ENTRY_POINT stormc_main
+#endif
+
+static STC_T_FUN(STC_ENTRY_POINT, param);
 
 #ifdef _WIN32
 	#include "windows/stormc_threading.c"
@@ -151,7 +155,7 @@ void stc_threading_system_begin(void)
 		stc_threads_barrier_init(&__stc_thread_ctx[idx_group].barrier, NULL, threads_count);
 		for (u64 thread_idx = 0; thread_idx < threads_count; ++thread_idx) {
 			u64 param = (idx_group << 32) | (thread_idx << 0);
-			stc_threads_create(&__stc_thread_ctx[idx_group].handle[thread_idx], NULL, stormc_main, (void*)param);
+			stc_threads_create(&__stc_thread_ctx[idx_group].handle[thread_idx], NULL, STC_ENTRY_POINT, (void*)param);
 		}
 	}
 }
