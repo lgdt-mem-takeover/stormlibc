@@ -1,6 +1,11 @@
 #pragma once
 #include "/data/2026-projs/c/stormlibc/stormc_header.h"
 
+static inline u32 sla_u32(const u32 arg, stc_byte shift);
+static inline u32 sra_u32(const u32 arg, stc_byte shift);
+static inline u32 cmpnz_u32(const u32 arg);
+static inline u32 select_u32(const u32 mask, const u32 arg1, const u32 arg2);
+
 
 u32 sla_u32(const u32 arg, stc_byte shift)
 {

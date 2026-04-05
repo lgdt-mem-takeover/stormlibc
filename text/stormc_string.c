@@ -1,16 +1,54 @@
 #pragma once
-#define STORMC_ALLOCATOR
-#include "/data/2026-projs/c/stormlibc/stormc_header.h"
+#include "../base/stormc_allocator.c"
 
-#define stc_string8_sized(__string) (int)__string.len, __string.str
+#define stc_string8_sized(s) ((int)((s).len)), ((s).str)
 #define stc_print_string(__string) printf("%.*s\n", (int)__string.len, __string.str)
 
-u32 sstrlenx(const stc_byte *stc_string8)
+/* compatibility aliases */
+#define sstrcmpx  stc_string8_cmp
+#define sstrlenx  stc_len_c_string
+
+/*@func decls new*/
+thisfile inline bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b);
+thisfile inline bool stc_string8_cmp_simd(const struct stc_string8 a, const struct stc_string8 b);
+thisfile struct stc_string8 *stc_arena_string8_push(struct stc_arena_string8 *a, u64 count);
+thisfile struct stc_string8 stc_arena_string8_push_copy(struct stc_arena_string8 *a, struct stc_string8 s);
+thisfile void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacity, const struct stc_string8 * restrict b);
+thisfile void stc_memcpy(void * restrict destination, const void * restrict source, u64 size);
+thisfile void stc_memset(void * restrict destination, u64 value, u64 size);
+thisfile void stc_memmove(void *destination, const void *src, u64 size);
+thisfile int stc_memcmp(const void * restrict destination, const void * restrict src, u64 size);
+thisfile struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a, struct stc_string8 * restrict s, stc_byte delim);
+thisfile u64 stc_len_c_string(stc_byte *c_string);
+thisfile struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init);
+thisfile void stc_string8_to_upper(struct stc_string8 *s);
+thisfile void stc_c_string_reverse (stc_byte *s, u64 len);
+thisfile i64 stc_itoa(i64 n, stc_byte *s);
+thisfile struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init);
+thisfile void check_alloc(struct stc_strbldr *b, u64 new_size);
+thisfile void stc_strbldr_add_v(struct stc_strbldr * restrict b, stc_byte * restrict s, va_list args);
+
+
+
+void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacity, const struct stc_string8 * restrict b)
 {
-    if(stc_string8[0] == '\0') return 0;
-    u32 count = 0;
-    while(stc_string8[++count]);
-    return count;
+	const u64 remaining = (a_capacity >= a->len) ? a_capacity - a->len : 0;
+	if (unlikely(remaining < b->len)) {
+		return;
+	}
+	for (u64 i = 0; i < b->len; ++i) {
+		a->str[i] = b->str[i];
+	}
+	a->len = b->len;
+}
+
+
+u64 stc_string8_len(const stc_byte *stc_string8)
+{
+	if(stc_string8[0] == '\0') return 0;
+	u64 count = 0;
+	while(stc_string8[++count]);
+	return count;
 }
 
 thisfile int stc_memcmp(const void * restrict destination, const void * restrict src, u64 size)
@@ -24,7 +62,7 @@ thisfile inline struct stc_string8 make_string(stc_byte *ch)
 	if (ch[0] == '\0')
 		return null_stub;
 
-	u64 len = sstrlenx(ch);
+	u64 len = stc_string8_len(ch);
 	stc_byte *buf = (stc_byte *)stc_alloc(len);
 
 	u64 idx = 0;
@@ -38,33 +76,33 @@ thisfile inline struct stc_string8 make_string(stc_byte *ch)
 }
 
 
-thisfile inline bool sstrcmpx(const struct stc_string8 a, const struct stc_string8 b)
+inline bool stc_string8_cmp_simd(const struct stc_string8 a, const struct stc_string8 b)
 {
 
-    if(a.len != b.len) return false;
+	if(a.len != b.len) return false;
 
-    u64 i = 0;
+	u64 i = 0;
 
-    for (;i + 32 <= a.len; i += 32) {
-        simd_32_u8 a_load = _mm256_loadu_si256((const simd_32_u8 *)(a.str + i));
-        simd_32_u8 b_load = _mm256_loadu_si256((const simd_32_u8 *)(b.str + i));
-        simd_32_u8 cmp = _mm256_cmpeq_epi8(a_load, b_load);
+	for (;i + 32 <= a.len; i += 32) {
+		simd_32_u8 a_load = _mm256_loadu_si256((const simd_32_u8 *)(a.str + i));
+		simd_32_u8 b_load = _mm256_loadu_si256((const simd_32_u8 *)(b.str + i));
+		simd_32_u8 cmp = _mm256_cmpeq_epi8(a_load, b_load);
 
-        int mask = _mm256_movemask_epi8(cmp);
-        if(mask != -1) return false;
-    }
+		int mask = _mm256_movemask_epi8(cmp);
+		if(mask != -1) return false;
+	}
 
-    for(;i < a.len; i++)
-    {
-        if (a.str[i] != b.str[i]) return false;
-    }
+	for(;i < a.len; i++)
+	{
+		if (a.str[i] != b.str[i]) return false;
+	}
 
-    return true;
+	return true;
 }
 
 thisfile inline int sstrcpyx(struct stc_string8 * restrict dest, const struct stc_string8 * restrict source)
 {
-    int begin = 0;
+    u64 begin = 0;
 
     for(; begin + 32 < source->len; begin+=32)
     {
@@ -85,12 +123,12 @@ thisfile inline int sstrcpyx(struct stc_string8 * restrict dest, const struct st
 thisfile inline i64 stormc_find_substr(const struct stc_string8 haystack, const struct stc_string8 needle)
 {
 
-	u32 i;
+	u64 i;
 	if (needle.len == 0 || haystack.len < needle.len) return false;
 
 	if (haystack.len < 32) {
 		for (i = 0; i <= (haystack.len - needle.len); i++) {
-			u32 j = 0;
+			u64 j = 0;
 
 			while (j < needle.len && haystack.str[i + j] == needle.str[j])
 				j++;
@@ -181,7 +219,7 @@ struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a
 	stc_byte *end = s->str + s->len;
 	pl.strings = stc_arena_string8_push(a, s->len);
 
-	u32 len = 0;
+	u64 len = 0;
 	pl.strings[pl.ct_strings].str = start;
 	while (start != end) {
 		if ((*start) == delim) {
@@ -203,9 +241,9 @@ struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a
 }
 
 
-u32 stc_len_c_string(stc_byte *c_string)
+u64 stc_len_c_string(stc_byte *c_string)
 {
-	u32 len = 0;
+	u64 len = 0;
 	if (c_string == NULL)
 		return 0;
 	if (c_string[0] == '\0')
@@ -394,7 +432,7 @@ thisfile f64 stc_string8_to_float(struct stc_string8 *string)
 	return is_negative ? -pl : pl;
 }
 
-thisfile bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b)
+bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b)
 {
 	if (a.len != b.len)
 		return false;
@@ -584,7 +622,7 @@ void check_alloc(struct stc_strbldr *b, u64 new_size)
 
 void stc_strbldr_add_v(struct stc_strbldr * restrict b, stc_byte * restrict s, va_list args)
 {
-	u32 len = sstrlenx((stc_byte*)s);
+	u32 len = stc_string8_len((stc_byte*)s);
 	u64 cur_ptr = (u64)b->ptr + b->off;
 	u64 new_size = b->off + len;
 
@@ -630,7 +668,7 @@ advance:
 
 parse_string:
 	cur_cstr = va_arg(args, stc_byte*);
-	len_cur_cstr = sstrlenx((stc_byte *)cur_cstr);
+	len_cur_cstr = stc_string8_len((stc_byte *)cur_cstr);
 	new_size += len_cur_cstr;
 	check_alloc(b, new_size);
 	stc_memcpy(b->ptr + b->off, cur_cstr, len_cur_cstr);

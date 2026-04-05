@@ -2,26 +2,41 @@
 
 #include "../stormc_header.h"
 
-inline bool is_prime(u64 n) {
-    if (n < 2) return false;
-    if ((n & 1) == 0) return n == 2;
-    for (u64 i = 3; i * i <= n; i += 2)
-        if (n % i == 0) return false;
-    return true;
+static bool is_prime(u64 n);
+static u64 next_prime(u64 n);
+static bool is_pow2(u64 n);
+static u64 next_pow2(u64 n);
+static bool f32_is_nan(f32 n);
+
+
+bool f32_is_nan(f32 f)
+{
+	union {u32 u; f32 f;} x;
+	x.f = f;
+	return  ((x.u & EXPONENTF32) == EXPONENTF32) && ((x.u & MANTISSAF32) != 0);
 }
 
-inline u64 next_prime(u64 n) {
-    if (n <= 2) return 2;
-    if ((n & 1) == 0) n++;
-    while (!is_prime(n)) n += 2;
-    return n;
+bool is_prime(u64 n) {
+	if (n < 2) return false;
+	if ((n & 1) == 0) return n == 2;
+	for (u64 i = 3; i * i <= n; i += 2)
+		if (n % i == 0) return false;
+	return true;
 }
 
-inline bool is_pow2(u64 n)
+u64 next_prime(u64 n) {
+	if (n <= 2) return 2;
+	if ((n & 1) == 0) n++;
+	while (!is_prime(n)) n += 2;
+	return n;
+}
+
+bool is_pow2(u64 n)
 {
 	return (n != 0) && (n & (n-1)) == 0;
 }
-inline u64 next_pow2(u64 n)
+
+u64 next_pow2(u64 n)
 {
 	n--;
 	n |= n >> 1;

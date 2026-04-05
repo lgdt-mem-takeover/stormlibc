@@ -89,6 +89,4 @@ const unsigned char default_scbuild_c[] = {
 	0x3b,	0x0a,	0x7d,	0x0a,	0x0a,
 };
 
-
 const unsigned int default_scbuild_c_len = 1049;
-

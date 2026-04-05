@@ -1,67 +1,136 @@
 #ifndef _XOPEN_SOURCE
-	#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE 500
 #endif
-#include <stdio.h>
-#include "/data/2026-projs/c/stormlibc/stormc_header.h"
-#include "/data/2026-projs/c/stormlibc/base/stormc_allocator.c"
-#include "/data/2026-projs/c/stormlibc/text/stormc_string.c"
 
-#include "stormc_buildsystem.h"
-#include "defaults.h"
+#include <stdio.h>
 #include <assert.h>
 #include <sys/stat.h>
 #include <time.h>
-
 #include <fcntl.h>
 #include <string.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <ftw.h>
 #include <libgen.h>
 #include <sys/sendfile.h>
 #include <elf.h>
-// #include "stc_codegen_impl.h"
-
-typedef enum{
-	INIT,
-	BUILD,
-	RUN,
-
-	CTAGS,
-	EMBED,
-
-	ASM,
-	STCLIB_SYNC,
-	BUILDINFO,
-	CODEGEN,
-	UF,
-	G_COMMAND_TYPES_COUNT,
-}G_Command_Types;
+#include <stdlib.h>
+#include <sys/wait.h>
 
 
+#define STORMC_ERROR_FMT(_err_msg, _err_str) fprintf(stderr, _err_msg, (int)_err_str.len, _err_str.str)
+#define STORMC_ERROR(_err_msg) fprintf(stderr, _err_msg)
+
+#define STAG_USER_COMMANDS(ENTRY) \
+	ENTRY(CTAGS,			"--ctags",		"-ct",		"run ctags",				"", true, ' ')\
+	ENTRY(INIT,  			"init",    		"-i",  		"init project",				"", false, 0)\
+	ENTRY(RUN,   			"run",     		"-r",  		"run build script",			"", false, 0)\
+	ENTRY(BUILD, 			"build",   		"-b",  		"build target",				"", true, ' ')\
+	ENTRY(EMBED, 			"embed",   		"-e",  		"embed file into c source",		"", true, ' ')\
+	ENTRY(ASM,   			"asm",     		"-asm",		"dump asm",				"", true, ' ')\
+	ENTRY(UF,    			"uf",      		"-uf", 		"disassemble function with gdb",	"", true, ' ')\
+	ENTRY(REGISTER_PROJ_NAME,	"--register-proj",	"-rpn", 	"register project name",		"", true, '=')\
+	ENTRY(REGISTER_PROJ_PATH,	"--register-proj-path",	"-rpp", 	"register project path",		"", true, '=')\
+	ENTRY(PROJECT_ADD,		"add",			"-add", 	"add project to local dir",		"", true, ' ')\
+	ENTRY(PROJECT_REMOVE,		"remove",		"-rm",		"remove local dir project",		"", true, ' ')\
+	ENTRY(PROJECT_UPDATE,		"update",		"-update", 	"update project name for local path",	"", true, ' ')\
+	ENTRY(LIST_PROJECTS,		"--list-projects",	"-lstp", 	"list projects",			"", false, 0)\
+	ENTRY(GOTO_PROJ,		"goto",			"-g2p",		"go to project directory",		"", true, ' ')
+
+#define STORMC_STAG
+#define STORMC_ALLOCATOR
+#define STORMC_STRING
+#include "/data/2026-projs/c/stormlibc/stormc_header.h"
+#include "stormc_buildsystem.h"
+#include "defaults.h"
 
 
-struct stc_string8 G_COMMANDS[G_COMMAND_TYPES_COUNT] = {
-	[INIT]		= STR("init"),
-	[BUILD]		= STR("build"),
-	[RUN]		= STR("run"),
-	[CTAGS]		= STR("ctags"),
-	[EMBED] 	= STR("embed"),
-	[ASM]		= STR("asm"),
-	[STCLIB_SYNC]	= STR("stclib_sync"),
-	[BUILDINFO]	= STR("buildinfo"),
-	[CODEGEN]	= STR("codegen"),
-	[UF]		= STR("uf"),
+
+#define DEFAULT_CONFIG_LOCATION STAG_STR("~/.config/stormc/config.stc")
+#define STORMC_CFG_META_MAGIC		0xDEADFAEEllu
+#define STORMC_CFG_META_VERSION		1llu
+#define MAX_PROJECTS 1024
+
+
+struct stormc_config_meta {
+	u64			proj_name_len;
+	char			proj_name[1024];
+
+	u64			proj_path_len;
+	char			proj_path[1024];
 };
 
 
-typedef struct{
-	struct stc_string8		_args[32];
-	u32				len;
-}StormC_Main_Entry_Process;
+struct stormc_config_payload {
+	u64				magic;
+	u64				version;
+	u64				ct_projects;
+	bool64				config_is_set;
+	struct stormc_config_meta	projects[MAX_PROJECTS];
+};
+
+struct stormc_project_mapper {
+	struct stag_string	config_file_location;
 
 
-extern const char default_scbuild_start[];
+	struct stormc_config_payload	payload;
+};
+
+
+static struct stormc_project_mapper *stc_proj_mapper = NULL;
+
+
+
+void stc_proj_add_proj(struct stag_string proj_name, struct stag_string proj_path)
+{
+	if (unlikely(stc_proj_mapper->payload.ct_projects >= MAX_PROJECTS)) {
+		fprintf(stderr, "Capacity reached. Cannot add more projects.\n");
+		return;
+	}
+
+	stc_memcpy(stc_proj_mapper->payload.projects[stc_proj_mapper->payload.ct_projects].proj_name, proj_name.str, proj_name.len);
+	stc_proj_mapper->payload.projects[stc_proj_mapper->payload.ct_projects].proj_name_len = proj_name.len;
+
+	stc_memcpy(stc_proj_mapper->payload.projects[stc_proj_mapper->payload.ct_projects].proj_path, proj_path.str, proj_path.len);
+	stc_proj_mapper->payload.projects[stc_proj_mapper->payload.ct_projects].proj_path_len = proj_path.len;
+
+	++stc_proj_mapper->payload.ct_projects;
+}
+
+
+static struct stag_string stormc_trim_quotes(struct stag_string s)
+{
+	if (s.len >= 2) {
+		char first = s.str[0];
+		char last  = s.str[s.len - 1];
+
+		if ((first == '"' && last == '"') ||
+		    (first == '\'' && last == '\'')) {
+			s.str += 1;
+			s.len -= 2;
+		}
+	}
+	return s;
+}
+
+
+u8 *ser_config_meta(u8 *data)
+{
+	u8 *pl = NULL;
+
+
+
+	return pl;
+}
+
+u8 *deser_config_meta(u8 *data)
+{
+	u8 *pl = NULL;
+
+
+
+	return pl;
+}
+
 
 typedef enum{
 	TEMPL_SCBUILD,
@@ -80,448 +149,668 @@ static int file_exists(const char *path)
 	return access(path, F_OK) == 0;
 }
 
-static void exec_ctags(StormC_Main_Entry_Process sc_main)
+static void exec_ctags(struct stag_string extra)
 {
-	char path_buf[256];
-	snprintf(path_buf, sizeof(path_buf), "ctags -R . %s", sc_main._args[1].str);
-	int ret = system(path_buf);
-	if (ret == -1) perror("system");
-	else if (WIFEXITED(ret)) {
-		int status = WEXITSTATUS(ret);
-		if (status == 0) printf("Command 'ctags' ran successfully\n");
-		else {
-			printf("Command 'ctags' exited with code %d\n", status);
-		}
+	char cmd[512] = {0};
+
+	if (extra.str && extra.len) {
+		snprintf(cmd, sizeof(cmd), "ctags -R . %.*s", (int)extra.len, extra.str);
+	} else {
+		snprintf(cmd, sizeof(cmd), "ctags -R .");
+	}
+
+	int ret = system(cmd);
+	if (ret == -1) {
+		perror("system");
+		return;
+	}
+	if (WIFEXITED(ret) && WEXITSTATUS(ret) == 0) {
+		printf("Command 'ctags' ran successfully\n");
+	} else if (WIFEXITED(ret)) {
+		printf("Command 'ctags' exited with code %d\n", WEXITSTATUS(ret));
 	} else {
 		printf("Command 'ctags' abnormal termination\n");
 	}
-
 }
 
-static void exec_init(StormC_Main_Entry_Process sc_main)
+static void exec_init(void)
 {
 	int fd = try_syscall(open, ("scbuild.c", O_WRONLY | O_CREAT | O_TRUNC, 0644), {
 		perror("open");
 		exit(1);
 	});
-	try(printf, ("[INIT] Succesfully created scbuild.c\n"),{
+
+	try(printf, ("[INIT] Successfully created scbuild.c\n"), {
 		perror("printf");
 		exit(1);
 	});
+
 	try_syscall(write, (fd, Global_Templates_Scbuild[TEMPL_SCBUILD].str, Global_Templates_Scbuild[TEMPL_SCBUILD].len), {
 		perror("write");
 		exit(1);
 	});
+
 	if (!file_exists("src")) {
 		mkdir("src", 0755);
 	}
-	if (!file_exists("src/main.c")){
-		int main = try_syscall(open,("src/main.c", O_CREAT | O_WRONLY, 0644),{
+
+	if (!file_exists("src/main.c")) {
+		int main_fd = try_syscall(open, ("src/main.c", O_CREAT | O_WRONLY | O_TRUNC, 0644), {
 			perror("open");
 			exit(1);
 		});
-		try(printf, ("[INIT] Succesfully created main.c\n"), {
+
+		try(printf, ("[INIT] Successfully created src/main.c\n"), {
 			perror("printf");
 			exit(1);
 		});
-		try_syscall(write, (main, Global_Templates_Scbuild[TEMPL_MAIN].str, Global_Templates_Scbuild[TEMPL_MAIN].len), {
+
+		try_syscall(write, (main_fd, Global_Templates_Scbuild[TEMPL_MAIN].str, Global_Templates_Scbuild[TEMPL_MAIN].len), {
 			perror("write");
 			exit(1);
 		});
-		try_syscall(close,(main),{
+
+		try_syscall(close, (main_fd), {
 			perror("close");
 			exit(1);
 		});
 	}
-	try_syscall(close,(fd),{
+
+	try_syscall(close, (fd), {
 		perror("close");
 		exit(1);
 	});
-
 }
 
 static void exec_run(void)
 {
 	int ret = system("gcc -mavx2 scbuild.c -o scbuild && ./scbuild run");
-	int status = WEXITSTATUS(ret);
-	if(ret == -1) perror("system");
+	if (ret == -1) {
+		perror("system");
+	}
 }
 
-
-static void exec_build(StormC_Main_Entry_Process sc_main)
+static void exec_build(struct stag_string target)
 {
-	int ret, status;
-	if (sstrcmpx(sc_main._args[1], G_COMMANDS[RUN])) {
-		ret = system("gcc -mavx2 scbuild.c -o scbuild && ./scbuild build run");
-		status = __WEXITSTATUS(ret);
-		if (ret == -1) perror("system");
+	int ret;
 
-	}
-	else if (sstrcmpx(sc_main._args[1], G_COMMANDS[ASM])) {
-		char cmd[1024];
-		u32 len = snprintf(cmd, sizeof(cmd), "objdump -d -M intel ./%.*s > stormc_asm.log 2>&1", (int)sc_main._args[2].len, sc_main._args[2].str);
-		cmd[len] = '\0';
-		ret = system(cmd);
-		status = __WEXITSTATUS(ret);
-		if (ret == -1) perror("system");
-
-	}
-	else {
-		char cmd[64];
-		u32 len = snprintf(cmd, sizeof(cmd), "gcc -mavx2 scbuild.c -o scbuild && ./scbuild %s", sc_main._args[1].str);
-		ret = system(cmd);
-		status = WEXITSTATUS(ret);
-		if(ret == -1) perror("system");
-	}
-
-}
-
-
-static void exec_embed(StormC_Main_Entry_Process sc_main)
-{
-	FILE *fin = fopen(sc_main._args[1].str, "r+");
-	char buffer_fd_in[4096];
-	size_t file_size = 0;
-	file_size = fread(buffer_fd_in, 1, sizeof(buffer_fd_in), fin);
-	int file_out = open(sc_main._args[2].str, O_WRONLY | O_CREAT, 0644);
-	if (file_out == -1){
-		printf("failed to open file out\n");
+	if (!target.str) {
+		fprintf(stderr, "build requires an argument\n");
 		exit(1);
 	}
+
+	if (stag_strcmp(target, STAG_STR("run"))) {
+		ret = system("gcc -mavx2 scbuild.c -o scbuild && ./scbuild build run");
+	} else if (stag_strcmp(target, STAG_STR("asm"))) {
+		ret = system("gcc -mavx2 scbuild.c -o scbuild && ./scbuild build asm");
+	} else {
+		char cmd[512];
+		snprintf(cmd, sizeof(cmd),
+			 "gcc -mavx2 scbuild.c -o scbuild && ./scbuild %.*s",
+			 (int)target.len, target.str);
+		ret = system(cmd);
+	}
+
+	if (ret == -1) {
+		perror("system");
+	}
+}
+
+static void exec_embed(struct stag_string spec)
+{
+	struct stag_array_string parts = stag_string_to_array_of_strings(spec, ' ');
+	if (parts.len < 2) {
+		fprintf(stderr, "embed requires: <input> <output>\n");
+		exit(1);
+	}
+
+	struct stag_string in  = parts.strings[0];
+	struct stag_string out = parts.strings[1];
+
+	char in_path[1024];
+	char out_path[1024];
+
+	snprintf(in_path, sizeof(in_path), "%.*s", (int)in.len, in.str);
+	snprintf(out_path, sizeof(out_path), "%.*s", (int)out.len, out.str);
+
+	FILE *fin = fopen(in_path, "rb");
+	if (!fin) {
+		perror("fopen");
+		exit(1);
+	}
+
+	unsigned char buffer_fd_in[4096];
+	size_t file_size = fread(buffer_fd_in, 1, sizeof(buffer_fd_in), fin);
+	fclose(fin);
+
+	int file_out = open(out_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (file_out == -1) {
+		perror("open");
+		exit(1);
+	}
+
 	char var_name_buff[1024];
 	char var_len_buff[1024];
 	char fmt_file_name[1024];
-	for (u32 idx_file_name = 0; idx_file_name < sc_main._args[1].len; idx_file_name++){
-		if (sc_main._args[1].str[idx_file_name] == '.'){
-			fmt_file_name[idx_file_name] = '_';
-			continue;
-		}
-		fmt_file_name[idx_file_name] = sc_main._args[1].str[idx_file_name];
+
+	for (u32 i = 0; i < in.len && i < sizeof(fmt_file_name) - 1; ++i) {
+		char c = in.str[i];
+		fmt_file_name[i] = (c == '.') ? '_' : c;
 	}
-	fmt_file_name[sc_main._args[1].len] = '\0';
-	printf("%s\n", fmt_file_name);
-	fflush(stdout);
-	u32 buff_len = snprintf(var_name_buff, sizeof(var_name_buff), (char *)"const unsigned char %s[] = {\n", fmt_file_name);
+	fmt_file_name[in.len] = '\0';
+
+	u32 buff_len = snprintf(var_name_buff, sizeof(var_name_buff),
+				"const unsigned char %s[] = {\n", fmt_file_name);
+
 	try(write, (file_out, var_name_buff, buff_len), {
 		perror("write");
+		exit(1);
 	});
-	for (u64 idx_in = 0; idx_in < file_size; idx_in++) {
-	    unsigned char byte = buffer_fd_in[idx_in];
 
-	    char buf[8];
-	    int len = snprintf(buf, sizeof buf, "\t0x%02x,", byte);
-	    try(write, (file_out, buf, len), {
-		perror("write");
-	    });
-
-	    if ((idx_in + 1) % 12 == 0) {
-		try(write, (file_out, "\n", 1),{
+	for (u64 i = 0; i < file_size; ++i) {
+		char buf[16];
+		int len = snprintf(buf, sizeof(buf), "\t0x%02x,", buffer_fd_in[i]);
+		try(write, (file_out, buf, len), {
 			perror("write");
+			exit(1);
 		});
-	    }
+
+		if ((i + 1) % 12 == 0) {
+			try(write, (file_out, "\n", 1), {
+				perror("write");
+				exit(1);
+			});
+		}
 	}
-	const char *footer = "\n};\n";
-	try(write, (file_out, footer, sstrlenx(footer)),{
+
+	try(write, (file_out, "\n};\n", 4), {
 		perror("write");
+		exit(1);
 	});
 
-	u32 len_var_len = snprintf(
-		var_len_buff,
-		sizeof(var_len_buff),
-		(char *)"\n\nconst unsigned int %s_len = %lu;\n\n", fmt_file_name, file_size
-	);
+	u32 len_var_len = snprintf(var_len_buff, sizeof(var_len_buff),
+				   "\nconst unsigned int %s_len = %lu;\n",
+				   fmt_file_name, file_size);
 
 	try(write, (file_out, var_len_buff, len_var_len), {
 		perror("write");
+		exit(1);
 	});
+
+	close(file_out);
 }
 
-
-static void exec_asm(StormC_Main_Entry_Process sc_main)
+static void exec_asm(struct stag_string target)
 {
-	int ret, status;
-	char cmd[1024];
-	u32 len = snprintf(cmd, sizeof(cmd), "objdump -d -M intel ./%.*s > stormc_asm.log 2>&1", (int)sc_main._args[1].len, sc_main._args[1].str);
-	cmd[len] = '\0';
-	ret = system(cmd);
-	status = __WEXITSTATUS(ret);
-	if (ret == -1) perror("system");
-
-
-}
-
-
-// #define MAX_RSYNC_PATHS 4096
-// #define MAX_RSYNC_PATH_HEADER 2048
-// #define RSYNC_STACK_RSRV (1lu << 32)
-// struct rsync_cmd_payload{
-// 	struct stc_string8	path_in[MAX_RSYNC_PATHS];
-// 	struct stc_string8	path_out[MAX_RSYNC_PATHS];
-// 	u64			ct_paths;
-// };
-//
-//
-// static struct rsync_cmd_payload rsync_cmdpl = {0};
-//
-//
-// static int visit(const char *path, const struct stat *st, int type, struct FTW *ftwbuf)
-// {
-// 	enum blacklist_types{GIT, EXAMPLES, SCRIPTS, TESTS, BLACKLIST_COUNT};
-// 	struct stc_string8 blacklist[] = {
-// 		[GIT]		= STR("/.git"),
-// 		[EXAMPLES]	= STR("/examples"),
-// 		[SCRIPTS]	= STR("/scripts"),
-// 		[TESTS]		= STR("/tests")
-// 	};
-// 	struct stc_string8 needle = STR(".h");
-// 	bool is_blacklisted;
-// 	u64 path_len = sstrlenx(path);
-// 	struct stc_string8 haystack = {.str = (char *)path, .len = path_len};
-// 	for (u64 i = 0; i < BLACKLIST_COUNT; i++) {
-// 		is_blacklisted = stormc_find_substr(haystack, blacklist[i]) >= 0;
-// 		if (likely(is_blacklisted)) goto FINISH;
-// 	}
-// 	bool is_header = stormc_find_substr(haystack, STR(".h")) != -1;
-// 	bool is_object = stormc_find_substr(haystack, STR(".o")) != -1;
-// 	struct stc_string8 stormc_infix = STR("stormlibc/");
-// 	struct stc_string8 stringed_path = {.str = (char *)path, .len = path_len};
-// 	char buff_concat[MAX_RSYNC_PATH_HEADER];
-// 	const char *prefix = "/usr/include/storm/";
-// 	u8 prefix_len = sizeof("/usr/include/storm/") - 1;
-// 	if (is_header) {
-// 		struct stc_string8 stringed_path = {.str = (char *)path, .len = path_len};
-// 		u64 len = stormc_find_substr(stringed_path, stormc_infix);
-// 		struct stc_string8 dir = {
-// 			.str = stringed_path.str + len + stormc_infix.len,
-// 			.len = stringed_path.len - len - stormc_infix.len
-// 		};
-// 		__builtin_memcpy(buff_concat, prefix, prefix_len);
-// 		__builtin_memcpy(buff_concat + prefix_len, dir.str, dir.len);
-// 		u64 total_concat_len = prefix_len + dir.len;
-// 		buff_concat[total_concat_len] = '\0';
-// 		u64 next_fwslsh = stormc_find_substr(dir, STR("/"));
-// 		struct stc_string8 dir_sliced = {
-// 			.str = dir.str,
-// 			.len = next_fwslsh
-// 		};
-// 		char concat_out_dir_sliced[2048];
-// 		__builtin_memcpy(concat_out_dir_sliced, prefix, prefix_len);
-// 		__builtin_memcpy(concat_out_dir_sliced + prefix_len, dir_sliced.str, dir_sliced.len);
-// 		u64 len_cnct_dir_sliced = prefix_len + dir_sliced.len;
-// 		concat_out_dir_sliced[len_cnct_dir_sliced] = '\0';
-// 		if (unlikely(!file_exists(concat_out_dir_sliced))) {
-// 			int ret = mkdir(concat_out_dir_sliced, 0755);
-// 			if (unlikely(ret < 0)) {
-// 				perror("mkdir");
-// 				exit(1);
-// 			}
-// 		}
-// 		dir.str = buff_concat;
-// 		dir.len = prefix_len + dir.len;
-// 		sstrcpyx(&rsync_cmdpl.path_in[rsync_cmdpl.ct_paths], &stringed_path);
-// 		sstrcpyx(&rsync_cmdpl.path_out[rsync_cmdpl.ct_paths], &dir);
-// 		// printf("IN:  \t%s\n", rsync_cmdpl.path_in[rsync_cmdpl.ct_paths].str);
-// 		// printf("OUT: \t%s\n", rsync_cmdpl.path_out[rsync_cmdpl.ct_paths].str);
-//
-// 		rsync_cmdpl.ct_paths++;
-// 	}
-//
-// FINISH:
-// 	return 0;
-// }
-
-// static void exec_stclib_sync(StormC_Main_Entry_Process sc_main)
-// {
-// 	const char *path = "/data/2025-2026-projs/c-projs/stormlibc";
-// 	if (!file_exists(path)) {
-// 		printf("Stormlibc path needs updating!\n");
-// 		exit(1);
-// 	}
-// 	printf("[OPENING] %s\n", path);
-// 	struct stc_stack *stack = stc_stack_gen(RSYNC_STACK_RSRV);
-// 	for (u64 i = 0; i < MAX_RSYNC_PATHS; i++) {
-// 		rsync_cmdpl.path_in[i].str = stc_stack_push(stack, char, MAX_RSYNC_PATH_HEADER);
-// 		rsync_cmdpl.path_out[i].str = stc_stack_push(stack, char, MAX_RSYNC_PATH_HEADER);
-// 	}
-// 	nftw(path, visit, 32, FTW_PHYS);
-//
-// 	const u64 max_len = rsync_cmdpl.ct_paths * MAX_RSYNC_PATH_HEADER;
-//
-// 	struct packed_fds{
-// 		int fd_in[MAX_RSYNC_PATHS];
-// 		int fd_out[MAX_RSYNC_PATHS];
-// 		u32 ct_fds;
-// 	};
-// 	struct packed_fds fds = {0};
-//
-// 	struct stat st = {0};
-// 	for (u64 i = 0; i < rsync_cmdpl.ct_paths; i++) {
-// 		fds.fd_in[fds.ct_fds] = open(rsync_cmdpl.path_in[i].str, O_RDONLY);
-// 		fds.fd_out[fds.ct_fds] = open(rsync_cmdpl.path_out[i].str, O_WRONLY | O_TRUNC | O_CREAT, 0644);
-// 		if(!(file_exists(rsync_cmdpl.path_in[i].str))) {
-// 			printf("File does not exist %s\n", rsync_cmdpl.path_in[i].str);
-// 			exit(1);
-// 		}
-// 		int ret = stat(rsync_cmdpl.path_in[i].str, &st);
-// 		if (unlikely(ret < 0)) {
-// 			perror("stat");
-// 		}
-// 		if (unlikely(fds.fd_in[fds.ct_fds] < 0)) {
-// 			printf("Attempting to open: %s\n", rsync_cmdpl.path_in[i].str);
-// 			perror("open");
-// 		}
-// 		if (unlikely(fds.fd_out[fds.ct_fds] < 0)) {
-// 			printf("Attempting to open: %s\n", rsync_cmdpl.path_out[i].str);
-// 			perror("open");
-//
-// 		}
-//
-// 		u64 copied = sendfile(fds.fd_out[fds.ct_fds], fds.fd_in[fds.ct_fds], 0, st.st_size);
-// 		// printf("[COPYING] %s to %s\n",
-// 		// 	rsync_cmdpl.path_in[i].str,
-// 		// 	rsync_cmdpl.path_out[i].str
-// 		// );
-// 		if (copied < 0) {
-// 			perror("sendfile");
-// 		}
-// 		fds.ct_fds++;
-// 	}
-//
-// 	for (u64 i = 0; i < rsync_cmdpl.ct_paths; i++) {
-// 		close(fds.fd_in[i]);
-// 		close(fds.fd_out[i]);
-// 	}
-//
-// }
-
-
-// static void exec_stcbi(StormC_Main_Entry_Process s)
-// {
-// 	int fd = try_syscall(open, (s._args[1].str, O_RDONLY), {
-// 		printf("%s\n", s._args[0].str);
-// 		fflush(stdout);
-// 		perror("open");
-// 	});
-//
-// 	Elf64_Ehdr eh;
-// 	pread(fd, &eh, sizeof(eh), 0);
-// 	if (memcmp(eh.e_ident, ELFMAG, SELFMAG) != 0) return;
-// 	if (eh.e_ident[EI_CLASS] != ELFCLASS64) return;
-//
-//
-// 	size_t shdr_bytes = eh.e_shentsize * eh.e_shnum;
-// 	Elf64_Shdr *shdrs = (Elf64_Shdr*)malloc(shdr_bytes);
-// 	pread(fd, shdrs, shdr_bytes, eh.e_shoff);
-//
-//
-// 	Elf64_Shdr shstr = shdrs[eh.e_shstrndx];
-// 	char *shrstrtab = (char*)malloc(shstr.sh_size);
-// 	pread(fd, shrstrtab, shstr.sh_size, shstr.sh_offset);
-// 	Elf64_Shdr *target = NULL;
-//
-// 	for (Elf64_Half i = 0; i < eh.e_shnum; i++) {
-// 		const char *name = shrstrtab + shdrs[i].sh_name;
-// 		if (strcmp(name, ".stcbi") == 0) {
-// 			target = &shdrs[i];
-// 			break;
-// 		}
-// 	}
-//
-//
-// 	if (!target) {
-// 		fprintf(stderr, "Did not find .stcbi section\n");
-// 		goto FINISH;
-// 	}
-//
-// 	unsigned char *data = malloc(target->sh_size);
-// 	pread(fd, data, target->sh_size,  target->sh_offset);
-// 	struct stormc_buildinfo *bi = (struct stormc_buildinfo *)data;
-//
-// 	time_t tt = (time_t)bi->unix_time;
-// 	struct tm tm = {0};
-// 	localtime_r(&tt, &tm);
-//
-// 	char time_buf[64];
-// 	strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
-//
-// 	fprintf(stdout, "Compiler:\n%.*s\n", (int)bi->compiler_name_len, bi->compiler_name);
-// 	fprintf(stdout, "%s\n", "---------------------------");
-// 	fprintf(stdout, "Flags: ");
-// 	char *flags = malloc(bi->flags_len * sizeof(char) + 1);
-// 	strcpy(flags, bi->compiler_flags);
-// 	flags[bi->flags_len] = '\0';
-// 	fprintf(stdout, "%s", flags);
-// 	fprintf(stdout, "%s\n", "---------------------------");
-// 	fprintf(stdout, "Compiled Date(YYYY-MM-DD):\n%s\n", time_buf);
-// 	fprintf(stdout, "%s\n", "---------------------------");
-//
-// FINISH:
-//
-// 	free(shdrs);
-// 	free(data);
-// 	try_syscall(close, (fd), {
-// 		perror("close");
-// 	});
-//
-// }
-
-
-
-
-// RIP Terry
-static void exec_uf(StormC_Main_Entry_Process s)
-{
-	int ret, status;
-	char cmd[1024];
-	u32 len = snprintf(cmd, sizeof(cmd),
-	"gdb -batch -ex 'set disassembly-flavor intel' -ex 'disassemble %.*s' %.*s > stormc_asm_%.*s_%.*s.log 2>&1",
-		    (int)s._args[2].len, s._args[2].str,
-		    (int)s._args[1].len, s._args[1].str,
-		    (int)s._args[1].len, s._args[1].str,
-		    (int)s._args[2].len, s._args[2].str
-		    );
-	cmd[len] = '\0';
-	ret = system(cmd);
-	status = __WEXITSTATUS(ret);
-	if (ret == -1) perror("system");
-
-}
-
-int main(int argc, char **argv)
-{
-	int ret;
-	int status;
-	StormC_Main_Entry_Process sc_main = {0};
-	if (argc > 32) {
-		printf("List of arguments is too long: %d\n", argc);
+	if (!target.str) {
+		fprintf(stderr, "asm requires a target binary name\n");
 		exit(1);
 	}
 
-	while (sc_main.len < argc - 1){
-		sc_main._args[sc_main.len] = STR_RUNTIME(argv[1 + sc_main.len]);
-		sc_main.len++;
+	char cmd[1024];
+	snprintf(cmd, sizeof(cmd),
+		 "objdump -d -M intel ./%.*s > stormc_asm.log 2>&1",
+		 (int)target.len, target.str);
+
+	int ret = system(cmd);
+	if (ret == -1) {
+		perror("system");
+	}
+}
+
+static void exec_uf(struct stag_string spec)
+{
+	struct stag_array_string parts = stag_string_to_array_of_strings(spec, ' ');
+	if (parts.len < 2) {
+		fprintf(stderr, "uf requires: <binary> <function>\n");
+		exit(1);
 	}
 
-	if (sstrcmpx(sc_main._args[0], G_COMMANDS[CTAGS]))		exec_ctags(sc_main);
-	else if (sstrcmpx(sc_main._args[0], G_COMMANDS[INIT]))		exec_init(sc_main);
-	else if(sstrcmpx(sc_main._args[0], G_COMMANDS[RUN]))		exec_run();
-	else if (sstrcmpx(sc_main._args[0], G_COMMANDS[BUILD])) 	exec_build(sc_main);
-	else if (sstrcmpx(sc_main._args[0], G_COMMANDS[EMBED])) 	exec_embed(sc_main);
-	else if (sstrcmpx(sc_main._args[0], G_COMMANDS[ASM]))		exec_asm(sc_main);
-	// else if (sstrcmpx(sc_main._args[0], G_COMMANDS[STCLIB_SYNC]))	exec_stclib_sync(sc_main);
-	// else if (sstrcmpx(sc_main._args[0], G_COMMANDS[BUILDINFO]))	exec_stcbi(sc_main);
-	else if (sstrcmpx(sc_main._args[0], G_COMMANDS[UF]))		exec_uf(sc_main);
-	// else if (sstrcmpx(sc_main._args[0], G_COMMANDS[CODEGEN])){
-	// 	if (file_exists(sc_main._args[1].str)) {
-	// 		exec_codegen(sc_main._args[1].str);
-	// 	} else {
-	// 		fprintf(stderr, "File %.*s does not exist\nExiting\n", STRING_SIZED(sc_main._args[1]));
-	// 	}
-	//
-	// }
-	else {
-		fprintf(stderr, "Unknown command: '%.*s'\n", (int)sc_main._args[0].len, sc_main._args[0].str);
+	struct stag_string bin  = parts.strings[0];
+	struct stag_string func = parts.strings[1];
+
+	char cmd[1024];
+	snprintf(cmd, sizeof(cmd),
+		"gdb -batch -ex 'set disassembly-flavor intel' "
+		"-ex 'disassemble %.*s' %.*s > stormc_asm_%.*s_%.*s.log 2>&1",
+		(int)func.len, func.str,
+		(int)bin.len,  bin.str,
+		(int)bin.len,  bin.str,
+		(int)func.len, func.str);
+
+	int ret = system(cmd);
+	if (ret == -1) {
+		perror("system");
 	}
+}
+
+
+stag_bool32 path_exists(struct stag_string proj_path)
+{
+
+	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
+		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_path, .len = stc_proj_mapper->payload.projects[i].proj_path_len};
+		if (stag_strcmp(proj_path, current)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+stag_bool32 proj_exists(struct stag_string proj_name)
+{
+	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
+		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
+		if (stag_strcmp(proj_name, current)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
+void exec_reg_proj(struct stag_string proj_name, struct stag_string proj_path)
+{
+	if (proj_name.str != NULL && proj_name.len > 0) {
+		if (proj_path.str != NULL && proj_path.len > 0) {
+			fprintf(stdout, "Registered project name: %.*s\n", (int)proj_name.len, proj_name.str);
+			fprintf(stdout, "Registered project path: %.*s\n", (int)proj_path.len, proj_path.str);
+
+			if (!stc_proj_mapper->payload.config_is_set) {
+				stc_proj_mapper->payload.config_is_set = true;
+			}
+
+			u64 *ct_projs = &stc_proj_mapper->payload.ct_projects;
+
+			if (proj_name.len > 1024) {
+				fprintf(stderr, "Project name %.*s exceeds maximum length of 1024\n", (int)proj_name.len, proj_name.str);
+				goto finish;
+			}
+			if (proj_path.len > 1024) {
+				fprintf(stderr, "Project path %.*s exceeds maximum length of 1024\n", (int)proj_path.len, proj_path.str);
+				goto finish;
+			}
+
+			if (path_exists(proj_path)) {
+				fprintf(stderr, "Project path %.*s already registered\n", (int)proj_path.len, proj_path.str);
+				return;
+			}
+
+			if (proj_exists(proj_name)) {
+				fprintf(stderr, "Project name %.*s already registered\n", (int)proj_name.len, proj_name.str);
+				return;
+			}
+
+			stc_memcpy(stc_proj_mapper->payload.projects[*ct_projs].proj_name, proj_name.str, proj_name.len);
+			stc_proj_mapper->payload.projects[*ct_projs].proj_name_len = proj_name.len;
+
+			stc_memcpy(stc_proj_mapper->payload.projects[*ct_projs].proj_path, proj_path.str, proj_path.len);
+			stc_proj_mapper->payload.projects[*ct_projs].proj_path_len = proj_path.len;
+
+			++(*ct_projs);
+
+
+
+			finish:
+				return;
+		}
+		fprintf(stderr, "Missing project path for project name: %.*s\n", (int)proj_name.len, proj_name.str);
+		return;
+	}
+	fprintf(stderr, "Missing project name\n");
+
+}
+
+
+void stormc_check_system(void)
+{
+	stc_proj_mapper = stc_alloc(sizeof(*stc_proj_mapper));
+	stc_proj_mapper->config_file_location = DEFAULT_CONFIG_LOCATION;
+	stc_proj_mapper->payload.magic = STORMC_CFG_META_MAGIC;
+	stc_proj_mapper->payload.version = STORMC_CFG_META_VERSION;
+	const char *home = getenv("HOME");
+	if (!home) {
+		fprintf(stderr, "Env variable HOME is not set\n");
+		return;
+	}
+	char path[1024] = {0};
+	snprintf(path, sizeof(path), "%s/.config/stormc/config.stc", home);
+	char dir[1024] = {0};
+	snprintf(dir, sizeof(dir), "%s/.config/stormc", home);
+	mkdir(dir, 0755);
+
+	if (!file_exists(dir)) {
+		mkdir(dir, 0755);
+	}
+
+	if (!file_exists(path)) {
+		FILE *f = fopen(path, "w");
+		if (f) {
+			fclose(f);
+		} else {
+			perror("fopen");
+			return;
+		}
+	}
+
+	FILE *f = fopen(path, "rb");
+	if (!f) {
+		perror("fopen");
+		return;
+	} else {
+		fread(&stc_proj_mapper->payload, sizeof(stc_proj_mapper->payload), 1, f);
+		fclose(f);
+	}
+}
+
+
+void exec_list_projs(void)
+{
+	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
+		printf("Project Name: %.*s\n", (int)stc_proj_mapper->payload.projects[i].proj_name_len, stc_proj_mapper->payload.projects[i].proj_name);
+		printf("\t\t-->Project Path: %.*s\n", (int)stc_proj_mapper->payload.projects[i].proj_path_len, stc_proj_mapper->payload.projects[i].proj_path);
+	}
+}
+
+
+
+struct stag_string get_project_path_from_name(struct stag_string proj_name)
+{
+	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
+		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
+		if (stag_strcmp(proj_name, current)) {
+			return (struct stag_string){
+				.str = stc_proj_mapper->payload.projects[i].proj_path,
+				.len = stc_proj_mapper->payload.projects[i].proj_path_len
+			};
+		}
+	}
+
+	return (struct stag_string){
+		.str = NULL,
+		.len = 0
+	};
+}
+
+
+
+
+/*TODO: WORK IN PROGRESS FOR A STORMC SESSIN MANAGER*/
+static void exec_start(void)
+{
+	char line[4096];
+
+	for (;;) {
+		char cwd[1024];
+		if (getcwd(cwd, sizeof(cwd))) {
+			printf("stormc:%s$ ", cwd);
+		} else {
+			printf("stormc$ ");
+		}
+		fflush(stdout);
+
+		if (!fgets(line, sizeof(line), stdin)) {
+			break; // EOF / Ctrl-D
+		}
+
+		// trim trailing newline
+		size_t len = strlen(line);
+		if (len && line[len - 1] == '\n') {
+			line[len - 1] = '\0';
+		}
+
+		if (line[0] == '\0') {
+			continue;
+		}
+
+		if (strcmp(line, "exit") == 0) {
+			break;
+		}
+
+		if (strcmp(line, "pwd") == 0) {
+			if (getcwd(cwd, sizeof(cwd))) {
+				printf("%s\n", cwd);
+			}
+			continue;
+		}
+
+		if (strncmp(line, "cd ", 3) == 0) {
+			char *path = line + 3;
+			if (chdir(path) != 0) {
+				perror("chdir");
+			}
+			continue;
+		}
+
+		if (strncmp(line, "goto ", 5) == 0) {
+			struct stag_string proj = {
+				.str = line + 5,
+				.len = strlen(line + 5),
+			};
+
+			proj = stormc_trim_quotes(proj);
+
+			struct stag_string path = get_project_path_from_name(proj);
+			char buf[1024];
+			snprintf(buf, sizeof(buf), "%.*s", (int)path.len, path.str);
+			printf("executing %s\n", buf);
+
+			if (chdir(buf) != 0) {
+				perror("chdir");
+			}
+			continue;
+		}
+
+		// everything else: hand off to shell
+		int ret = system(line);
+		if (ret == -1) {
+			perror("system");
+		}
+	}
+}
+
+
+
+void exec_goto_dir(struct stag_string proj_name)
+{
+	struct stag_string proj_path = get_project_path_from_name(proj_name);
+	fprintf(stdout, "%.*s\n", (int)proj_path.len, proj_path.str);
+}
+
+
+void exec_add_proj(struct stag_array_string sarr)
+{
+	struct stag_string proj_name = sarr.strings[0];
+	struct stag_string proj_path = sarr.strings[1];
+
+	if (proj_name.len > 1024) {
+		STORMC_ERROR_FMT("Project exceeds max length of 1024: %.*s\n", proj_name);
+		return;
+	}
+	if (!proj_exists(proj_name)) {
+		stc_proj_add_proj(proj_name, proj_path);
+		return;
+	}
+	STORMC_ERROR_FMT("Project already exists: %.*s\n", proj_name);
+}
+
+void exec_update_proj(struct stag_array_string sarr)
+{
+	struct stag_string old_name = sarr.strings[0];
+	struct stag_string new_name = sarr.strings[1];
+	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
+		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
+		if (stag_strcmp(old_name, current)) {
+			stc_memcpy(stc_proj_mapper->payload.projects[i].proj_name, new_name.str, new_name.len);
+			stc_proj_mapper->payload.projects[i].proj_name_len = new_name.len;
+			break;
+		}
+	}
+}
+
+
+
+
+void exec_remove_proj(struct stag_string proj_name)
+{
+	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
+		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
+		if (stag_strcmp(proj_name, current)) {
+			stc_memmove(&stc_proj_mapper->payload.projects[i],
+				    &stc_proj_mapper->payload.projects[i + 1],
+				    (stc_proj_mapper->payload.ct_projects - i - 1) * sizeof(*stc_proj_mapper->payload.projects)
+				    );
+			--stc_proj_mapper->payload.ct_projects;
+			stc_memset(&stc_proj_mapper->payload.projects[stc_proj_mapper->payload.ct_projects], 0,
+			       sizeof(*stc_proj_mapper->payload.projects));
+			break;
+		}
+	}
+}
+
+
+static void stormc_save_config(void)
+{
+	const char *home = getenv("HOME");
+	if (!home) {
+		fprintf(stderr, "HOME is not set\n");
+		return;
+	}
+
+	char path[1024];
+	snprintf(path, sizeof(path), "%s/.config/stormc/config.stc", home);
+
+	FILE *fout = fopen(path, "wb");
+	if (!fout) {
+		perror("fopen");
+		return;
+	}
+
+	fwrite(&stc_proj_mapper->payload, sizeof(stc_proj_mapper->payload), 1, fout);
+	fclose(fout);
+}
+
+
+
+int main(int argc, char **argv)
+{
+	stormc_check_system();
+	stag_run(argc, argv);
+
+	stag_bool32 want_init  = false;
+	stag_bool32 want_run   = false;
+	stag_bool32 want_reg_proj = false;
+	stag_bool32 want_list_proj = false;
+
+	struct stag_string ctags_arg		= {0};
+	struct stag_string build_arg 		= {0};
+	struct stag_string embed_arg 		= {0};
+	struct stag_string asm_arg   		= {0};
+	struct stag_string uf_arg    		= {0};
+	struct stag_string reg_proj_args	= {0};
+	struct stag_string reg_proj_path	= {0};
+	struct stag_string goto_proj		= {0};
+	struct stag_array_string proj_add	= {0};
+	struct stag_string proj_remove		= {0};
+	struct stag_array_string proj_update	= {0};
+
+	stag_bool32 running = true;
+	while (running) {
+		struct stag_cmd_array cmd = stag_next_cmd();
+
+		switch (cmd.cmd) {
+		default: break;
+		case INIT:			want_init = true; break;
+		case RUN:   			want_run = true; break;
+		case CTAGS: 			ctags_arg = cmd.args; break;
+		case BUILD: 			build_arg = cmd.args; break;
+		case EMBED: 			embed_arg = cmd.args; break;
+		case ASM:   			asm_arg = cmd.args; break;
+		case UF:    			uf_arg = cmd.args; break;
+		case LIST_PROJECTS:		want_list_proj = true; break;
+		case GOTO_PROJ:			goto_proj = cmd.args; break;
+		case PROJECT_ADD:
+		{
+			proj_add = stag_string_to_array_of_strings(cmd.args, '|');
+			break;
+		}
+		case PROJECT_UPDATE:
+		{
+			proj_update = stag_string_to_array_of_strings(cmd.args, '|');
+			break;
+		}
+		case PROJECT_REMOVE:
+		{
+			proj_remove = cmd.args;
+			break;
+		}
+		case REGISTER_PROJ_NAME:
+		{
+			want_reg_proj = true;
+			reg_proj_args = cmd.args;
+			break;
+		}
+		case REGISTER_PROJ_PATH:
+		{
+			want_reg_proj = true;
+			reg_proj_path = cmd.args;
+			break;
+		}
+		case NIL:
+			running = false;
+			break;
+		}
+	}
+
+	if (want_reg_proj)
+		exec_reg_proj(reg_proj_args, reg_proj_path);
+
+
+	if (want_init)
+		exec_init();
+
+	if (want_run)
+		exec_run();
+
+	if (ctags_arg.str)
+		exec_ctags(ctags_arg);
+
+	if (build_arg.str)
+		exec_build(build_arg);
+
+	if (embed_arg.str)
+		exec_embed(embed_arg);
+
+	if (asm_arg.str)
+		exec_asm(asm_arg);
+
+	if (uf_arg.str)
+		exec_uf(uf_arg);
+
+	if (want_list_proj)
+		exec_list_projs();
+
+
+	if (goto_proj.str) {
+		exec_goto_dir(goto_proj);
+	}
+
+
+	if (proj_add.len == 2) {
+		exec_add_proj(proj_add);
+	}
+
+	if (proj_update.len == 2) {
+		exec_update_proj(proj_update);
+	}
+
+	if (proj_remove.str) {
+		exec_remove_proj(proj_remove);
+	}
+
+
+	stormc_save_config();
+
 
 	return 0;
 }

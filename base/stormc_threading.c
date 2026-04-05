@@ -1,5 +1,8 @@
 #pragma once
 #include "../stormc_header.h"
+#include "../text/stormc_string.c"
+#include "../base/stormc_allocator.c"
+#include "stormc_math.c"
 
 #ifdef _WIN32
 	#define stc_thread HANDLE
@@ -44,7 +47,7 @@ struct stc_threading_ctx{
 	u32		parallel_work_end[THREADING_MAX_THREADS_PER_GROUPS];
 	u64		off_bytes_func_ret[THREADING_MAX_THREADS_PER_GROUPS];
 	void		*func_ret[THREADING_MAX_THREADS_PER_GROUPS];
-	u8*		group_ret; /*atomic return value, currently unused and unimplemented for windows, although works on linux*/
+	u64		accumulator[THREADING_MAX_THREADS_PER_GROUPS];
 	u64		ct_active_threads;
 };
 static stc_thread_local u64 __stc_lane_id;
@@ -110,28 +113,29 @@ static STC_T_FUN(STC_ENTRY_POINT, param);
 
 void stc_threading_init_func_ret(stc_threading_group_t group_id, u64 threads_count, u64 reservation_size, u64 initial_size_func_ret_array)
 {
-	initial_size_func_ret_array = STC_ALIGN_UP(initial_size_func_ret_array*2, PAGESIZE);
-	reservation_size = STC_ALIGN_UP(reservation_size + initial_size_func_ret_array, PAGESIZE);
 
-	u64 alloted_per_thread = STC_ALIGN_UP(reservation_size / threads_count, PAGESIZE);
-	reservation_size = threads_count * alloted_per_thread;
+	if (!is_pow2(initial_size_func_ret_array)) {
+		fprintf(stderr, "Thread init size has to be a power of 2\n");
+		exit(1);
+	}
+
+	if (!is_pow2(reservation_size)) {
+		fprintf(stderr, "Thread init size has to be a power of 2\n");
+		exit(1);
+	}
+
+	u64 per_thread_reservation = reservation_size / threads_count;
 	u8 *block = (u8*)stc_os_mem_rsrv(reservation_size);
 
-	u64 offset = 0;
 	for (u64 idx = 0; idx < threads_count; ++idx) {
-		__stc_thread_ctx[group_id].func_ret[idx] = block + offset;
+		__stc_thread_ctx[group_id].func_ret[idx] = block + (idx * per_thread_reservation);
 		__stc_thread_ctx[group_id].off_bytes_func_ret[idx] = initial_size_func_ret_array;
 		if (stc_os_mem_cmt(__stc_thread_ctx[group_id].func_ret[idx], initial_size_func_ret_array) == NULL) {
 			printf("Func Ret Commit failed\n");
 			exit(1);
 		}
-		offset += alloted_per_thread;
 	}
-	__stc_thread_ctx[group_id].group_ret = block + offset;
-	if (stc_os_mem_cmt(__stc_thread_ctx[group_id].group_ret, initial_size_func_ret_array) == NULL) {
-		printf("Group ret commit failed\n");
-		exit(1);
-	}
+
 	__stc_thread_ctx[group_id].ct_active_threads = threads_count;
 }
 
@@ -153,11 +157,13 @@ void stc_threading_system_begin(void)
 		u64 thread_mem_cmt = __stc_thread_init.mem_commit[idx_group];
 		stc_threading_init_func_ret(idx_group, threads_count, thread_mem_rsrv, thread_mem_cmt);
 		stc_threads_barrier_init(&__stc_thread_ctx[idx_group].barrier, NULL, threads_count);
-		for (u64 thread_idx = 0; thread_idx < threads_count; ++thread_idx) {
+		for (u64 thread_idx = 1; thread_idx < threads_count; ++thread_idx) {
 			u64 param = (idx_group << 32) | (thread_idx << 0);
 			stc_threads_create(&__stc_thread_ctx[idx_group].handle[thread_idx], NULL, STC_ENTRY_POINT, (void*)param);
 		}
 	}
+	u64 param = (0llu << 32) | 0;
+	STC_ENTRY_POINT((void*)param);
 }
 
 
@@ -165,7 +171,7 @@ void stc_threading_system_end(void)
 {
 	for (u64 idx_group = 0; idx_group < __stc_thread_init.groups_count; ++idx_group) {
 		u64 threads_count = __stc_thread_init.threads[idx_group];
-		for (u64 thread_idx = 0; thread_idx < threads_count; ++thread_idx) {
+		for (u64 thread_idx = 1; thread_idx < threads_count; ++thread_idx) {
 			stc_threads_join(__stc_thread_ctx[idx_group].handle[thread_idx], NULL);
 		}
 		stc_threads_barrier_destroy(&__stc_thread_ctx[idx_group].barrier);
@@ -199,6 +205,12 @@ stc_threading_group_t stc_threading_create_new_group(void)
 
 void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u32 commit, u64 rsrv, u32 number_of_threads)
 {
+	if (!is_pow2(commit))
+		commit = next_pow2(commit);
+
+	if (!is_pow2(rsrv))
+		commit = next_pow2(rsrv);
+
 	__stc_thread_init.threads[group_id] = number_of_threads;
 	__stc_thread_init.mem_rsrv[group_id] = rsrv;
 	__stc_thread_init.mem_commit[group_id] = commit;
@@ -246,4 +258,43 @@ u64 stc_sum_lanes_return_value_u64(u64 group_id)
 	return accum;
 }
 
+void stc_threading_write_return(u64 group_id, u64 lane_id, void *v, u64 size)
+{
+	stc_memcpy(__stc_thread_ctx[group_id].func_ret[lane_id], v, size);
+}
 
+void *stc_threading_read_return(u64 group_id, u64 lane_id)
+{
+	return stc_lane_return_value(group_id, lane_id);
+}
+
+
+void stc_threading_lane_accumulator(u64 group_id, u64 lane_id)
+{
+	__stc_thread_ctx[group_id].accumulator[lane_id]++;
+}
+
+u64 stc_threading_sum_group_accumulator(u64 group_index)
+{
+	u64 accum = 0;
+
+	for (u64 thread_index = 0; thread_index < __stc_thread_ctx->ct_active_threads; ++thread_index) {
+		accum += __stc_thread_ctx[group_index].accumulator[thread_index];
+	}
+
+	return accum;
+}
+
+void stc_threading_group_reset_accumulator(u64 group_index)
+{
+	for (u64 thread_index = 0; thread_index < __stc_thread_ctx->ct_active_threads; ++thread_index) {
+		__stc_thread_ctx[group_index].accumulator[thread_index] = 0;
+	}
+
+}
+
+void stc_threading_lane_reset_accumulator(u64 group_index, u64 lane_idx)
+{
+	__stc_thread_ctx[group_index].accumulator[lane_idx] = 0;
+
+}

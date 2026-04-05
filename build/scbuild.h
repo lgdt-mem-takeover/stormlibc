@@ -1,6 +1,10 @@
 // #include "/data/stormlibc/core/stormc_types.h"
 // #include "stc_utils.h"
 
+
+
+
+
 #define STORMC_ALLOCATOR
 #define STORMC_STRING
 
@@ -18,6 +22,60 @@
 #define MAX_FILES 1024
 #define MAX_DIRS 1024
 
+
+#define INCLUDE_FREETYPE_WINDOWS\
+	set_library_paths(\
+	    STR("-L/data/site_packages/mxe/usr/x86_64-w64-mingw32.static/lib")\
+	);\
+	set_include_paths(\
+	    STR("data/site_packages/mxe/usr/x86_64-w64-mingw32.static/include/freetype2")\
+	);\
+	set_libraries(\
+	    STR("-lfreetype"),\
+	    STR("-lpng"),\
+	    STR("-lbrotlidec"),\
+	    STR("-lbrotlicommon"),\
+	    STR("-lharfbuzz"),\
+	    STR("-lz"),\
+	    STR("-lbz2")\
+	)
+
+#define INCLUDE_SDL3_LINUX\
+	set_libraries(STR("-lSDL3"), STR("-lSDL3_image"), STR("-lSDL3_ttf"))
+
+#define INCLUDE_SDL3_WINDOWS\
+		set_libraries(STR("-lSDL3"), STR("-lSDL3_image"), STR("-lSDL3_ttf"));\
+		set_library_paths(\
+		    STR("-L/data/sdk/SDL3-3.4.2/x86_64-w64-mingw32/lib"),\
+		    STR("-L/data/sdk/SDL3-3.4.2/SDL3_ttf-3.2.2/x86_64-w64-mingw32/lib"),\
+		    STR("-L/data/sdk/SDL3-3.4.2/SDL3_image-3.4.0/x86_64-w64-mingw32/lib")\
+		);\
+		set_include_paths(\
+		    STR("data/sdk/SDL3-3.4.2/x86_64-w64-mingw32/include"),\
+		    STR("data/sdk/SDL3-3.4.2/SDL3_ttf-3.2.2/x86_64-w64-mingw32/include"),\
+		    STR("data/sdk/SDL3-3.4.2/SDL3_image-3.4.0/x86_64-w64-mingw32/include")\
+		);\
+	INCLUDE_FREETYPE_WINDOWS
+
+#define INCLUDE_RAYLIB_LINUX\
+	set_libraries(\
+	    STR("-Wl,-rpath,'$ORIGIN'"),\
+	    STR("-L/data/site_packages/raylib/zig-out/lib/"),\
+	    STR("-lraylib -lm -lGL -lpthread -ldl")\
+	    );\
+	set_include_paths(\
+	    STR("/data/site_packages/raylib/zig-out/include")\
+	    )
+
+#define INCLUDE_RAYLIB_WINDOWS\
+	set_libraries(\
+	    STR("-Wl,-rpath,'$ORIGIN'"),\
+	    STR("-L/data/site_packages/raylib/zig-out/lib/"),\
+	    STR("-lraylib -lgdi32 -lopengl32 -lwinmm")\
+	    );\
+	set_include_paths(\
+	    STR("/data/site_packages/raylib/zig-out/include")\
+	    )
 
 
 #define STR_NULL (struct stc_string8){.str = NULL, .len = 0}
@@ -37,6 +95,7 @@ enum compilers{
 	C_CLANGPP,
 	C_GCCPP,
 	C_MINGW64PP,
+	C_MXE_MINGW64PP,
 	CT_COMPILERS
 };
 
@@ -50,6 +109,7 @@ static struct stc_string8  table_compilers[] = {
 	[C_CLANGPP] = STR("clang++"),
 	[C_GCCPP] = STR("gcc++"),
 	[C_MINGW64PP] = STR("x86_64-w64-mingw32-g++"),
+	[C_MXE_MINGW64PP] = STR("x86_64-w64-mingw32.shared-g++"),
 };
 
 enum extension{
@@ -250,9 +310,6 @@ struct stc_string8 G_COMMANDS[G_COMMAND_TYPES_COUNT] = {
 #define MAX_OBJECTS 64
 #define MAX_LIBRARIES 64
 #define MAX_FLAGS 128
-
-#define STRING8_NULL (struct stc_string8){.str = NULL, .len = 0}
-
 
 enum stcb_extra_capabilities{
 	STCB_EXTRA_NIL = 0,

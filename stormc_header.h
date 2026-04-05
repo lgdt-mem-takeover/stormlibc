@@ -1,16 +1,16 @@
 #pragma once
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#pragma GCC diagnostic ignored "-Winitializer-overrides"
+#pragma GCC diagnostic ignored "-Wc23-extensions"
 #define MAX_UINT64 ((u64)-1)
 
+#define FONT_PATH_DEVAJU_SANS "/data/2026-projs/c/stormlibc/assets/ttf/DejaVuSans.ttf"
 
 #ifndef INF
 #define INF __builtin_inf()
 #endif
-
-
-
-
-
 
 #ifdef __cplusplus
 #define stc_byte char
@@ -22,15 +22,6 @@
 	#ifndef WIN32_LEAN_AND_MEAN
 		#define WIN32_LEAN_AND_MEAN
 	#endif
-
-	#ifndef NOGDI
-		#define NOGDI
-	#endif
-
-	#ifndef NOUSER
-		#define NOUSER
-	#endif
-
 
 	#ifndef NOMINMAX
 		#define NOMINMAX
@@ -47,13 +38,7 @@
 	#include <netdb.h>
 	#include <pthread.h>
 #endif
-
-
-#define defer(__end_func__, ...) \
-	do{\
-		__VA_ARGS__;\
-		__end_func__;\
-	}while(0)
+#include <assert.h>
 
 #ifdef STORMC_STEAM
 	#ifndef __cplusplus
@@ -68,9 +53,29 @@
 #endif
 
 
+
+#ifdef STORMC_SDL3
+	#include <SDL3/SDL.h>
+	#include <SDL3_image/SDL_image.h>
+	#include <SDL3_ttf/SDL_ttf.h>
+	#include <SDL3_ttf/SDL_textengine.h>
+	#include <SDL3/SDL_error.h>
+	#include <SDL3/SDL_gpu.h>
+	#include <SDL3/SDL_log.h>
+	#include <SDL3/SDL_surface.h>
+#endif
+
+#define STC_ARRCOUNT(x) (sizeof(x) / sizeof(*(x)))
 #ifdef STORMC_WEBGPU
 	#include "webgpu/wgpu.h"
 #endif
+
+#define defer(__end_func__, ...) \
+	do{\
+		__VA_ARGS__;\
+		__end_func__;\
+	}while(0)
+
 
 #include "base/stormc_base.h"
 #include <stdio.h>
@@ -83,14 +88,52 @@ static const u32 MANTISSAF32 = 0x7FFFFF;
 #define defer_loop(start, end) for(int _i_ = ((start), 0); _i_ == 0; (_i_ += 1, (end)))
 
 #define SELECT(cond, when_true, when_false) ((when_true) * (cond) | (when_false) * !(cond))
-#define STRING8_NULL (struct stc_string8){.str = null, .len = 0}
+#define STRING8_NULL (struct stc_string8){.str = NULL, .len = 0}
+
+
+#define ILT_GROUPS_COUNT 64ULL
+#define ILT_ML0_CT (ILT_GROUPS_COUNT * ILT_GROUPS_COUNT)
+#define ILT_TOTAL_INDICES (ILT_ML0_CT * 64ULL)
+#define ILT_NIL_REAL_IDX (~0ULL)
+
+
+struct stc_ilt{
+	u64	ml0[ILT_ML0_CT];
+	u64	ml0_count;
+	u64	ml1[ILT_GROUPS_COUNT];
+	u64	ml1_count;
+	u64	ml2;
+	u64	used_count;
+	u64	max;
+};
+
+
+
+struct ilt_ctx_frame{
+	u64	ml1_idx;
+	u64	ml1_group;
+	u64	ml0_idx;
+	u64	ml0_bit;
+};
+
+static u64 ilt_next_idx(struct stc_ilt *ilt);
+static u64 ilt_top_idx(struct stc_ilt *ilt);
+static bool32 ilt_is_empty(struct stc_ilt *ilt);
+static bool32 ilt_is_full(struct stc_ilt *ilt);
+static u64 ilt_get_ml0_idx(u64 ml1_idx, u64 ml1_current_full_groups);
+static u64 ilt_get_real_idx(u64 ml1_idx, u64 ml1_current_full_groups, u64 ml0_bit_offset);
+static void ilt_set_ml1_group(struct stc_ilt *ilt, u64 ml1_idx, u64 ml1_group);
+static void ilt_unset_ml1_group(struct stc_ilt *ilt, u64 ml1_idx, u64 ml1_group);
+static void ilt_count_inc(struct stc_ilt *ilt);
+static void ilt_count_dec(struct stc_ilt *ilt);
+static struct ilt_ctx_frame ilt_get_ctx_frame(struct stc_ilt *ilt);
 
 
 struct stc_strbldr{
 	stc_byte	*ptr;
-	u64	off;
-	u64	cmt;
-	u64	rsrv;
+	u64		off;
+	u64		cmt;
+	u64		rsrv;
 };
 
 
@@ -117,7 +160,7 @@ struct stc_string8_split{
 
 struct stc_arena_string8{
 	struct stc_string8	*strings;
-	stc_byte			*mem;
+	stc_byte		*mem;
 	u64			offset_mem;
 	u32			ct_strings;
 	u32			current_max_strings;
@@ -140,40 +183,133 @@ struct hash_params{
 
 
 
+u64 ilt_get_real_idx(u64 ml1_idx, u64 ml1_current_full_groups, u64 ml0_bit_offset)
+{
+	return ml1_idx * ILT_ML0_CT + ml1_current_full_groups * ILT_GROUPS_COUNT + ml0_bit_offset;
+}
+
+
+void ilt_set_ml1_group(struct stc_ilt *ilt, u64 ml1_idx, u64 ml1_group)
+{
+	ilt->ml1[ml1_idx] |= (1llu << ml1_group);
+
+	if (ilt->ml1[ml1_idx] == ~0ULL) {
+		ilt->ml2 |= (1llu << ml1_idx);
+	}
+}
+
+
+void ilt_unset_ml1_group(struct stc_ilt *ilt, u64 ml1_idx, u64 ml1_group)
+{
+	ilt->ml1[ml1_idx] &= ~(1llu << ml1_group);
+
+	if (ilt->ml1[ml1_idx] != ~0ULL) {
+		ilt->ml2 &= ~(1llu << ml1_idx);
+	}
+}
+
+
+u64 ilt_get_ml0_idx(u64 ml1_idx, u64 ml1_current_full_groups)
+{
+	return ml1_idx * ILT_GROUPS_COUNT + ml1_current_full_groups;
+}
+
+void ilt_count_inc(struct stc_ilt *ilt)
+{
+	ilt->used_count++;
+}
+
+void ilt_count_dec(struct stc_ilt *ilt)
+{
+	ilt->used_count--;
+}
+
+
+struct ilt_ctx_frame ilt_get_ctx_frame(struct stc_ilt *ilt)
+{
+	struct ilt_ctx_frame pl;
+	u64 ml2_free_mask = ~ilt->ml2;
+	if (!ml2_free_mask) {
+		printf("ILT is full\nAborting\n");
+		pl.ml0_bit = ~0ULL;
+		pl.ml1_idx = ~0ULL;
+		pl.ml0_idx = ~0ULL;
+		pl.ml1_group = ~0ULL;
+		return pl;
+	}
+	u64 ml1_idx = __builtin_ctzll(ml2_free_mask);
+	u64 ml1_free_mask = ~ilt->ml1[ml1_idx];
+	assert(ml1_free_mask != 0);
+	u64 group = __builtin_ctzll(ml1_free_mask);
+	u64 ml0_idx = ilt_get_ml0_idx(ml1_idx, group);
+	u64 ml0_free_mask = ~ilt->ml0[ml0_idx];
+	assert(ml0_free_mask != 0);
+	u64 bit = __builtin_ctzll(ml0_free_mask);
+	pl.ml1_idx = ml1_idx;
+	pl.ml0_idx = ml0_idx;
+	pl.ml0_bit = bit;
+	pl.ml1_group = group;
+
+	return pl;
+}
+
+
+bool32 ilt_is_full(struct stc_ilt *ilt)
+{
+	return ilt_top_idx(ilt) == ~0ULL;
+}
+
+inline bool32 ilt_is_empty(struct stc_ilt *ilt)
+{
+	return ilt->used_count == 0;
+}
+
+
+u64 ilt_top_idx(struct stc_ilt *ilt)
+{
+	struct ilt_ctx_frame frame = ilt_get_ctx_frame(ilt);
+	if (frame.ml1_idx == ~0ULL)
+		return ~0ULL;
+
+	return ilt_get_real_idx(frame.ml1_idx, frame.ml1_group, frame.ml0_bit);
+}
+
+u64 ilt_next_idx(struct stc_ilt *ilt)
+{
+	u64 ml2_free = ~ilt->ml2;
+	if (unlikely(ml2_free == 0)) {
+		printf("ILT is full\nAborting\n");
+		exit(1);
+	}
+
+	while(ml2_free) {
+		u64 ml1_idx = __builtin_ctzll(ml2_free);
+		ml2_free &= ml2_free - 1;
+		u64 ml1_free = ~ilt->ml1[ml1_idx];
+		if (!ml1_free) continue;
+
+		u64 found = __builtin_ctzll(ml1_free);
+
+		u64 ml0_idx = ilt_get_ml0_idx(ml1_idx, found);
+		u64 ml0_free = ~ilt->ml0[ml0_idx];
+		assert(ml0_free != 0);
+		u64 next_ml0_idx = __builtin_ctzll(ml0_free);
+		ilt->ml0[ml0_idx] |= (1ULL << next_ml0_idx);
+		if (ilt->ml0[ml0_idx] == ~0ULL) {
+			ilt_set_ml1_group(ilt, ml1_idx, found);
+		}
+		return ilt_get_real_idx(ml1_idx, found, next_ml0_idx);
+	}
+
+	return ~0ULL;
+}
 
 
 
-
-
-
-/*@func decls old*/
-thisfile inline bool sstrcmpx(const struct stc_string8 a, const struct stc_string8 b);
-thisfile inline u32 sstrlenx(const stc_byte *stc_string8);
-
-/*@func decls new*/
-thisfile struct stc_string8 *stc_arena_string8_push(struct stc_arena_string8 *a, u64 count);
-thisfile struct stc_string8 stc_arena_string8_push_copy(struct stc_arena_string8 *a, struct stc_string8 s);
-thisfile void stc_memcpy(void * restrict destination, const void * restrict source, u64 size);
-thisfile void stc_memset(void * restrict destination, u64 value, u64 size);
-thisfile void stc_memmove(void *destination, const void *src, u64 size);
-thisfile int stc_memcmp(const void * restrict destination, const void * restrict src, u64 size);
-thisfile struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a, struct stc_string8 * restrict s, stc_byte delim);
-thisfile u32 stc_len_c_string(stc_byte *c_string);
-thisfile struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init);
-thisfile void stc_string8_to_upper(struct stc_string8 *s);
-thisfile void stc_c_string_reverse (stc_byte *s, u64 len);
-thisfile i64 stc_itoa(i64 n, stc_byte *s);
-thisfile struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init);
-thisfile void check_alloc(struct stc_strbldr *b, u64 new_size);
-thisfile void stc_strbldr_add_v(struct stc_strbldr * restrict b, stc_byte * restrict s, va_list args);
-
-thisfile u64 stormc_diceroll(u64 count, u64 sides);
-thisfile u64 stormc_random_xorshift(u64 init_state);
-thisfile u64 stormc_random(u64 init_state);
-thisfile u64 stormc_random_range(u64 min, u64 max, u64 init_state);
-
-
-
+u32 stc_maxu32(u32 a, u32 b)
+{
+	return (a > b) ? a : b;
+}
 
 
 #ifndef DEFAULT_RESERVATION
@@ -184,56 +320,9 @@ thisfile u64 stormc_random_range(u64 min, u64 max, u64 init_state);
 #define STR(X) STR8LIT(X)
 #define STR_RUNTIME(s) (struct stc_string8){.str = (stc_byte*)s, .len = sstrlenx(s)}
 
-static inline u32 sla_u32(const u32 arg, stc_byte shift);
-static inline u32 sra_u32(const u32 arg, stc_byte shift);
-static inline u32 cmpnz_u32(const u32 arg);
-static inline u32 select_u32(const u32 mask, const u32 arg1, const u32 arg2);
-
-
-static void			stc_alloc_logged(struct stc_stack  *stack, u64 size, const stc_byte* file, int line);
-static struct stc_stack		*stc_stack_gen(u64 rsrv);
-static void			*stc_os_mem_rsrv(u64 size);
-static void			*stc_os_mem_cmt(void *addrs, u64 size);
-static void			*_stc_stack_push(struct stc_stack *stack, u64 alignment, u64 alloc_size);
-static void			stc_stack_pop(struct stc_stack *stack, u64 size);
-static void			stc_stack_start(struct stc_stack *s);
-static void			stc_stack_end(struct stc_stack *s);
-static void			stc_stack_free(struct stc_stack *stack, void* mem_addrs, u64 len);
-
-#define stc_commit(addrs, size)\
-	stc_os_mem_cmt(addrs, size)
-
-#define stc_alloc(size)\
-	stc_os_alloc_default(size)
-
 
 #define STC_ALIGN_UP(x, align) (((x) + ((align)-1)) & ~((align)-1))
 #define STC_ALIGN_DOWN(x, align) ((x) & ~((align)-1))
-
-
-
-
-
-
-
-static bool is_prime(u64 n);
-static inline u64 next_prime(u64 n);
-static inline bool is_pow2(u64 n);
-static inline u64 next_pow2(u64 n);
-static inline bool f32_is_nan(f32 n);
-
-
-bool f32_is_nan(f32 f)
-{
-	union {u32 u; f32 f;} x;
-	x.f = f;
-	return  ((x.u & EXPONENTF32) == EXPONENTF32) && ((x.u & MANTISSAF32) != 0);
-}
-
-
-
-
-
 
 
 /*@CORE START*/
@@ -278,3 +367,85 @@ bool f32_is_nan(f32 f)
 #include "containers/stormc_hashmap.c"
 #endif
 /*@HASH END*/
+
+/*@STORMC_GFX START*/
+#ifdef STORMC_GFX
+#define STORMC_SDL3
+#include "stormc_gfx/stc_gfx.h"
+#endif
+/*@STORMC_GFX END*/
+
+
+/*@STORMC RANDOM START*/
+#ifdef STORMC_RANDOM
+#include "base/stormc_random.c"
+#endif
+/*@STORMC RANDOM END*/
+
+
+/*@STORMC_SGL START*/
+#ifdef STORMC_SGL
+#include "base/stormc_sgl.c"
+#endif
+/*@STORMC SGL END*/
+
+
+/*@STORMC_STAG START*/
+#ifdef STORMC_STAG
+#include "utils/stag.c"
+#endif
+/*@STORMC_STAG END*/
+
+
+#ifdef STORMC_ALGORITHMS
+#define make_qsort(name, type, idx_t, less, greater)                  \
+	_Static_assert(((idx_t)-1) < 0, "idx_t must be signed");           \
+	void name(type *arr, idx_t low, idx_t high)                        \
+	{                                                                  \
+		while (low < high) {                                       \
+			type pivot = arr[low + ((high - low) >> 1)];       \
+                                                                       \
+			idx_t lt = low;                                    \
+			idx_t i  = low;                                    \
+			idx_t gt = high;                                   \
+                                                                       \
+			while (i <= gt) {                                  \
+				if (arr[i] less pivot) {                    \
+					if (lt != i) {                       \
+						type tmp = arr[lt];          \
+						arr[lt] = arr[i];            \
+						arr[i] = tmp;                \
+					}                                  \
+					++lt;                              \
+					++i;                               \
+				} else if (arr[i] greater pivot) {     \
+					if (i != gt) {                     \
+						type tmp = arr[i];         \
+						arr[i] = arr[gt];          \
+						arr[gt] = tmp;             \
+					}                                  \
+					--gt;                              \
+				} else {                               \
+					++i;                               \
+				}                                      \
+			}                                              \
+                                                                       \
+			/* recurse smaller side first, iterate larger side */   \
+			idx_t left_size  = lt - low;                          \
+			idx_t right_size = high - gt;                         \
+                                                                       \
+			if (left_size < right_size) {                         \
+				if (low < lt - 1) {                           \
+					name(arr, low, lt - 1);               \
+				}                                              \
+				low = gt + 1;                                  \
+			} else {                                           \
+				if (gt + 1 < high) {                        \
+					name(arr, gt + 1, high);             \
+				}                                              \
+				high = lt - 1;                                 \
+			}                                                  \
+		}                                                          \
+	}
+#endif
+#pragma GCC diagnostic pop

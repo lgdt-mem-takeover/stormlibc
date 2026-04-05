@@ -22,11 +22,6 @@ void *stc_os_mem_cmt(void* addrs, u64 size)
 	size = STC_ALIGN_UP(size, PAGESIZE);
 	int res = mprotect(addrs, size, PROT_READ | PROT_WRITE);
 	if (unlikely(res != 0)) {
-		stc_byte buff[64];
-		u64 len = stc_itoa(res, buff);
-		// stc_write(2, "mprotect failed with code ", sizeof("mprotect failed with code") - 1);
-		// stc_write(2, buff, len);
-		// stc_write(2, "\n", 1);
 		printf("mprotect code: %d\n", res);
 		return NULL;
 	}
@@ -34,3 +29,9 @@ void *stc_os_mem_cmt(void* addrs, u64 size)
 
 }
 
+void stc_os_mem_free(void *mem, u64 size)
+{
+	if (munmap(mem, size) != 0) {
+		perror("munmap\n");
+	}
+}

@@ -22,9 +22,11 @@
 #define ALIGNOF(type) __alignof__(type)
 #define OFFSETOF(type, member) __builtin_offsetof(type, member)
 #define TYPEOF(v) __typeof__(v)
-#define unreachable __builtin_unreachable()
+
+#define stc_unreachable __builtin_unreachable()
 #define KILOBYTE(x) ((x) * 1024ull)
 #define MEGABYTE(x) ((x) * 1024ull * 1024ull)
+#define GIGABYTE(x) ((x) * 1024ull * 1024ull * 1024ull)
 #define CACHELINE_SIZE 64
 
 #define STC_CAST(cast_type, value) ((cast_type)value)
@@ -62,12 +64,14 @@
 #include <inttypes.h>
 
 
+#ifndef __EMSCRIPTEN__
 typedef __m256d       simd_4_f64;
 typedef __m256        simd_8_f32;
 typedef __m128        simd_4_f32;
 typedef __m256i       simd_8_i32;
 typedef __m256i       simd_32_u8;
 typedef __m128i       simd_16_u8;
+#endif
 
 
 
@@ -134,4 +138,6 @@ struct stormc_buildinfo {
 	u64	flags_len;
 	char	compiler_flags[4096];
 };
+
+
 
