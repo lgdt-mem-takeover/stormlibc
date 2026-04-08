@@ -34,7 +34,11 @@
 	ENTRY(PROJECT_REMOVE,		"remove",		"-rm",		"remove local dir project",		"", true, ' ')\
 	ENTRY(PROJECT_UPDATE,		"update",		"-update", 	"update project name for local path",	"", true, ' ')\
 	ENTRY(LIST_PROJECTS,		"--list-projects",	"-lstp", 	"list projects",			"", false, 0)\
-	ENTRY(GOTO_PROJ,		"goto",			"-g2p",		"go to project directory",		"", true, ' ')
+	ENTRY(GOTO_PROJ,		"goto",			"-g2p",		"go to project directory",		"", true, ' ')\
+	ENTRY(SEED,			"seed",			"-seed",	"go to project directory",		"", false, 0)\
+	ENTRY(REBUILD,			"rebuild",		"-rbld",	"Stormc, rebuild yourself!",		"", false, 0)\
+	ENTRY(NEIYEHALL,		"neiyeh-all",		"-nya",		"View all of Neiyeh",			"", false, 0)\
+	ENTRY(NEIYEH,			"neiyeh",		"-ny",		"View random page from Neiyeh",		"", false, 0)
 
 #define STORMC_STAG
 #define STORMC_ALLOCATOR
@@ -43,6 +47,7 @@
 #include "stormc_buildsystem.h"
 #include "defaults.h"
 
+#include "neiyeh.c"
 
 
 #define DEFAULT_CONFIG_LOCATION STAG_STR("~/.config/stormc/config.stc")
@@ -139,8 +144,8 @@ typedef enum{
 }Scbuild_Templates_Types;
 
 struct stc_string8 Global_Templates_Scbuild[SCBUILD_TEMPLATES_TYPES_COUNT] = {
-	[TEMPL_SCBUILD] = {.str = (char *)default_scbuild_c, .len = default_scbuild_c_len},
-	[TEMPL_MAIN] = {.str = (char *)default_main_c, .len = default_main_c_len},
+	[TEMPL_SCBUILD] = { .str = (char *)default_scbuild_c, .len = default_scbuild_c_len},
+	[TEMPL_MAIN] = { .str = (char *)default_main_c, .len = default_main_c_len},
 };
 
 
@@ -151,7 +156,7 @@ static int file_exists(const char *path)
 
 static void exec_ctags(struct stag_string extra)
 {
-	char cmd[512] = {0};
+	char cmd[512] = { 0};
 
 	if (extra.str && extra.len) {
 		snprintf(cmd, sizeof(cmd), "ctags -R . %.*s", (int)extra.len, extra.str);
@@ -300,7 +305,7 @@ static void exec_embed(struct stag_string spec)
 	fmt_file_name[in.len] = '\0';
 
 	u32 buff_len = snprintf(var_name_buff, sizeof(var_name_buff),
-				"const unsigned char %s[] = {\n", fmt_file_name);
+				"const unsigned char %s[] = { \n", fmt_file_name);
 
 	try(write, (file_out, var_name_buff, buff_len), {
 		perror("write");
@@ -389,7 +394,7 @@ stag_bool32 path_exists(struct stag_string proj_path)
 {
 
 	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
-		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_path, .len = stc_proj_mapper->payload.projects[i].proj_path_len};
+		struct stag_string current = { .str = stc_proj_mapper->payload.projects[i].proj_path, .len = stc_proj_mapper->payload.projects[i].proj_path_len};
 		if (stag_strcmp(proj_path, current)) {
 			return true;
 		}
@@ -400,7 +405,7 @@ stag_bool32 path_exists(struct stag_string proj_path)
 stag_bool32 proj_exists(struct stag_string proj_name)
 {
 	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
-		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
+		struct stag_string current = { .str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
 		if (stag_strcmp(proj_name, current)) {
 			return true;
 		}
@@ -457,7 +462,12 @@ void exec_reg_proj(struct stag_string proj_name, struct stag_string proj_path)
 		fprintf(stderr, "Missing project path for project name: %.*s\n", (int)proj_name.len, proj_name.str);
 		return;
 	}
-	fprintf(stderr, "Missing project name\n");
+	if (proj_name.str == NULL) {
+		fprintf(stderr, "Missing project name\n");
+	}
+	if (proj_path.str == NULL) {
+		fprintf(stderr, "Missing project path\n");
+	}
 
 }
 
@@ -473,9 +483,9 @@ void stormc_check_system(void)
 		fprintf(stderr, "Env variable HOME is not set\n");
 		return;
 	}
-	char path[1024] = {0};
+	char path[1024] = { 0};
 	snprintf(path, sizeof(path), "%s/.config/stormc/config.stc", home);
-	char dir[1024] = {0};
+	char dir[1024] = { 0};
 	snprintf(dir, sizeof(dir), "%s/.config/stormc", home);
 	mkdir(dir, 0755);
 
@@ -498,8 +508,12 @@ void stormc_check_system(void)
 		perror("fopen");
 		return;
 	} else {
-		fread(&stc_proj_mapper->payload, sizeof(stc_proj_mapper->payload), 1, f);
-		fclose(f);
+		if (fread(&stc_proj_mapper->payload, sizeof(stc_proj_mapper->payload), 1, f) == -1) {
+			perror("fread");
+		}
+		if (fclose(f) != 0) {
+			perror("fclose");
+		}
 	}
 }
 
@@ -517,7 +531,7 @@ void exec_list_projs(void)
 struct stag_string get_project_path_from_name(struct stag_string proj_name)
 {
 	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
-		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
+		struct stag_string current = { .str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
 		if (stag_strcmp(proj_name, current)) {
 			return (struct stag_string){
 				.str = stc_proj_mapper->payload.projects[i].proj_path,
@@ -623,6 +637,11 @@ void exec_add_proj(struct stag_array_string sarr)
 	struct stag_string proj_name = sarr.strings[0];
 	struct stag_string proj_path = sarr.strings[1];
 
+	if (sarr.len != 2 || sarr.strings[1].len == 0) {
+		fprintf(stderr, "add requires: <name>|<path>\n");
+		return;
+	}
+
 	if (proj_name.len > 1024) {
 		STORMC_ERROR_FMT("Project exceeds max length of 1024: %.*s\n", proj_name);
 		return;
@@ -639,7 +658,7 @@ void exec_update_proj(struct stag_array_string sarr)
 	struct stag_string old_name = sarr.strings[0];
 	struct stag_string new_name = sarr.strings[1];
 	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
-		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
+		struct stag_string current = { .str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
 		if (stag_strcmp(old_name, current)) {
 			stc_memcpy(stc_proj_mapper->payload.projects[i].proj_name, new_name.str, new_name.len);
 			stc_proj_mapper->payload.projects[i].proj_name_len = new_name.len;
@@ -654,7 +673,7 @@ void exec_update_proj(struct stag_array_string sarr)
 void exec_remove_proj(struct stag_string proj_name)
 {
 	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
-		struct stag_string current = {.str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
+		struct stag_string current = { .str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
 		if (stag_strcmp(proj_name, current)) {
 			stc_memmove(&stc_proj_mapper->payload.projects[i],
 				    &stc_proj_mapper->payload.projects[i + 1],
@@ -692,125 +711,326 @@ static void stormc_save_config(void)
 
 
 
+void exec_seed(void)
+{
+	char buff[1024] = { 0};
+	if (!getcwd(buff, sizeof(buff) - 1)) {
+		perror("getcwd");
+	}
+	printf("cwd: %s\n", buff);
+}
+
+
+void *exec_rebuild_self(struct stag_cmd_call *call)
+{
+	if (!file_exists("main.c")) {
+		fprintf(stderr, "Cannot find main.c\nAborting!\n");
+		exit(1);
+	}
+
+	if (system("cc main.c -O3 -o main") != 0) {
+		perror("system");
+	}
+	const char *home = getenv("HOME");
+	if (!home) {
+		fprintf(stderr, "HOME not set\n");
+		exit(1);
+	}
+	char stormc_path[1024] = { 0};
+	snprintf(stormc_path, sizeof(stormc_path), "%s/.local/bin/stormc", home);
+	char stormc_temp_path[1024] = { 0};
+	snprintf(stormc_temp_path, sizeof(stormc_temp_path), "%s/.local/bin/stormc.tmp", home);
+
+
+	char *main_path = "main";
+
+	int stormc_bin_fd = open(stormc_temp_path, O_RDWR | O_CREAT | O_TRUNC, 0755);
+	if (stormc_bin_fd == -1) {
+		printf("stormc not found\n");
+		perror("open");
+		exit(1);
+	}
+	int main_fd = open(main_path, O_RDONLY);
+	if (main_fd == -1) {
+		printf("main not found\n");
+		perror("open");
+		exit(1);
+	}
+
+	struct stat main_stat = { };
+	if(fstat(main_fd, &main_stat) == -1) {
+		perror("fstat");
+		exit(1);
+	}
+
+	if(ftruncate(stormc_bin_fd, main_stat.st_size) == -1) {
+		perror("ftruncate");
+		exit(1);
+	}
+
+	u8 *stormc_bin = (u8*)mmap(NULL, main_stat.st_size, PROT_WRITE | PROT_READ, MAP_SHARED, stormc_bin_fd, 0);
+	if (stormc_bin == MAP_FAILED) {
+		printf("stormc bin failed\n");
+		perror("mmap");
+		exit(1);
+	}
+
+	u8 *main_bin = (u8*)mmap(NULL, main_stat.st_size, PROT_READ, MAP_PRIVATE, main_fd, 0);
+	if (main_bin == MAP_FAILED) {
+		printf("main bin failed\n");
+		perror("mmap");
+		exit(1);
+	}
+
+
+	stc_memcpy(stormc_bin, main_bin, main_stat.st_size);
+	if (msync(stormc_bin, main_stat.st_size, MS_SYNC) == -1) {
+		perror("msync");
+		exit(1);
+	}
+	if (chmod(stormc_temp_path, 0755) == -1) {
+		perror("chmod");
+		exit(1);
+	}
+	if (rename(stormc_temp_path, stormc_path) == -1) {
+		perror("rename");
+		exit(1);
+	}
+
+	close(stormc_bin_fd);
+	close(main_fd);
+	munmap(stormc_bin, main_stat.st_size);
+	munmap(main_bin, main_stat.st_size);
+	return NULL;
+}
+
+
+void *cmd_init_cb(struct stag_cmd_call *call)
+{
+	(void)call;
+	exec_init();
+	return NULL;
+}
+
+void *cmd_run_cb(struct stag_cmd_call *call)
+{
+	(void)call;
+	exec_run();
+	return NULL;
+}
+
+void *cmd_build_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_build(*arg);
+	return NULL;
+}
+
+void *cmd_project_add_cb(struct stag_cmd_call *call)
+{
+	struct stag_array_string *arr = call->args;
+	exec_add_proj(*arr);
+	return NULL;
+}
+
+void *cmd_ctags_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_ctags(*arg);
+	return NULL;
+}
+
+void *cmd_embed_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_embed(*arg);
+	return NULL;
+}
+
+void *cmd_asm_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_asm(*arg);
+	return NULL;
+}
+
+void *cmd_uf_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_uf(*arg);
+	return NULL;
+}
+
+void *cmd_register_proj_name_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_reg_proj(*arg, (struct stag_string){ 0});
+	return NULL;
+}
+
+void *cmd_register_proj_path_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_reg_proj((struct stag_string){ 0}, *arg);
+	return NULL;
+}
+
+void *cmd_project_remove_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_remove_proj(*arg);
+	return NULL;
+}
+
+void *cmd_project_update_cb(struct stag_cmd_call *call)
+{
+	struct stag_array_string *arr = call->args;
+	exec_update_proj(*arr);
+	return NULL;
+}
+
+void *cmd_list_projects_cb(struct stag_cmd_call *call)
+{
+	(void)call;
+	exec_list_projs();
+	return NULL;
+}
+
+void *cmd_goto_proj_cb(struct stag_cmd_call *call)
+{
+	struct stag_string *arg = call->args;
+	exec_goto_dir(*arg);
+	return NULL;
+}
+
+void *cmd_seed_cb(struct stag_cmd_call *call)
+{
+	(void)call;
+	exec_seed();
+	return NULL;
+}
+
+
+void *exec_neiyeh_all(struct stag_cmd_call *call)
+{
+	(void)call;
+	neiyeh_viewall();
+	return NULL;
+
+}
+
+void *exec_neiyeh_random(struct stag_cmd_call *call)
+{
+	(void)call;
+	neiyeh_random();
+	return NULL;
+}
+
+static void register_stormc_callbacks(void)
+{
+	struct stag_callback_desc descs[] = {
+		{ .cmd = CTAGS, .func = cmd_ctags_cb, .immediate = false },
+		{ .cmd = INIT, .func = cmd_init_cb, .immediate = false },
+		{ .cmd = RUN, .func = cmd_run_cb, .immediate = false },
+		{ .cmd = BUILD, .func = cmd_build_cb, .immediate = false },
+		{ .cmd = EMBED, .func = cmd_embed_cb, .immediate = false },
+		{ .cmd = ASM, .func = cmd_asm_cb, .immediate = false },
+		{ .cmd = UF, .func = cmd_uf_cb, .immediate = false },
+		{ .cmd = REGISTER_PROJ_NAME, .func = cmd_register_proj_name_cb, .immediate = false },
+		{ .cmd = REGISTER_PROJ_PATH, .func = cmd_register_proj_path_cb, .immediate = false },
+		{ .cmd = PROJECT_ADD, .func = cmd_project_add_cb, .immediate = false },
+		{ .cmd = PROJECT_REMOVE, .func = cmd_project_remove_cb, .immediate = false },
+		{ .cmd = PROJECT_UPDATE, .func = cmd_project_update_cb, .immediate = false },
+		{ .cmd = LIST_PROJECTS, .func = cmd_list_projects_cb, .immediate = false },
+		{ .cmd = GOTO_PROJ, .func = cmd_goto_proj_cb, .immediate = false },
+		{ .cmd = SEED, .func = cmd_seed_cb, .immediate = false },
+		{ .cmd = REBUILD, .func = exec_rebuild_self, .immediate = false },
+		{.cmd = NEIYEHALL, .func = exec_neiyeh_all, .immediate = true},
+		{.cmd = NEIYEH, .func = exec_neiyeh_random, .immediate = true},
+	};
+
+	stag_register_callback_batch(descs, STAG_ARRCOUNT(descs));
+}
+
+static struct stc_stack *stack_cmd_call = NULL;
+static struct stc_stack *stack_stag_strings = NULL;
+static struct stc_stack *stack_stag_array_strings = NULL;
+static void build_calls(void)
+{
+	for (;;) {
+		struct stag_cmd_array cmd = stag_next_cmd();
+		if (cmd.cmd == NIL) break;
+
+		switch (cmd.cmd) {
+		case INIT:
+		case RUN:
+		case LIST_PROJECTS:
+		case SEED:
+		case REBUILD:
+		{
+			struct stag_cmd_call *call = (struct stag_cmd_call*)stc_stack_push(stack_cmd_call, struct stag_cmd_call, 1);
+			call->arg_count = 0;
+			call->args = NULL;
+			stag_register_deferred_args(cmd.cmd, call);
+			break;
+		}
+
+		case BUILD:
+		case CTAGS:
+		case EMBED:
+		case ASM:
+		case UF:
+		case GOTO_PROJ:
+		case REGISTER_PROJ_NAME:
+		case REGISTER_PROJ_PATH:
+		case PROJECT_REMOVE:
+		{
+			struct stag_string *arg = (struct stag_string*)stc_stack_push(stack_stag_strings, struct stag_string, 1);
+			*arg = cmd.args;
+
+			struct stag_cmd_call *call = (struct stag_cmd_call*)stc_stack_push(stack_cmd_call, struct stag_cmd_call, 1);
+			call->arg_count = 1;
+			call->args = arg;
+			stag_register_deferred_args(cmd.cmd, call);
+			break;
+		}
+
+		case PROJECT_ADD:
+		case PROJECT_UPDATE:
+		{
+			struct stag_array_string *arr = (struct stag_array_string*)stc_stack_push(stack_stag_array_strings, struct stag_array_string, 1);
+			*arr = stag_string_to_array_of_strings(cmd.args, '|');
+
+			struct stag_cmd_call *call = (struct stag_cmd_call *)stc_stack_push(stack_cmd_call, struct stag_cmd_call, 1);
+			call->arg_count = arr->len;
+			call->args = arr;
+			stag_register_deferred_args(cmd.cmd, call);
+			break;
+		}
+
+		default:
+			break;
+		}
+	}
+}
+
+
+void stormc_init_stacks(void)
+{
+	stack_cmd_call = stc_stack_gen(1llu << 28);
+	stack_stag_strings = stc_stack_gen(1llu << 28);
+	stack_stag_array_strings = stc_stack_gen(1llu << 28);
+}
+
 int main(int argc, char **argv)
 {
 	stormc_check_system();
 	stag_run(argc, argv);
-
-	stag_bool32 want_init  = false;
-	stag_bool32 want_run   = false;
-	stag_bool32 want_reg_proj = false;
-	stag_bool32 want_list_proj = false;
-
-	struct stag_string ctags_arg		= {0};
-	struct stag_string build_arg 		= {0};
-	struct stag_string embed_arg 		= {0};
-	struct stag_string asm_arg   		= {0};
-	struct stag_string uf_arg    		= {0};
-	struct stag_string reg_proj_args	= {0};
-	struct stag_string reg_proj_path	= {0};
-	struct stag_string goto_proj		= {0};
-	struct stag_array_string proj_add	= {0};
-	struct stag_string proj_remove		= {0};
-	struct stag_array_string proj_update	= {0};
-
-	stag_bool32 running = true;
-	while (running) {
-		struct stag_cmd_array cmd = stag_next_cmd();
-
-		switch (cmd.cmd) {
-		default: break;
-		case INIT:			want_init = true; break;
-		case RUN:   			want_run = true; break;
-		case CTAGS: 			ctags_arg = cmd.args; break;
-		case BUILD: 			build_arg = cmd.args; break;
-		case EMBED: 			embed_arg = cmd.args; break;
-		case ASM:   			asm_arg = cmd.args; break;
-		case UF:    			uf_arg = cmd.args; break;
-		case LIST_PROJECTS:		want_list_proj = true; break;
-		case GOTO_PROJ:			goto_proj = cmd.args; break;
-		case PROJECT_ADD:
-		{
-			proj_add = stag_string_to_array_of_strings(cmd.args, '|');
-			break;
-		}
-		case PROJECT_UPDATE:
-		{
-			proj_update = stag_string_to_array_of_strings(cmd.args, '|');
-			break;
-		}
-		case PROJECT_REMOVE:
-		{
-			proj_remove = cmd.args;
-			break;
-		}
-		case REGISTER_PROJ_NAME:
-		{
-			want_reg_proj = true;
-			reg_proj_args = cmd.args;
-			break;
-		}
-		case REGISTER_PROJ_PATH:
-		{
-			want_reg_proj = true;
-			reg_proj_path = cmd.args;
-			break;
-		}
-		case NIL:
-			running = false;
-			break;
-		}
-	}
-
-	if (want_reg_proj)
-		exec_reg_proj(reg_proj_args, reg_proj_path);
-
-
-	if (want_init)
-		exec_init();
-
-	if (want_run)
-		exec_run();
-
-	if (ctags_arg.str)
-		exec_ctags(ctags_arg);
-
-	if (build_arg.str)
-		exec_build(build_arg);
-
-	if (embed_arg.str)
-		exec_embed(embed_arg);
-
-	if (asm_arg.str)
-		exec_asm(asm_arg);
-
-	if (uf_arg.str)
-		exec_uf(uf_arg);
-
-	if (want_list_proj)
-		exec_list_projs();
-
-
-	if (goto_proj.str) {
-		exec_goto_dir(goto_proj);
-	}
-
-
-	if (proj_add.len == 2) {
-		exec_add_proj(proj_add);
-	}
-
-	if (proj_update.len == 2) {
-		exec_update_proj(proj_update);
-	}
-
-	if (proj_remove.str) {
-		exec_remove_proj(proj_remove);
-	}
-
-
+	stormc_init_stacks();
+	register_stormc_callbacks();
+	build_calls();
+	stag_deferred_flush();
 	stormc_save_config();
-
 
 	return 0;
 }

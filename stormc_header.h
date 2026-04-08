@@ -2,8 +2,10 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#ifdef __clang__
 #pragma GCC diagnostic ignored "-Winitializer-overrides"
 #pragma GCC diagnostic ignored "-Wc23-extensions"
+#endif
 #define MAX_UINT64 ((u64)-1)
 
 #define FONT_PATH_DEVAJU_SANS "/data/2026-projs/c/stormlibc/assets/ttf/DejaVuSans.ttf"
@@ -330,6 +332,12 @@ u32 stc_maxu32(u32 a, u32 b)
 #include "base/stormc_allocator.c"
 #endif
 
+static inline bool is_prime(u64 n);
+static inline u64 next_prime(u64 n);
+static inline bool is_pow2(u64 n);
+static inline u64 next_pow2(u64 n);
+static inline bool f32_is_nan(f32 n);
+static inline f32 minf(f32 a, f32 b);
 #ifdef STORMC_MATH
 #include "base/stormc_math.c"
 #endif
@@ -375,7 +383,10 @@ u32 stc_maxu32(u32 a, u32 b)
 #endif
 /*@STORMC_GFX END*/
 
-
+thisfile u64 stc_diceroll(u64 count, u64 sides);
+thisfile u64 stc_random_xorshift(void);
+thisfile u64 stc_random(void);
+thisfile u64 stc_random_range(u64 min, u64 max);
 /*@STORMC RANDOM START*/
 #ifdef STORMC_RANDOM
 #include "base/stormc_random.c"
@@ -392,7 +403,7 @@ u32 stc_maxu32(u32 a, u32 b)
 
 /*@STORMC_STAG START*/
 #ifdef STORMC_STAG
-#include "utils/stag.c"
+#include "utils/stag/stormc_argument_parser.h"
 #endif
 /*@STORMC_STAG END*/
 

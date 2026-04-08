@@ -12,10 +12,6 @@
 global_persist u64 state = 0;
 
 
-thisfile u64 stc_diceroll(u64 count, u64 sides);
-thisfile u64 stc_random_xorshift(void);
-thisfile u64 stc_random(void);
-thisfile u64 stc_random_range(u64 min, u64 max);
 
 #if STC_X86 && (defined(__GNUC__) || defined(__clang__))
 __attribute__((target("rdseed")))

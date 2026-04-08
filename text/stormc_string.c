@@ -523,7 +523,7 @@ thisfile inline u64 stc_itohex(u64 n, stc_byte *s)
 	return s - start;
 }
 
-thisfile inline u64 stc_ftoa(double n, stc_byte *s)
+thisfile inline u64 stc_ftoa(f64 n, stc_byte *s)
 {
 	stc_byte * start = s;
 	bool neg = (n < 0);

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "/data/2026-projs/c/stormlibc/stormc_header.h"
 #include "stormc_math.c"
+#include "/data/2026-projs/c/stormlibc/stormc_header.h"
 
 struct free_list {
 	struct stc_ilt	ilt;

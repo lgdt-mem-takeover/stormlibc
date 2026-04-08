@@ -33,7 +33,7 @@ typedef u64 stc_threading_group_t;
 struct stc_threading_init_pl{
 	stc_threading_group_t	groups_count;
 	u32			threads[THREADING_MAX_GROUPS];
-	u32			mem_commit[THREADING_MAX_GROUPS];
+	u64			mem_commit[THREADING_MAX_GROUPS];
 	u64			mem_rsrv[THREADING_MAX_GROUPS];
 };
 
@@ -80,7 +80,7 @@ static u64 stc_sum_lanes_return_value_u64(u64 group_id);
 static u64 stc_parallel_end(void);
 static void stc_threading_setup_thread_identity(void* param);
 static stc_threading_group_t stc_threading_create_new_group(void);
-static void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u32 commit, u64 rsrv, u32 number_of_threads);
+static void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u64 commit, u64 rsrv, u32 number_of_threads);
 static void stc_threading_append_ensure_capacity(u64 group_id, u64 thread_id, void *data, u64 size);
 static void stc_threading_init_func_ret(stc_threading_group_t group_id, u64 threads_count, u64 rsrv_size, u64 initial_size);
 static void stc_threading_system_begin(void);
@@ -115,20 +115,23 @@ void stc_threading_init_func_ret(stc_threading_group_t group_id, u64 threads_cou
 {
 
 	if (!is_pow2(initial_size_func_ret_array)) {
-		fprintf(stderr, "Thread init size has to be a power of 2\n");
-		exit(1);
+		initial_size_func_ret_array = next_pow2(initial_size_func_ret_array);
+		fprintf(stderr, "[FUNC RET ARRAY] Thread init size has to be a power of 2\nNew size assigned: %lu\n", initial_size_func_ret_array);
+		// exit(1);
 	}
 
 	if (!is_pow2(reservation_size)) {
-		fprintf(stderr, "Thread init size has to be a power of 2\n");
-		exit(1);
+		reservation_size = next_pow2(reservation_size);
+		fprintf(stderr, "[RESERVATION] Thread init size has to be a power of 2\nNew size assigned: %lu\n", initial_size_func_ret_array);
+		// exit(1);
 	}
 
-	u64 per_thread_reservation = reservation_size / threads_count;
-	u8 *block = (u8*)stc_os_mem_rsrv(reservation_size);
+	u64 per_thread_reservation = STC_ALIGN_UP(reservation_size / threads_count, PAGESIZE);
+	u8 *block = (u8*)stc_os_mem_rsrv(per_thread_reservation * threads_count);
 
 	for (u64 idx = 0; idx < threads_count; ++idx) {
-		__stc_thread_ctx[group_id].func_ret[idx] = block + (idx * per_thread_reservation);
+		void *base = block + (idx * per_thread_reservation);
+		__stc_thread_ctx[group_id].func_ret[idx] = base;
 		__stc_thread_ctx[group_id].off_bytes_func_ret[idx] = initial_size_func_ret_array;
 		if (stc_os_mem_cmt(__stc_thread_ctx[group_id].func_ret[idx], initial_size_func_ret_array) == NULL) {
 			printf("Func Ret Commit failed\n");
@@ -203,13 +206,13 @@ stc_threading_group_t stc_threading_create_new_group(void)
 	return __stc_thread_init.groups_count++;
 }
 
-void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u32 commit, u64 rsrv, u32 number_of_threads)
+void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u64 commit, u64 rsrv, u32 number_of_threads)
 {
 	if (!is_pow2(commit))
 		commit = next_pow2(commit);
 
 	if (!is_pow2(rsrv))
-		commit = next_pow2(rsrv);
+		rsrv = next_pow2(rsrv);
 
 	__stc_thread_init.threads[group_id] = number_of_threads;
 	__stc_thread_init.mem_rsrv[group_id] = rsrv;

@@ -23,6 +23,12 @@
 #define MAX_DIRS 1024
 
 
+
+
+#define INCLUDE_FREETYPE_LINUX\
+	set_libraries(STR("$(pkg-config --cflags --libs freetype2)"));
+
+
 #define INCLUDE_FREETYPE_WINDOWS\
 	set_library_paths(\
 	    STR("-L/data/site_packages/mxe/usr/x86_64-w64-mingw32.static/lib")\
@@ -77,6 +83,16 @@
 	    STR("/data/site_packages/raylib/zig-out/include")\
 	    )
 
+
+
+#define INCLUDE_SGL_WINDOWS\
+	INCLUDE_FREETYPE_WINDOWS;\
+	INCLUDE_SDL3_WINDOWS
+
+
+#define INCLUDE_SGL_LINUX\
+	INCLUDE_FREETYPE_LINUX;\
+	INCLUDE_SDL3_LINUX
 
 #define STR_NULL (struct stc_string8){.str = NULL, .len = 0}
 

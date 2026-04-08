@@ -133,12 +133,315 @@
 #define SGL_UNROLL_COLOR4(_color) (_color.r), (_color.g), (_color.b), (_color.a)
 #define SGL_UNROLL_COLOR3(_color) (_color.r), (_color.g), (_color.b)
 
+#define SGL_KEY_UNKNOWN SDL_SCANCODE_UNKNOWN
+#define SGL_KEY_A SDL_SCANCODE_A
+#define SGL_KEY_B SDL_SCANCODE_B
+#define SGL_KEY_C SDL_SCANCODE_C
+#define SGL_KEY_D SDL_SCANCODE_D
+#define SGL_KEY_E SDL_SCANCODE_E
+#define SGL_KEY_F SDL_SCANCODE_F
+#define SGL_KEY_G SDL_SCANCODE_G
+#define SGL_KEY_H SDL_SCANCODE_H
+#define SGL_KEY_I SDL_SCANCODE_I
+#define SGL_KEY_J SDL_SCANCODE_J
+#define SGL_KEY_K SDL_SCANCODE_K
+#define SGL_KEY_L SDL_SCANCODE_L
+#define SGL_KEY_M SDL_SCANCODE_M
+#define SGL_KEY_N SDL_SCANCODE_N
+#define SGL_KEY_O SDL_SCANCODE_O
+#define SGL_KEY_P SDL_SCANCODE_P
+#define SGL_KEY_Q SDL_SCANCODE_Q
+#define SGL_KEY_R SDL_SCANCODE_R
+#define SGL_KEY_S SDL_SCANCODE_S
+#define SGL_KEY_T SDL_SCANCODE_T
+#define SGL_KEY_U SDL_SCANCODE_U
+#define SGL_KEY_V SDL_SCANCODE_V
+#define SGL_KEY_W SDL_SCANCODE_W
+#define SGL_KEY_X SDL_SCANCODE_X
+#define SGL_KEY_Y SDL_SCANCODE_Y
+#define SGL_KEY_Z SDL_SCANCODE_Z
+#define SGL_KEY_1 SDL_SCANCODE_1
+#define SGL_KEY_2 SDL_SCANCODE_2
+#define SGL_KEY_3 SDL_SCANCODE_3
+#define SGL_KEY_4 SDL_SCANCODE_4
+#define SGL_KEY_5 SDL_SCANCODE_5
+#define SGL_KEY_6 SDL_SCANCODE_6
+#define SGL_KEY_7 SDL_SCANCODE_7
+#define SGL_KEY_8 SDL_SCANCODE_8
+#define SGL_KEY_9 SDL_SCANCODE_9
+#define SGL_KEY_0 SDL_SCANCODE_0
+#define SGL_KEY_RETURN SDL_SCANCODE_RETURN
+#define SGL_KEY_ESCAPE SDL_SCANCODE_ESCAPE
+#define SGL_KEY_BACKSPACE SDL_SCANCODE_BACKSPACE
+#define SGL_KEY_TAB SDL_SCANCODE_TAB
+#define SGL_KEY_SPACE SDL_SCANCODE_SPACE
+#define SGL_KEY_MINUS SDL_SCANCODE_MINUS
+#define SGL_KEY_EQUALS SDL_SCANCODE_EQUALS
+#define SGL_KEY_LEFTBRACKET SDL_SCANCODE_LEFTBRACKET
+#define SGL_KEY_RIGHTBRACKET SDL_SCANCODE_RIGHTBRACKET
+#define SGL_KEY_BACKSLASH SDL_SCANCODE_BACKSLASH
+#define SGL_KEY_NONUSHASH SDL_SCANCODE_NONUSHASH
+#define SGL_KEY_SEMICOLON SDL_SCANCODE_SEMICOLON
+#define SGL_KEY_APOSTROPHE SDL_SCANCODE_APOSTROPHE
+#define SGL_KEY_GRAVE SDL_SCANCODE_GRAVE
+#define SGL_KEY_COMMA SDL_SCANCODE_COMMA
+#define SGL_KEY_PERIOD SDL_SCANCODE_PERIOD
+#define SGL_KEY_SLASH SDL_SCANCODE_SLASH
+#define SGL_KEY_CAPSLOCK SDL_SCANCODE_CAPSLOCK
+#define SGL_KEY_F1 SDL_SCANCODE_F1
+#define SGL_KEY_F2 SDL_SCANCODE_F2
+#define SGL_KEY_F3 SDL_SCANCODE_F3
+#define SGL_KEY_F4 SDL_SCANCODE_F4
+#define SGL_KEY_F5 SDL_SCANCODE_F5
+#define SGL_KEY_F6 SDL_SCANCODE_F6
+#define SGL_KEY_F7 SDL_SCANCODE_F7
+#define SGL_KEY_F8 SDL_SCANCODE_F8
+#define SGL_KEY_F9 SDL_SCANCODE_F9
+#define SGL_KEY_F10 SDL_SCANCODE_F10
+#define SGL_KEY_F11 SDL_SCANCODE_F11
+#define SGL_KEY_F12 SDL_SCANCODE_F12
+#define SGL_KEY_PRINTSCREEN SDL_SCANCODE_PRINTSCREEN
+#define SGL_KEY_SCROLLLOCK SDL_SCANCODE_SCROLLLOCK
+#define SGL_KEY_PAUSE SDL_SCANCODE_PAUSE
+#define SGL_KEY_INSERT SDL_SCANCODE_INSERT
+#define SGL_KEY_HOME SDL_SCANCODE_HOME
+#define SGL_KEY_PAGEUP SDL_SCANCODE_PAGEUP
+#define SGL_KEY_DELETE SDL_SCANCODE_DELETE
+#define SGL_KEY_END SDL_SCANCODE_END
+#define SGL_KEY_PAGEDOWN SDL_SCANCODE_PAGEDOWN
+#define SGL_KEY_RIGHT SDL_SCANCODE_RIGHT
+#define SGL_KEY_LEFT SDL_SCANCODE_LEFT
+#define SGL_KEY_DOWN SDL_SCANCODE_DOWN
+#define SGL_KEY_UP SDL_SCANCODE_UP
+#define SGL_KEY_NUMLOCKCLEAR SDL_SCANCODE_NUMLOCKCLEAR
+#define SGL_KEY_KP_DIVIDE SDL_SCANCODE_KP_DIVIDE
+#define SGL_KEY_KP_MULTIPLY SDL_SCANCODE_KP_MULTIPLY
+#define SGL_KEY_KP_MINUS SDL_SCANCODE_KP_MINUS
+#define SGL_KEY_KP_PLUS SDL_SCANCODE_KP_PLUS
+#define SGL_KEY_KP_ENTER SDL_SCANCODE_KP_ENTER
+#define SGL_KEY_KP_1 SDL_SCANCODE_KP_1
+#define SGL_KEY_KP_2 SDL_SCANCODE_KP_2
+#define SGL_KEY_KP_3 SDL_SCANCODE_KP_3
+#define SGL_KEY_KP_4 SDL_SCANCODE_KP_4
+#define SGL_KEY_KP_5 SDL_SCANCODE_KP_5
+#define SGL_KEY_KP_6 SDL_SCANCODE_KP_6
+#define SGL_KEY_KP_7 SDL_SCANCODE_KP_7
+#define SGL_KEY_KP_8 SDL_SCANCODE_KP_8
+#define SGL_KEY_KP_9 SDL_SCANCODE_KP_9
+#define SGL_KEY_KP_0 SDL_SCANCODE_KP_0
+#define SGL_KEY_KP_PERIOD SDL_SCANCODE_KP_PERIOD
+#define SGL_KEY_NONUSBACKSLASH SDL_SCANCODE_NONUSBACKSLASH
+#define SGL_KEY_APPLICATION SDL_SCANCODE_APPLICATION
+#define SGL_KEY_POWER SDL_SCANCODE_POWER
+#define SGL_KEY_KP_EQUALS SDL_SCANCODE_KP_EQUALS
+#define SGL_KEY_F13 SDL_SCANCODE_F13
+#define SGL_KEY_F14 SDL_SCANCODE_F14
+#define SGL_KEY_F15 SDL_SCANCODE_F15
+#define SGL_KEY_F16 SDL_SCANCODE_F16
+#define SGL_KEY_F17 SDL_SCANCODE_F17
+#define SGL_KEY_F18 SDL_SCANCODE_F18
+#define SGL_KEY_F19 SDL_SCANCODE_F19
+#define SGL_KEY_F20 SDL_SCANCODE_F20
+#define SGL_KEY_F21 SDL_SCANCODE_F21
+#define SGL_KEY_F22 SDL_SCANCODE_F22
+#define SGL_KEY_F23 SDL_SCANCODE_F23
+#define SGL_KEY_F24 SDL_SCANCODE_F24
+#define SGL_KEY_EXECUTE SDL_SCANCODE_EXECUTE
+#define SGL_KEY_HELP SDL_SCANCODE_HELP
+#define SGL_KEY_MENU SDL_SCANCODE_MENU
+#define SGL_KEY_SELECT SDL_SCANCODE_SELECT
+#define SGL_KEY_STOP SDL_SCANCODE_STOP
+#define SGL_KEY_AGAIN SDL_SCANCODE_AGAIN
+#define SGL_KEY_UNDO SDL_SCANCODE_UNDO
+#define SGL_KEY_CUT SDL_SCANCODE_CUT
+#define SGL_KEY_COPY SDL_SCANCODE_COPY
+#define SGL_KEY_PASTE SDL_SCANCODE_PASTE
+#define SGL_KEY_FIND SDL_SCANCODE_FIND
+#define SGL_KEY_MUTE SDL_SCANCODE_MUTE
+#define SGL_KEY_VOLUMEUP SDL_SCANCODE_VOLUMEUP
+#define SGL_KEY_VOLUMEDOWN SDL_SCANCODE_VOLUMEDOWN
+#define SGL_KEY_LOCKINGCAPSLOCK SDL_SCANCODE_LOCKINGCAPSLOCK
+#define SGL_KEY_LOCKINGNUMLOCK SDL_SCANCODE_LOCKINGNUMLOCK
+#define SGL_KEY_LOCKINGSCROLLLOCK SDL_SCANCODE_LOCKINGSCROLLLOCK
+#define SGL_KEY_KP_COMMA SDL_SCANCODE_KP_COMMA
+#define SGL_KEY_KP_EQUALSAS400 SDL_SCANCODE_KP_EQUALSAS400
+#define SGL_KEY_INTERNATIONAL1 SDL_SCANCODE_INTERNATIONAL1
+#define SGL_KEY_INTERNATIONAL2 SDL_SCANCODE_INTERNATIONAL2
+#define SGL_KEY_INTERNATIONAL3 SDL_SCANCODE_INTERNATIONAL3
+#define SGL_KEY_INTERNATIONAL4 SDL_SCANCODE_INTERNATIONAL4
+#define SGL_KEY_INTERNATIONAL5 SDL_SCANCODE_INTERNATIONAL5
+#define SGL_KEY_INTERNATIONAL6 SDL_SCANCODE_INTERNATIONAL6
+#define SGL_KEY_INTERNATIONAL7 SDL_SCANCODE_INTERNATIONAL7
+#define SGL_KEY_INTERNATIONAL8 SDL_SCANCODE_INTERNATIONAL8
+#define SGL_KEY_INTERNATIONAL9 SDL_SCANCODE_INTERNATIONAL9
+#define SGL_KEY_LANG1 SDL_SCANCODE_LANG1
+#define SGL_KEY_LANG2 SDL_SCANCODE_LANG2
+#define SGL_KEY_LANG3 SDL_SCANCODE_LANG3
+#define SGL_KEY_LANG4 SDL_SCANCODE_LANG4
+#define SGL_KEY_LANG5 SDL_SCANCODE_LANG5
+#define SGL_KEY_LANG6 SDL_SCANCODE_LANG6
+#define SGL_KEY_LANG7 SDL_SCANCODE_LANG7
+#define SGL_KEY_LANG8 SDL_SCANCODE_LANG8
+#define SGL_KEY_LANG9 SDL_SCANCODE_LANG9
+#define SGL_KEY_ALTERASE SDL_SCANCODE_ALTERASE
+#define SGL_KEY_SYSREQ SDL_SCANCODE_SYSREQ
+#define SGL_KEY_CANCEL SDL_SCANCODE_CANCEL
+#define SGL_KEY_CLEAR SDL_SCANCODE_CLEAR
+#define SGL_KEY_PRIOR SDL_SCANCODE_PRIOR
+#define SGL_KEY_RETURN2 SDL_SCANCODE_RETURN2
+#define SGL_KEY_SEPARATOR SDL_SCANCODE_SEPARATOR
+#define SGL_KEY_OUT SDL_SCANCODE_OUT
+#define SGL_KEY_OPER SDL_SCANCODE_OPER
+#define SGL_KEY_CLEARAGAIN SDL_SCANCODE_CLEARAGAIN
+#define SGL_KEY_CRSEL SDL_SCANCODE_CRSEL
+#define SGL_KEY_EXSEL SDL_SCANCODE_EXSEL
+#define SGL_KEY_KP_00 SDL_SCANCODE_KP_00
+#define SGL_KEY_KP_000 SDL_SCANCODE_KP_000
+#define SGL_KEY_THOUSANDSSEPARATOR SDL_SCANCODE_THOUSANDSSEPARATOR
+#define SGL_KEY_DECIMALSEPARATOR SDL_SCANCODE_DECIMALSEPARATOR
+#define SGL_KEY_CURRENCYUNIT SDL_SCANCODE_CURRENCYUNIT
+#define SGL_KEY_CURRENCYSUBUNIT SDL_SCANCODE_CURRENCYSUBUNIT
+#define SGL_KEY_KP_LEFTPAREN SDL_SCANCODE_KP_LEFTPAREN
+#define SGL_KEY_KP_RIGHTPAREN SDL_SCANCODE_KP_RIGHTPAREN
+#define SGL_KEY_KP_LEFTBRACE SDL_SCANCODE_KP_LEFTBRACE
+#define SGL_KEY_KP_RIGHTBRACE SDL_SCANCODE_KP_RIGHTBRACE
+#define SGL_KEY_KP_TAB SDL_SCANCODE_KP_TAB
+#define SGL_KEY_KP_BACKSPACE SDL_SCANCODE_KP_BACKSPACE
+#define SGL_KEY_KP_A SDL_SCANCODE_KP_A
+#define SGL_KEY_KP_B SDL_SCANCODE_KP_B
+#define SGL_KEY_KP_C SDL_SCANCODE_KP_C
+#define SGL_KEY_KP_D SDL_SCANCODE_KP_D
+#define SGL_KEY_KP_E SDL_SCANCODE_KP_E
+#define SGL_KEY_KP_F SDL_SCANCODE_KP_F
+#define SGL_KEY_KP_XOR SDL_SCANCODE_KP_XOR
+#define SGL_KEY_KP_POWER SDL_SCANCODE_KP_POWER
+#define SGL_KEY_KP_PERCENT SDL_SCANCODE_KP_PERCENT
+#define SGL_KEY_KP_LESS SDL_SCANCODE_KP_LESS
+#define SGL_KEY_KP_GREATER SDL_SCANCODE_KP_GREATER
+#define SGL_KEY_KP_AMPERSAND SDL_SCANCODE_KP_AMPERSAND
+#define SGL_KEY_KP_DBLAMPERSAND SDL_SCANCODE_KP_DBLAMPERSAND
+#define SGL_KEY_KP_VERTICALBAR SDL_SCANCODE_KP_VERTICALBAR
+#define SGL_KEY_KP_DBLVERTICALBAR SDL_SCANCODE_KP_DBLVERTICALBAR
+#define SGL_KEY_KP_COLON SDL_SCANCODE_KP_COLON
+#define SGL_KEY_KP_HASH SDL_SCANCODE_KP_HASH
+#define SGL_KEY_KP_SPACE SDL_SCANCODE_KP_SPACE
+#define SGL_KEY_KP_AT SDL_SCANCODE_KP_AT
+#define SGL_KEY_KP_EXCLAM SDL_SCANCODE_KP_EXCLAM
+#define SGL_KEY_KP_MEMSTORE SDL_SCANCODE_KP_MEMSTORE
+#define SGL_KEY_KP_MEMRECALL SDL_SCANCODE_KP_MEMRECALL
+#define SGL_KEY_KP_MEMCLEAR SDL_SCANCODE_KP_MEMCLEAR
+#define SGL_KEY_KP_MEMADD SDL_SCANCODE_KP_MEMADD
+#define SGL_KEY_KP_MEMSUBTRACT SDL_SCANCODE_KP_MEMSUBTRACT
+#define SGL_KEY_KP_MEMMULTIPLY SDL_SCANCODE_KP_MEMMULTIPLY
+#define SGL_KEY_KP_MEMDIVIDE SDL_SCANCODE_KP_MEMDIVIDE
+#define SGL_KEY_KP_PLUSMINUS SDL_SCANCODE_KP_PLUSMINUS
+#define SGL_KEY_KP_CLEAR SDL_SCANCODE_KP_CLEAR
+#define SGL_KEY_KP_CLEARENTRY SDL_SCANCODE_KP_CLEARENTRY
+#define SGL_KEY_KP_BINARY SDL_SCANCODE_KP_BINARY
+#define SGL_KEY_KP_OCTAL SDL_SCANCODE_KP_OCTAL
+#define SGL_KEY_KP_DECIMAL SDL_SCANCODE_KP_DECIMAL
+#define SGL_KEY_KP_HEXADECIMAL SDL_SCANCODE_KP_HEXADECIMAL
+#define SGL_KEY_LCTRL SDL_SCANCODE_LCTRL
+#define SGL_KEY_LSHIFT SDL_SCANCODE_LSHIFT
+#define SGL_KEY_LALT SDL_SCANCODE_LALT
+#define SGL_KEY_LGUI SDL_SCANCODE_LGUI
+#define SGL_KEY_RCTRL SDL_SCANCODE_RCTRL
+#define SGL_KEY_RSHIFT SDL_SCANCODE_RSHIFT
+#define SGL_KEY_RALT SDL_SCANCODE_RALT
+#define SGL_KEY_RGUI SDL_SCANCODE_RGUI
+#define SGL_KEY_MODE SDL_SCANCODE_MODE
+#define SGL_KEY_SLEEP SDL_SCANCODE_SLEEP
+#define SGL_KEY_WAKE SDL_SCANCODE_WAKE
+#define SGL_KEY_CHANNEL_INCREMENT SDL_SCANCODE_CHANNEL_INCREMENT
+#define SGL_KEY_CHANNEL_DECREMENT SDL_SCANCODE_CHANNEL_DECREMENT
+#define SGL_KEY_MEDIA_PLAY SDL_SCANCODE_MEDIA_PLAY
+#define SGL_KEY_MEDIA_PAUSE SDL_SCANCODE_MEDIA_PAUSE
+#define SGL_KEY_MEDIA_RECORD SDL_SCANCODE_MEDIA_RECORD
+#define SGL_KEY_MEDIA_FAST_FORWARD SDL_SCANCODE_MEDIA_FAST_FORWARD
+#define SGL_KEY_MEDIA_REWIND SDL_SCANCODE_MEDIA_REWIND
+#define SGL_KEY_MEDIA_NEXT_TRACK SDL_SCANCODE_MEDIA_NEXT_TRACK
+#define SGL_KEY_MEDIA_PREVIOUS_TRACK SDL_SCANCODE_MEDIA_PREVIOUS_TRACK
+#define SGL_KEY_MEDIA_STOP SDL_SCANCODE_MEDIA_STOP
+#define SGL_KEY_MEDIA_EJECT SDL_SCANCODE_MEDIA_EJECT
+#define SGL_KEY_MEDIA_PLAY_PAUSE SDL_SCANCODE_MEDIA_PLAY_PAUSE
+#define SGL_KEY_MEDIA_SELECT SDL_SCANCODE_MEDIA_SELECT
+#define SGL_KEY_AC_NEW SDL_SCANCODE_AC_NEW
+#define SGL_KEY_AC_OPEN SDL_SCANCODE_AC_OPEN
+#define SGL_KEY_AC_CLOSE SDL_SCANCODE_AC_CLOSE
+#define SGL_KEY_AC_EXIT SDL_SCANCODE_AC_EXIT
+#define SGL_KEY_AC_SAVE SDL_SCANCODE_AC_SAVE
+#define SGL_KEY_AC_PRINT SDL_SCANCODE_AC_PRINT
+#define SGL_KEY_AC_PROPERTIES SDL_SCANCODE_AC_PROPERTIES
+#define SGL_KEY_AC_SEARCH SDL_SCANCODE_AC_SEARCH
+#define SGL_KEY_AC_HOME SDL_SCANCODE_AC_HOME
+#define SGL_KEY_AC_BACK SDL_SCANCODE_AC_BACK
+#define SGL_KEY_AC_FORWARD SDL_SCANCODE_AC_FORWARD
+#define SGL_KEY_AC_STOP SDL_SCANCODE_AC_STOP
+#define SGL_KEY_AC_REFRESH SDL_SCANCODE_AC_REFRESH
+#define SGL_KEY_AC_BOOKMARKS SDL_SCANCODE_AC_BOOKMARKS
+#define SGL_KEY_SOFTLEFT SDL_SCANCODE_SOFTLEFT
+#define SGL_KEY_SOFTRIGHT SDL_SCANCODE_SOFTRIGHT
+#define SGL_KEY_CALL SDL_SCANCODE_CALL
+#define SGL_KEY_ENDCALL SDL_SCANCODE_ENDCALL
+#define SGL_KEY_RESERVED SDL_SCANCODE_RESERVED
+#define SGL_KEY_COUNT SDL_SCANCODE_COUNT
+
+enum sgl_mouse_button_flags {
+	SGL_MOUSEF_LDOWN = 1ull << 0,
+	SGL_MOUSEF_LPRESS = 1ull << 1,
+	SGL_MOUSEF_LRELEASE = 1ull << 2,
+
+	SGL_MOUSEF_RDOWN = 1ull << 3,
+	SGL_MOUSEF_RPRESS = 1ull << 4,
+	SGL_MOUSEF_RRELEASE = 1ull << 5,
+
+	SGL_MOUSEF_MDOWN = 1ull << 6,
+	SGL_MOUSEF_MPRESS = 1ull << 7,
+	SGL_MOUSEF_MRELEASE = 1ull << 8,
+};
+
+
+enum sgl_mouse_button {
+	SGL_MOUSE_LEFT,
+	SGL_MOUSE_RIGHT,
+	SGL_MOUSE_MIDDLE,
+};
+
 enum sgl_pipeline_type{
 	SGL_PIPELINE_UI,
 	SGL_PIPELINE_TEX,
 	SGL_PIPELINE_GLYPHS,
 	SGL_PIPELINE_TEX_GENERIC,
 	SGL_PIPELINE_CT
+};
+
+struct sgl_sprite {
+	u32 x, y, w, h;
+	f32 u0, v0, u1, v1;
+};
+
+struct sgl_texture{
+	u32	gl_id;
+	f32	w;
+	f32	h;
+	u8	*data;
+};
+
+struct sgl_atlas_entry {
+	struct stc_string8 name;
+	u32 x, y, w, h;
+	f32 u0, v0, u1, v1;
+};
+
+struct sgl_atlas {
+	struct sgl_texture texture;
+	struct sgl_atlas_entry *entries;
+	u32 count_entries;
+	u32 w, h;
+};
+
+struct mat4 {
+	f32 v[16];
 };
 
 struct color {
@@ -161,13 +464,8 @@ struct vec2u {
 	i32 x, y;
 };
 
-
 struct vec2lu {
 	i32 x, y;
-};
-
-struct vec2d {
-	f64 x, y;
 };
 
 struct vec3 {
@@ -176,6 +474,14 @@ struct vec3 {
 
 struct vec3i {
 	i32 x, y, z;
+};
+
+
+struct sgl_mouse {
+	f32	x, y;
+	f32	dx, dy;
+	f32	wheel_x, wheel_y;
+	u64	flags;
 };
 
 
@@ -229,15 +535,16 @@ struct sgl_input {
 	bool key_repeated[SDL_SCANCODE_COUNT];
 	bool key_released[SDL_SCANCODE_COUNT];
 
-	bool mouse_pressed[8];
-	bool mouse_released[8];
+	// bool mouse_pressed[8];
+	// bool mouse_released[8];
 
 	f32	mouse_x;
 	f32 	mouse_y;
-	f32 	mouse_wheel_x;
-	f32 	mouse_wheel_y;
 	f32	mouse_dx;
 	f32	mouse_dy;
+	f32 	mouse_wheel_x;
+	f32 	mouse_wheel_y;
+	u64	mouse_mask;
 
 	const bool	*keyboard_state;
 	int		keyboard_state_count;
@@ -406,20 +713,84 @@ static struct sgl_ctx sgl = {
 		.textures_generic = {
 			.max_textures_generic = 2048,
 		},
-		.ui_softness_default = 12.0f,
+		.ui_softness_default = 1.0f,
 		.vsync = true,
 	},
 };
 
 
-struct sgl_texture{
-	u32	gl_id;
-	f32	w;
-	f32	h;
-	u8	*data;
-};
+
+
+/*@FUNCS_MATH SIGNATURES*/
+static f32 sgl_min_f32(f32 a, f32 b);
+static f32 sgl_max_f32(f32 a, f32 b);
+static f32 sgl_clamp_f32(f32 x, f32 min, f32 max);
+static f32 sgl_lerp_f32(f32 a, f32 b, f32 t);
+static f32 sgl_inv_lerp_f32(f32 a, f32 b, f32 v);
+static f32 sgl_remap_f32(f32 in_min, f32 in_max, f32 out_min, f32 out_max, f32 v);
+static f32 sgl_abs_f32(f32 x);
+static f32 sgl_sign_f32(f32 x);
+static f32 sgl_sqrt_f32(f32 x);
+static f32 sgl_rsqrt_f32(f32 x);
+static f32 sgl_floor_f32(f32 x);
+static f32 sgl_ceil_f32(f32 x);
+static f32 sgl_round_f32(f32 x);
+static f32 sgl_mod_f32(f32 x, f32 y);
+static f32 sgl_fract_f32(f32 x);
+static f32 sgl_sin(f32 x);
+static f32 sgl_cos(f32 x);
+static f32 sgl_tan(f32 x);
+static f32 sgl_asin(f32 x);
+static f32 sgl_acos(f32 x);
+static f32 sgl_atan(f32 x);
+static f32 sgl_atan2(f32 y, f32 x);
+static f32 sgl_pow(f32 base, f32 exp);
+static f32 sgl_exp(f32 x);
+static f32 sgl_log(f32 x);
+static f32 sgl_log2(f32 x);
+static f32 sgl_log10(f32 x);
+static struct vec2 sgl_vec2(f32 x, f32 y);
+static struct vec2 sgl_add2(struct vec2 a, struct vec2 b);
+static struct vec2 sgl_sub2(struct vec2 a, struct vec2 b);
+static struct vec2 sgl_mul2(struct vec2 a, struct vec2 b);
+static struct vec2 sgl_scale2(struct vec2 v, f32 s);
+static f32  sgl_dot2(struct vec2 a, struct vec2 b);
+static f32  sgl_len2(struct vec2 v);
+static f32  sgl_len2_sq(struct vec2 v);
+struct vec2 sgl_norm2(struct vec2 v);
+struct vec2 sgl_lerp2(struct vec2 a, struct vec2 b, f32 t);
+static struct vec3 sgl_vec3(f32 x, f32 y, f32 z);
+static struct vec3 sgl_add3(struct vec3 a, struct vec3 b);
+static struct vec3 sgl_sub3(struct vec3 a, struct vec3 b);
+static struct vec3 sgl_mul3(struct vec3 a, struct vec3 b);
+static struct vec3 sgl_scale3(struct vec3 v, f32 s);
+static f32  sgl_dot3(struct vec3 a, struct vec3 b);
+static struct vec3 sgl_cross3(struct vec3 a, struct vec3 b);
+static f32  sgl_len3(struct vec3 v);
+static struct vec3 sgl_norm3(struct vec3 v);
+static struct vec3 sgl_lerp3(struct vec3 a, struct vec3 b, f32 t);
+static struct vec4 sgl_add4(struct vec4 a, struct vec4 b);
+static struct vec4 sgl_scale4(struct vec4 v, f32 s);
+static struct vec4 sgl_lerp4(struct vec4 a, struct vec4 b, f32 t);
+
+static struct mat4 sgl_mat4_identity(void);
+static struct mat4 sgl_mat4_mul(struct mat4 a, struct mat4 b);
+static struct mat4 sgl_mat4_translate(struct vec3 t);
+static struct mat4 sgl_mat4_scale(struct vec3 s);
+static struct mat4 sgl_mat4_rotate_z(f32 angle);
+static struct mat4 sgl_mat4_ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f);
+static f32 sgl_smoothstep(f32 edge0, f32 edge1, f32 x);
+static f32 sgl_step(f32 edge, f32 x);
+static f32 sgl_deg_to_rad(f32 deg);
+static f32 sgl_rad_to_deg(f32 rad);
 
 /*@FUNCS SIGNATURES*/
+void sgl_draw_sprite(struct sgl_texture texture, struct sgl_sprite sprite, f32 x, f32 y, f32 w, f32 h, struct color color);
+static void sgl_draw_texture_region(struct sgl_texture texture, f32 x, f32 y, f32 w, f32 h, f32 u0, f32 v0, f32 u1, f32 v1, struct color color);
+static struct sgl_atlas sgl_make_atlas(struct sgl_texture *textures, u32 count, u32 atlas_w, u32 atlas_h, u32 pad);
+inline void sgl_start_text_input(void);
+inline void sgl_stop_text_input(void);
+inline struct sgl_mouse sgl_get_mouse(void);
 inline u32  sgl_files_dropped_count(void);
 inline bool32 sgl_any_text_input(void);
 inline bool32 sgl_is_mouse_in_rect(struct rect r);
@@ -438,17 +809,347 @@ static inline void sgl_dispatch_pipeline(enum sgl_pipeline_type);
 static inline void sgl_input_begin_frame(void);
 static inline void sgl_input_init(void);
 static inline void sgl_poll_input(void);
-static inline f32 sgl_mouse_dx(void);
-static inline f32 sgl_mouse_dy(void);
-static inline struct vec2 sgl_mouse_delta(void);
-static inline struct vec2 sgl_mouse_pos(void);
+// static inline f32 sgl_mouse_dx(void);
+// static inline f32 sgl_mouse_dy(void);
+// static inline struct vec2 sgl_mouse_delta(void);
+// static inline struct vec2 sgl_mouse_pos(void);
 static inline bool32 sgl_items_dropped(void);
 static struct sgl_texture sgl_load_texture(const char *path);
 static inline const char *sgl_dropped_path(u32 index);
 static void sgl_draw_texture(struct sgl_texture texture, f32 x, f32 y, f32 w, f32 h, struct color color);
 static inline void sgl_clear_batch(enum sgl_pipeline_type type);
+static inline bool32 sgl_is_mouse_down(i32);
+static inline bool32 sgl_is_mouse_pressed(i32);
+static inline bool32 sgl_is_mouse_released(i32);
+static inline u64 sgl_mouse_flag(i32 button, u64 l, u64 r, u64 m);
+static inline bool32 sgl_mouse_left_pressed(struct sgl_mouse m);
+static inline bool32 sgl_mouse_left_released(struct sgl_mouse m);
+static inline bool32 sgl_mouse_right_pressed(struct sgl_mouse m);
+static inline bool32 sgl_mouse_right_released(struct sgl_mouse m);
+static inline bool32 sgl_mouse_left_pressed(struct sgl_mouse m);
+
+void sgl_draw_sprite(
+    struct sgl_texture texture,
+    struct sgl_sprite sprite,
+    f32 x, f32 y,
+    f32 w, f32 h,
+    struct color color)
+{
+    sgl_draw_texture_region(
+        texture,
+        x, y, w, h,
+        sprite.u0, sprite.v0,
+        sprite.u1, sprite.v1,
+        color
+    );
+}
 
 
+void
+sgl_draw_texture_region(
+    struct sgl_texture texture,
+    f32 x, f32 y,
+    f32 w, f32 h,
+    f32 u0, f32 v0,
+    f32 u1, f32 v1,
+    struct color color)
+{
+	if (texture.gl_id == 0) return;
+
+	if (sgl.textures_generic.ct_quads > 0 &&
+	    sgl.textures_generic.current_texture != texture.gl_id) {
+		sgl_dispatch_pipeline(SGL_PIPELINE_TEX_GENERIC);
+	}
+
+	if (sgl.textures_generic.ct_quads >= sgl.cfg_init_time.textures_generic.max_textures_generic) {
+		sgl_dispatch_pipeline(SGL_PIPELINE_TEX_GENERIC);
+	}
+
+	sgl.textures_generic.current_texture = texture.gl_id;
+
+	sgl.textures_generic.vertices[sgl.textures_generic.ct_vertices++] = (struct vertex_tex_generic){
+		.pos = {x, y, 0.0f},
+		.color = color,
+		.uv = {u0, v0},
+	};
+	sgl.textures_generic.vertices[sgl.textures_generic.ct_vertices++] = (struct vertex_tex_generic){
+		.pos = {x + w, y, 0.0f},
+		.color = color,
+		.uv = {u1, v0},
+	};
+	sgl.textures_generic.vertices[sgl.textures_generic.ct_vertices++] = (struct vertex_tex_generic){
+		.pos = {x + w, y + h, 0.0f},
+		.color = color,
+		.uv = {u1, v1},
+	};
+	sgl.textures_generic.vertices[sgl.textures_generic.ct_vertices++] = (struct vertex_tex_generic){
+		.pos = {x, y + h, 0.0f},
+		.color = color,
+		.uv = {u0, v1},
+	};
+
+	sgl.textures_generic.ct_quads++;
+}
+
+struct sgl_atlas
+sgl_make_atlas(
+    struct sgl_texture *textures,
+    u32 count,
+    u32 atlas_w,
+    u32 atlas_h,
+    u32 pad)
+{
+	struct sgl_atlas atlas = {0};
+	if (!textures || count == 0) return atlas;
+
+	stbrp_context ctx = {0};
+	stbrp_node *nodes = stc_alloc(sizeof(*nodes) * atlas_w);
+	stbrp_rect *rects = stc_alloc(sizeof(*rects) * count);
+	atlas.entries = stc_alloc(sizeof(*atlas.entries) * count);
+
+	if (!nodes || !rects || !atlas.entries) {
+		fprintf(stderr, "atlas alloc failed\n");
+		goto fail;
+	}
+
+	for (u32 i = 0; i < count; ++i) {
+		rects[i].id = (int)i;
+		rects[i].w = (stbrp_coord)(textures[i].w + pad * 2);
+		rects[i].h = (stbrp_coord)(textures[i].h + pad * 2);
+	}
+
+	stbrp_init_target(&ctx, (int)atlas_w, (int)atlas_h, nodes, (int)atlas_w);
+	if (!stbrp_pack_rects(&ctx, rects, (int)count)) {
+		fprintf(stderr, "atlas packing failed\n");
+		goto fail;
+	}
+
+	u8 *pixels = calloc((size_t)atlas_w * (size_t)atlas_h * 4, 1);
+	if (!pixels) {
+		fprintf(stderr, "atlas pixel alloc failed\n");
+		goto fail;
+	}
+
+	for (u32 i = 0; i < count; ++i) {
+		if (!rects[i].was_packed) {
+			fprintf(stderr, "sprite %u did not fit atlas\n", i);
+			free(pixels);
+			goto fail;
+		}
+
+		u32 dst_x = (u32)rects[i].x + pad;
+		u32 dst_y = (u32)rects[i].y + pad;
+		u32 src_w = (u32)textures[i].w;
+		u32 src_h = (u32)textures[i].h;
+
+		/* requires textures[i].data to exist */
+		for (u32 row = 0; row < src_h; ++row) {
+			u8 *dst = pixels + (((size_t)dst_y + row) * atlas_w + dst_x) * 4;
+			u8 *src = textures[i].data + ((size_t)row * src_w) * 4;
+			stc_memcpy(dst, src, (size_t)src_w * 4);
+		}
+
+		atlas.entries[i] = (struct sgl_atlas_entry){
+			.x = dst_x,
+			.y = dst_y,
+			.w = src_w,
+			.h = src_h,
+			.u0 = (f32)dst_x / (f32)atlas_w,
+			.v0 = (f32)dst_y / (f32)atlas_h,
+			.u1 = (f32)(dst_x + src_w) / (f32)atlas_w,
+			.v1 = (f32)(dst_y + src_h) / (f32)atlas_h,
+		};
+	}
+
+	atlas.w = atlas_w;
+	atlas.h = atlas_h;
+	atlas.count_entries = count;
+
+	glGenTextures(1, &atlas.texture.gl_id);
+	glBindTexture(GL_TEXTURE_2D, atlas.texture.gl_id);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, atlas_w, atlas_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	atlas.texture.w = (f32)atlas_w;
+	atlas.texture.h = (f32)atlas_h;
+
+	free(pixels);
+	stc_free(nodes, sizeof(*nodes) * atlas_w);
+	stc_free(rects, sizeof(*rects) * count);
+	return atlas;
+
+fail:
+	if (nodes) stc_free(nodes, sizeof(*nodes) * atlas_w);
+	if (rects) stc_free(rects, sizeof(*rects) * count);
+	if (atlas.entries) stc_free(atlas.entries, sizeof(*atlas.entries) * count);
+	atlas.entries = NULL;
+	return atlas;
+}
+
+
+struct sgl_sprite
+sgl_sprite_from_grid(struct sgl_texture tex, u32 cols, u32 rows, u32 frame)
+{
+	u32 cell_w = (u32)tex.w / cols;
+	u32 cell_h = (u32)tex.h / rows;
+
+	u32 col = frame % cols;
+	u32 row = frame / cols;
+
+	u32 x = col * cell_w;
+	u32 y = row * cell_h;
+
+	return (struct sgl_sprite){
+		.x = x,
+		.y = y,
+		.w = cell_w,
+		.h = cell_h,
+		.u0 = (f32)x / tex.w,
+		.v0 = (f32)y / tex.h,
+		.u1 = (f32)(x + cell_w) / tex.w,
+		.v1 = (f32)(y + cell_h) / tex.h,
+	};
+}
+
+f32 sgl_get_dt(void)
+{
+	static f32 last_counter = 0.0f;
+	u64 counter = SDL_GetPerformanceCounter();
+	u64 freq = SDL_GetPerformanceFrequency();
+
+	f32 dt = 0.0f;
+
+	if (last_counter != 0) {
+		dt = (f32)(counter - last_counter) / (f32)freq;
+	}
+
+	last_counter = counter;
+	return dt;
+}
+
+
+void sgl_start_text_input(void)
+{
+	SDL_StartTextInput(sgl.window);
+}
+
+void sgl_stop_text_input(void)
+{
+	SDL_StopTextInput(sgl.window);
+}
+
+
+inline bool32 sgl_mouse_left_pressed(struct sgl_mouse m)
+{
+	return (m.flags & SGL_MOUSEF_LPRESS) != 0;
+}
+
+static inline bool32 sgl_mouse_left_released(struct sgl_mouse m)
+{
+	return (m.flags & SGL_MOUSEF_LRELEASE) != 0;
+}
+
+static inline bool32 sgl_mouse_right_pressed(struct sgl_mouse m)
+{
+	return (m.flags & SGL_MOUSEF_RPRESS) != 0;
+}
+
+static inline bool32 sgl_mouse_right_released(struct sgl_mouse m)
+{
+	return (m.flags & SGL_MOUSEF_RRELEASE) != 0;
+}
+
+
+
+
+
+/*@MOUSE_STARt*/
+static inline u64
+sgl_mouse_flag(i32 button, u64 l, u64 r, u64 m)
+{
+	switch (button) {
+	case SDL_BUTTON_LEFT:   return l;
+	case SDL_BUTTON_RIGHT:  return r;
+	case SDL_BUTTON_MIDDLE: return m;
+	default: return 0;
+	}
+}
+
+static inline bool32
+sgl_is_mouse_down(i32 button)
+{
+	return (sgl.sgl_input.mouse_mask &
+	        sgl_mouse_flag(button,
+	                       SGL_MOUSEF_LDOWN,
+	                       SGL_MOUSEF_RDOWN,
+	                       SGL_MOUSEF_MDOWN)) != 0;
+}
+
+static inline bool32
+sgl_is_mouse_pressed(i32 button)
+{
+	return (sgl.sgl_input.mouse_mask &
+	        sgl_mouse_flag(button,
+	                       SGL_MOUSEF_LPRESS,
+	                       SGL_MOUSEF_RPRESS,
+	                       SGL_MOUSEF_MPRESS)) != 0;
+}
+
+static inline bool32
+sgl_is_mouse_released(i32 button)
+{
+	return (sgl.sgl_input.mouse_mask &
+	        sgl_mouse_flag(button,
+	                       SGL_MOUSEF_LRELEASE,
+	                       SGL_MOUSEF_RRELEASE,
+	                       SGL_MOUSEF_MRELEASE)) != 0;
+}
+
+
+// static inline f32
+// sgl_mouse_x(void)
+// {
+// 	return sgl.sgl_input.mouse_x;
+// }
+//
+// static inline f32
+// sgl_mouse_y(void)
+// {
+// 	return sgl.sgl_input.mouse_y;
+// }
+//
+// static inline f32
+// sgl_mouse_wheel_x(void)
+// {
+// 	return sgl.sgl_input.mouse_wheel_x;
+// }
+//
+// static inline f32
+// sgl_mouse_wheel_y(void)
+// {
+// 	return sgl.sgl_input.mouse_wheel_y;
+// }
+
+
+inline struct sgl_mouse
+sgl_get_mouse(void)
+{
+	return (struct sgl_mouse){
+		.x = sgl.sgl_input.mouse_x,
+		.y = sgl.sgl_input.mouse_y,
+		.dx = sgl.sgl_input.mouse_dx,
+		.dy = sgl.sgl_input.mouse_dy,
+		.wheel_x = sgl.sgl_input.mouse_wheel_x,
+		.wheel_y = sgl.sgl_input.mouse_wheel_y,
+		.flags = sgl.sgl_input.mouse_mask,
+	};
+}
+/*@MOUSE_END*/
 
 
 static void copy_ft_bitmap_into_atlas(
@@ -483,8 +1184,9 @@ static void copy_ft_bitmap_into_atlas(
 	}
 }
 
-struct text_atlas stc_build_text_atlas(FT_Face face, int first_char, int last_char)
+void sgl_build_text_atlas(int first_char, int last_char)
 {
+	FT_Face face = sgl.cfg_init_time.ui.ft_face;
 	struct text_atlas atlas = {0};
 	FT_GlyphSlot g = face->glyph;
 
@@ -502,7 +1204,7 @@ struct text_atlas stc_build_text_atlas(FT_Face face, int first_char, int last_ch
 
 	if (atlas_w == 0 || atlas_h == 0) {
 		fprintf(stderr, "text atlas size is zero\n");
-		return atlas;
+		sgl.glyphs.atlas = atlas;
 	}
 
 	atlas.width  = atlas_w;
@@ -513,7 +1215,7 @@ struct text_atlas stc_build_text_atlas(FT_Face face, int first_char, int last_ch
 	u8 *pixels = calloc((size_t)atlas.width * (size_t)atlas.height, 1);
 	if (!pixels) {
 		fprintf(stderr, "atlas pixel alloc failed\n");
-		return atlas;
+		sgl.glyphs.atlas = atlas;
 	}
 
 	u32 x_off = 0;
@@ -575,7 +1277,7 @@ struct text_atlas stc_build_text_atlas(FT_Face face, int first_char, int last_ch
 	glBindTexture(GL_TEXTURE_2D, 0);
 	free(pixels);
 
-	return atlas;
+	sgl.glyphs.atlas = atlas;
 }
 
 void sgl_init_quads_texture_generic(void)
@@ -1119,6 +1821,8 @@ void _sgl_create_pipeline(struct stc_string8 vs_path, struct stc_string8 fs_path
 		    .ct_attribs = 3,
 
 		    );
+		/*BUILD ATLAS TOGETHER WITH GLYPHS*/
+		sgl_build_text_atlas(32, 127);
 		break;
 	case SGL_PIPELINE_TEX:
 		break;
@@ -1429,17 +2133,20 @@ sgl_input_begin_frame(void)
 	memset(sgl.sgl_input.key_pressed, 0, sizeof(sgl.sgl_input.key_pressed));
 	memset(sgl.sgl_input.key_released, 0, sizeof(sgl.sgl_input.key_released));
 	memset(sgl.sgl_input.key_repeated, 0, sizeof(sgl.sgl_input.key_repeated));
-	memset(sgl.sgl_input.mouse_pressed, 0, sizeof(sgl.sgl_input.mouse_pressed));
-	memset(sgl.sgl_input.mouse_released, 0, sizeof(sgl.sgl_input.mouse_released));
 
 	sgl.sgl_input.mouse_wheel_x = 0.0f;
 	sgl.sgl_input.mouse_wheel_y = 0.0f;
 	sgl.sgl_input.files_drop_count = 0;
+	sgl.sgl_input.mouse_mask = 0;
 	// sgl.sgl_input.text_data_len = 0;
 	// sgl.sgl_input.text_data[0] = '\0';
 
-	SDL_GetMouseState(&sgl.sgl_input.mouse_x, &sgl.sgl_input.mouse_y);
+	Uint32 down = SDL_GetMouseState(&sgl.sgl_input.mouse_x, &sgl.sgl_input.mouse_y);
 	SDL_GetRelativeMouseState(&sgl.sgl_input.mouse_dx, &sgl.sgl_input.mouse_dy);
+
+	if (down & SDL_BUTTON_MASK(SDL_BUTTON_LEFT))   sgl.sgl_input.mouse_mask |= SGL_MOUSEF_LDOWN;
+	if (down & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))  sgl.sgl_input.mouse_mask |= SGL_MOUSEF_RDOWN;
+	if (down & SDL_BUTTON_MASK(SDL_BUTTON_MIDDLE)) sgl.sgl_input.mouse_mask |= SGL_MOUSEF_MDOWN;
 }
 
 void
@@ -1483,16 +2190,20 @@ sgl_input_process_event(void)
 	} break;
 
 	case SDL_EVENT_MOUSE_BUTTON_DOWN:
-		if (sgl.events.button.button < (int)SDL_arraysize(sgl.sgl_input.mouse_pressed)) {
-			sgl.sgl_input.mouse_pressed[sgl.events.button.button] = true;
-		}
-		break;
+		switch (sgl.events.button.button) {
+		case SDL_BUTTON_LEFT:   sgl.sgl_input.mouse_mask |= SGL_MOUSEF_LPRESS; break;
+		case SDL_BUTTON_RIGHT:  sgl.sgl_input.mouse_mask |= SGL_MOUSEF_RPRESS; break;
+		case SDL_BUTTON_MIDDLE: sgl.sgl_input.mouse_mask |= SGL_MOUSEF_MPRESS; break;
+	}
+	break;
 
 	case SDL_EVENT_MOUSE_BUTTON_UP:
-		if (sgl.events.button.button < (int)SDL_arraysize(sgl.sgl_input.mouse_released)) {
-			sgl.sgl_input.mouse_released[sgl.events.button.button] = true;
-		}
-		break;
+		switch (sgl.events.button.button) {
+		case SDL_BUTTON_LEFT:   sgl.sgl_input.mouse_mask |= SGL_MOUSEF_LRELEASE; break;
+		case SDL_BUTTON_RIGHT:  sgl.sgl_input.mouse_mask |= SGL_MOUSEF_RRELEASE; break;
+		case SDL_BUTTON_MIDDLE: sgl.sgl_input.mouse_mask |= SGL_MOUSEF_MRELEASE; break;
+	}
+	break;
 
 	case SDL_EVENT_MOUSE_MOTION:
 		sgl.sgl_input.mouse_x = sgl.events.motion.x;
@@ -1559,55 +2270,6 @@ sgl_is_key_released(SDL_Scancode sc)
 	return sgl.sgl_input.key_released[sc];
 }
 
-static inline bool
-sgl_is_mouse_down(Uint8 button)
-{
-	float x, y;
-	Uint32 mask = SDL_GetMouseState(&x, &y);
-	return (mask & SDL_BUTTON_MASK(button)) != 0;
-}
-
-static inline bool
-sgl_is_mouse_pressed(Uint8 button)
-{
-	if (button >= SDL_arraysize(sgl.sgl_input.mouse_pressed)) {
-		return false;
-	}
-	return sgl.sgl_input.mouse_pressed[button];
-}
-
-static inline bool
-sgl_is_mouse_released(Uint8 button)
-{
-	if (button >= SDL_arraysize(sgl.sgl_input.mouse_released)) {
-		return false;
-	}
-	return sgl.sgl_input.mouse_released[button];
-}
-
-static inline float
-sgl_mouse_x(void)
-{
-	return sgl.sgl_input.mouse_x;
-}
-
-static inline float
-sgl_mouse_y(void)
-{
-	return sgl.sgl_input.mouse_y;
-}
-
-static inline float
-sgl_mouse_wheel_x(void)
-{
-	return sgl.sgl_input.mouse_wheel_x;
-}
-
-static inline float
-sgl_mouse_wheel_y(void)
-{
-	return sgl.sgl_input.mouse_wheel_y;
-}
 
 
 inline i32  sgl_window_width(void)  { return sgl.ww; }
@@ -1627,7 +2289,7 @@ inline bool32 sgl_any_text_input(void)
 
 inline bool32 sgl_is_mouse_in_rect(struct rect r)
 {
-	return sgl_col_rec_point(r, sgl_mouse_pos());
+	return sgl_col_rec_point(r, (struct vec2){sgl.sgl_input.mouse_x, sgl.sgl_input.mouse_y});
 }
 
 inline bool32 sgl_has_keyboard_focus(void)
@@ -1659,6 +2321,43 @@ void sgl_text_append(struct stc_string8 *s, u32 cap)
 	sgl.sgl_input.text_data[0] = '\0';
 }
 
+void sgl_draw_circle(f32 cx, f32 cy, f32 radius, struct color c)
+{
+	f32 d = radius * 2.0f;
+
+	sgl_draw_uibox((struct ui_box){
+		.x = cx - radius,
+		.y = cy - radius,
+		.w = d,
+		.h = d,
+		.color = c,
+		.radius = d * 0.5f,
+		.border_thickness = 0.0f,
+		.border_color = SGL_WHITE100
+	});
+}
+
+void sgl_draw_circle_ex(
+	f32 cx, f32 cy, f32 radius,
+	struct color fill,
+	f32 border_thickness,
+	struct color border_color)
+{
+	f32 x = cx - radius;
+	f32 y = cy - radius;
+	f32 d = radius * 2.0f;
+
+	sgl_draw_uibox((struct ui_box){
+		.x = x,
+		.y = y,
+		.w = d,
+		.h = d,
+		.color = fill,
+		.radius = radius,
+		.border_thickness = border_thickness,
+		.border_color = border_color,
+	});
+}
 
 
 void sgl_draw_line(f32 x0, f32 y0, f32 x1, f32 y1, f32 thickness, struct color color)
@@ -1716,11 +2415,6 @@ void sgl_draw_line(f32 x0, f32 y0, f32 x1, f32 y1, f32 thickness, struct color c
 	});
 	sgl.ui.ct_quads++;
 }
-
-inline float sgl_mouse_dx(void) { return sgl.sgl_input.mouse_dx; }
-inline float sgl_mouse_dy(void) { return sgl.sgl_input.mouse_dy; }
-inline struct vec2 sgl_mouse_delta(void) { return (struct vec2){sgl.sgl_input.mouse_dx, sgl.sgl_input.mouse_dy}; }
-inline struct vec2 sgl_mouse_pos(void) { return (struct vec2){sgl.sgl_input.mouse_x, sgl.sgl_input.mouse_y}; }
 
 
 bool32 sgl_col_rec_point(struct rect r, struct vec2 p)
@@ -1783,6 +2477,10 @@ struct sgl_texture sgl_load_texture(const char *path)
 		return tex;
 	}
 
+	u64 size = (u64)w * (u64)h * 4;
+	tex.data = stc_alloc(size);
+	stc_memcpy(tex.data, data, size);
+
 	tex.w = w;
 	tex.h = h;
 
@@ -1833,39 +2531,58 @@ sgl_draw_texture(
     f32 w, f32 h,
     struct color color)
 {
-	if (texture.gl_id == 0) return;
+	sgl_draw_texture_region(texture, x, y, w, h, 0.0f, 0.0f, 1.0f, 1.0f, color);
+}
 
-	if (sgl.textures_generic.ct_quads > 0 &&
-	    sgl.textures_generic.current_texture != texture.gl_id) {
-		sgl_dispatch_pipeline(SGL_PIPELINE_TEX_GENERIC);
-	}
 
-	if (sgl.textures_generic.ct_quads >= sgl.cfg_init_time.textures_generic.max_textures_generic) {
-		sgl_dispatch_pipeline(SGL_PIPELINE_TEX_GENERIC);
-	}
 
-	sgl.textures_generic.current_texture = texture.gl_id;
 
-	sgl.textures_generic.vertices[sgl.textures_generic.ct_vertices++] = (struct vertex_tex_generic){
-		.pos = {x, y, 0.0f},
-		.color = color,
-		.uv = {0.0f, 0.0f},
-	};
-	sgl.textures_generic.vertices[sgl.textures_generic.ct_vertices++] = (struct vertex_tex_generic){
-		.pos = {x + w, y, 0.0f},
-		.color = color,
-		.uv = {1.0f, 0.0f},
-	};
-	sgl.textures_generic.vertices[sgl.textures_generic.ct_vertices++] = (struct vertex_tex_generic){
-		.pos = {x + w, y + h, 0.0f},
-		.color = color,
-		.uv = {1.0f, 1.0f},
-	};
-	sgl.textures_generic.vertices[sgl.textures_generic.ct_vertices++] = (struct vertex_tex_generic){
-		.pos = {x, y + h, 0.0f},
-		.color = color,
-		.uv = {0.0f, 1.0f},
-	};
+/*@FUNCS_MATH IMPL*/
 
-	sgl.textures_generic.ct_quads++;
+f32 sgl_rsqrt_f32(f32 number)
+{
+	const f32 threehalfs = 1.5f;
+
+	f32 x2 = number * 0.5f;
+	f32 y = number;
+
+	u32 i = *(u32*)&y;
+	i = 0x5f3759df - (i >> 1);
+	y = *(f32*)&i;
+
+	y = y * (threehalfs - (x2 * y * y)); // 1 iteration
+
+	return y;
+}
+
+f32 sgl_sqrt_f32(f32 x)
+{
+	return x * sgl_rsqrt_f32(x);
+}
+
+struct vec2 sgl_sub2(struct vec2 a, struct vec2 b)
+{
+	return (struct vec2){a.x - b.x, a.y - b.y};
+}
+
+struct vec2 sgl_add2(struct vec2 a, struct vec2 b)
+{
+	return (struct vec2){a.x + b.x, a.y + b.y};
+}
+struct vec2 sgl_scale2(struct vec2 v, f32 s)
+{
+	return (struct vec2){v.x *s, v.y * s};
+}
+
+f32 sgl_len2(struct vec2 v)
+{
+	return sgl_sqrt_f32((v.x * v.x) + (v.y * v.y));
+}
+
+struct vec2 sgl_norm2(struct vec2 v)
+{
+	f32 len = sgl_len2(v);
+	if (len == 0.0f) return (struct vec2){0};
+
+	return (struct vec2){ v.x / len, v.y / len };
 }
