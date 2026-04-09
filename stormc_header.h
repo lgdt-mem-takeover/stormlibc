@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 #define stc_byte char
 #else
-#define stc_byte u8
+#define stc_byte char
 #endif
 
 #ifdef _WIN32
@@ -367,6 +367,7 @@ static inline f32 minf(f32 a, f32 b);
 /*@TEXT END*/
 
 
+
 /*@HASH START*/
 #ifdef STORMC_HASHFUNC
 #include "containers/stormc_hash.c"
@@ -458,5 +459,126 @@ thisfile u64 stc_random_range(u64 min, u64 max);
 			}                                                  \
 		}                                                          \
 	}
+
+#define STC_INTROSORT_INSERTION_THRESHOLD 24
+#define make_introsort(name, type, idx_t, less, greater)                                      \
+	_Static_assert(((idx_t)-1) < 0, "idx_t must be signed");                                   \
+                                                                                               \
+	static inline void name##_swap(type *a, type *b)                                           \
+	{                                                                                          \
+		type tmp = *a;                                                                     \
+		*a = *b;                                                                           \
+		*b = tmp;                                                                           \
+	}                                                                                          \
+                                                                                               \
+	static inline void name##_insertion(type *arr, idx_t low, idx_t high)                     \
+	{                                                                                          \
+		for (idx_t i = low + 1; i <= high; ++i) {                                          \
+			type x = arr[i];                                                            \
+			idx_t j = i - 1;                                                           \
+			while (j >= low && (x less arr[j])) {                                       \
+				arr[j + 1] = arr[j];                                                \
+				--j;                                                                 \
+			}                                                                          \
+			arr[j + 1] = x;                                                            \
+		}                                                                                  \
+	}                                                                                          \
+                                                                                               \
+	static inline void name##_sift_down(type *arr, idx_t base, idx_t root, idx_t end)         \
+	{                                                                                          \
+		for (;;) {                                                                         \
+			idx_t child = (root << 1) + 1;                                            \
+			if (child > end) break;                                                    \
+			idx_t swap_idx = root;                                                     \
+			if (arr[base + swap_idx] less arr[base + child]) swap_idx = child;         \
+			if (child + 1 <= end && (arr[base + swap_idx] less arr[base + child + 1])) \
+				swap_idx = child + 1;                                              \
+			if (swap_idx == root) break;                                               \
+			name##_swap(&arr[base + root], &arr[base + swap_idx]);                     \
+			root = swap_idx;                                                           \
+		}                                                                                  \
+	}                                                                                          \
+                                                                                               \
+	static inline void name##_heapsort(type *arr, idx_t low, idx_t high)                      \
+	{                                                                                          \
+		idx_t n = high - low + 1;                                                         \
+		if (n <= 1) return;                                                                \
+		for (idx_t start = (n - 2) >> 1;; --start) {                                      \
+			name##_sift_down(arr, low, start, n - 1);                                 \
+			if (start == 0) break;                                                     \
+		}                                                                                  \
+		for (idx_t end = n - 1; end > 0; --end) {                                         \
+			name##_swap(&arr[low], &arr[low + end]);                                  \
+			name##_sift_down(arr, low, 0, end - 1);                                   \
+		}                                                                                  \
+	}                                                                                          \
+                                                                                               \
+	static inline idx_t name##_floor_log2_u64(unsigned long long x)                           \
+	{                                                                                          \
+		idx_t r = 0;                                                                      \
+		while (x >>= 1) ++r;                                                              \
+		return r;                                                                         \
+	}                                                                                          \
+                                                                                               \
+	void name(type *arr, idx_t low, idx_t high)                                               \
+	{                                                                                          \
+		if (low >= high) return;                                                           \
+                                                                                               \
+		idx_t depth_limit = 2 * name##_floor_log2_u64((unsigned long long)(high - low + 1)); \
+                                                                                               \
+		while (low < high) {                                                               \
+			idx_t n = high - low + 1;                                                  \
+                                                                                               \
+			if (n <= STC_INTROSORT_INSERTION_THRESHOLD) {                               \
+				name##_insertion(arr, low, high);                                   \
+				return;                                                             \
+			}                                                                          \
+                                                                                               \
+			if (depth_limit == 0) {                                                     \
+				name##_heapsort(arr, low, high);                                    \
+				return;                                                             \
+			}                                                                          \
+			--depth_limit;                                                              \
+                                                                                               \
+			idx_t mid = low + ((high - low) >> 1);                                     \
+                                                                                               \
+			if (arr[mid] less arr[low])  name##_swap(&arr[mid],  &arr[low]);           \
+			if (arr[high] less arr[mid]) name##_swap(&arr[high], &arr[mid]);           \
+			if (arr[mid] less arr[low])  name##_swap(&arr[mid],  &arr[low]);           \
+                                                                                               \
+			type pivot = arr[mid];                                                      \
+                                                                                               \
+			idx_t lt = low;                                                             \
+			idx_t i  = low;                                                             \
+			idx_t gt = high;                                                            \
+                                                                                               \
+			while (i <= gt) {                                                           \
+				if (arr[i] less pivot) {                                            \
+					if (lt != i) name##_swap(&arr[lt], &arr[i]);                  \
+					++lt;                                                          \
+					++i;                                                           \
+				} else if (arr[i] greater pivot) {                                   \
+					if (i != gt) name##_swap(&arr[i], &arr[gt]);                  \
+					--gt;                                                          \
+				} else {                                                             \
+					++i;                                                           \
+				}                                                                    \
+			}                                                                          \
+                                                                                               \
+			idx_t left_size  = lt - low;                                                \
+			idx_t right_size = high - gt;                                               \
+                                                                                               \
+			if (left_size < right_size) {                                               \
+				if (low < lt - 1) name(arr, low, lt - 1);                          \
+				low = gt + 1;                                                       \
+			} else {                                                                   \
+				if (gt + 1 < high) name(arr, gt + 1, high);                        \
+				high = lt - 1;                                                      \
+			}                                                                          \
+		}                                                                                  \
+	}
+
 #endif
+
+
 #pragma GCC diagnostic pop

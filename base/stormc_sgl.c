@@ -13,6 +13,7 @@
 #include "stormc_base.h"
 #include "stormc_allocator.c"
 #include "../text/stormc_string.c"
+#include "stormc_math.c"
 #include "../containers/stormc_hash.c"
 #include <math.h>
 #pragma GCC diagnostic push
@@ -439,42 +440,10 @@ struct sgl_atlas {
 	u32 count_entries;
 	u32 w, h;
 };
-
-struct mat4 {
-	f32 v[16];
-};
-
 struct color {
 	f32 r, g, b, a;
 };
 
-struct rect{
-	f32 x, y, w, h;
-};
-
-struct vec2 {
-	f32 x, y;
-};
-
-struct vec2i {
-	i32 x, y;
-};
-
-struct vec2u {
-	i32 x, y;
-};
-
-struct vec2lu {
-	i32 x, y;
-};
-
-struct vec3 {
-	f32 x, y, z;
-};
-
-struct vec3i {
-	i32 x, y, z;
-};
 
 
 struct sgl_mouse {
@@ -721,68 +690,6 @@ static struct sgl_ctx sgl = {
 
 
 
-/*@FUNCS_MATH SIGNATURES*/
-static f32 sgl_min_f32(f32 a, f32 b);
-static f32 sgl_max_f32(f32 a, f32 b);
-static f32 sgl_clamp_f32(f32 x, f32 min, f32 max);
-static f32 sgl_lerp_f32(f32 a, f32 b, f32 t);
-static f32 sgl_inv_lerp_f32(f32 a, f32 b, f32 v);
-static f32 sgl_remap_f32(f32 in_min, f32 in_max, f32 out_min, f32 out_max, f32 v);
-static f32 sgl_abs_f32(f32 x);
-static f32 sgl_sign_f32(f32 x);
-static f32 sgl_sqrt_f32(f32 x);
-static f32 sgl_rsqrt_f32(f32 x);
-static f32 sgl_floor_f32(f32 x);
-static f32 sgl_ceil_f32(f32 x);
-static f32 sgl_round_f32(f32 x);
-static f32 sgl_mod_f32(f32 x, f32 y);
-static f32 sgl_fract_f32(f32 x);
-static f32 sgl_sin(f32 x);
-static f32 sgl_cos(f32 x);
-static f32 sgl_tan(f32 x);
-static f32 sgl_asin(f32 x);
-static f32 sgl_acos(f32 x);
-static f32 sgl_atan(f32 x);
-static f32 sgl_atan2(f32 y, f32 x);
-static f32 sgl_pow(f32 base, f32 exp);
-static f32 sgl_exp(f32 x);
-static f32 sgl_log(f32 x);
-static f32 sgl_log2(f32 x);
-static f32 sgl_log10(f32 x);
-static struct vec2 sgl_vec2(f32 x, f32 y);
-static struct vec2 sgl_add2(struct vec2 a, struct vec2 b);
-static struct vec2 sgl_sub2(struct vec2 a, struct vec2 b);
-static struct vec2 sgl_mul2(struct vec2 a, struct vec2 b);
-static struct vec2 sgl_scale2(struct vec2 v, f32 s);
-static f32  sgl_dot2(struct vec2 a, struct vec2 b);
-static f32  sgl_len2(struct vec2 v);
-static f32  sgl_len2_sq(struct vec2 v);
-struct vec2 sgl_norm2(struct vec2 v);
-struct vec2 sgl_lerp2(struct vec2 a, struct vec2 b, f32 t);
-static struct vec3 sgl_vec3(f32 x, f32 y, f32 z);
-static struct vec3 sgl_add3(struct vec3 a, struct vec3 b);
-static struct vec3 sgl_sub3(struct vec3 a, struct vec3 b);
-static struct vec3 sgl_mul3(struct vec3 a, struct vec3 b);
-static struct vec3 sgl_scale3(struct vec3 v, f32 s);
-static f32  sgl_dot3(struct vec3 a, struct vec3 b);
-static struct vec3 sgl_cross3(struct vec3 a, struct vec3 b);
-static f32  sgl_len3(struct vec3 v);
-static struct vec3 sgl_norm3(struct vec3 v);
-static struct vec3 sgl_lerp3(struct vec3 a, struct vec3 b, f32 t);
-static struct vec4 sgl_add4(struct vec4 a, struct vec4 b);
-static struct vec4 sgl_scale4(struct vec4 v, f32 s);
-static struct vec4 sgl_lerp4(struct vec4 a, struct vec4 b, f32 t);
-
-static struct mat4 sgl_mat4_identity(void);
-static struct mat4 sgl_mat4_mul(struct mat4 a, struct mat4 b);
-static struct mat4 sgl_mat4_translate(struct vec3 t);
-static struct mat4 sgl_mat4_scale(struct vec3 s);
-static struct mat4 sgl_mat4_rotate_z(f32 angle);
-static struct mat4 sgl_mat4_ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f);
-static f32 sgl_smoothstep(f32 edge0, f32 edge1, f32 x);
-static f32 sgl_step(f32 edge, f32 x);
-static f32 sgl_deg_to_rad(f32 deg);
-static f32 sgl_rad_to_deg(f32 rad);
 
 /*@FUNCS SIGNATURES*/
 void sgl_draw_sprite(struct sgl_texture texture, struct sgl_sprite sprite, f32 x, f32 y, f32 w, f32 h, struct color color);
@@ -2537,52 +2444,4 @@ sgl_draw_texture(
 
 
 
-/*@FUNCS_MATH IMPL*/
 
-f32 sgl_rsqrt_f32(f32 number)
-{
-	const f32 threehalfs = 1.5f;
-
-	f32 x2 = number * 0.5f;
-	f32 y = number;
-
-	u32 i = *(u32*)&y;
-	i = 0x5f3759df - (i >> 1);
-	y = *(f32*)&i;
-
-	y = y * (threehalfs - (x2 * y * y)); // 1 iteration
-
-	return y;
-}
-
-f32 sgl_sqrt_f32(f32 x)
-{
-	return x * sgl_rsqrt_f32(x);
-}
-
-struct vec2 sgl_sub2(struct vec2 a, struct vec2 b)
-{
-	return (struct vec2){a.x - b.x, a.y - b.y};
-}
-
-struct vec2 sgl_add2(struct vec2 a, struct vec2 b)
-{
-	return (struct vec2){a.x + b.x, a.y + b.y};
-}
-struct vec2 sgl_scale2(struct vec2 v, f32 s)
-{
-	return (struct vec2){v.x *s, v.y * s};
-}
-
-f32 sgl_len2(struct vec2 v)
-{
-	return sgl_sqrt_f32((v.x * v.x) + (v.y * v.y));
-}
-
-struct vec2 sgl_norm2(struct vec2 v)
-{
-	f32 len = sgl_len2(v);
-	if (len == 0.0f) return (struct vec2){0};
-
-	return (struct vec2){ v.x / len, v.y / len };
-}

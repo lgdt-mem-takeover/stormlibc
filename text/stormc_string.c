@@ -1,5 +1,6 @@
 #pragma once
 #include "../base/stormc_allocator.c"
+#include <stddef.h>
 
 #define stc_string8_sized(s) ((int)((s).len)), ((s).str)
 #define stc_print_string(__string) printf("%.*s\n", (int)__string.len, __string.str)
@@ -7,6 +8,7 @@
 /* compatibility aliases */
 #define sstrcmpx  stc_string8_cmp
 #define sstrlenx  stc_len_c_string
+#define stc_c_string_len stc_len_c_string
 
 /*@func decls new*/
 thisfile inline bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b);
@@ -19,14 +21,76 @@ thisfile void stc_memset(void * restrict destination, u64 value, u64 size);
 thisfile void stc_memmove(void *destination, const void *src, u64 size);
 thisfile int stc_memcmp(const void * restrict destination, const void * restrict src, u64 size);
 thisfile struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a, struct stc_string8 * restrict s, stc_byte delim);
-thisfile u64 stc_len_c_string(stc_byte *c_string);
+thisfile u64 stc_c_string_len(stc_byte *c_string);
 thisfile struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init);
 thisfile void stc_string8_to_upper(struct stc_string8 *s);
 thisfile void stc_c_string_reverse (stc_byte *s, u64 len);
-thisfile i64 stc_itoa(i64 n, stc_byte *s);
+thisfile bool32 stc_c_string_cmp (const stc_byte * restrict a, const u64 alen, const stc_byte * restrict b, const u64 blen);
+thisfile u64 stc_itoa(i64 n, stc_byte *s);
+thisfile u64 stc_utoa(u64 n, stc_byte *s);
 thisfile struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init);
 thisfile void check_alloc(struct stc_strbldr *b, u64 new_size);
-thisfile void stc_strbldr_add_v(struct stc_strbldr * restrict b, stc_byte * restrict s, va_list args);
+thisfile void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args);
+
+
+thisfile bool32
+stc_c_string_cmp (
+    const stc_byte * restrict a,
+    const u64 alen,
+    const stc_byte * restrict b,
+    const u64 blen)
+{
+	if (blen != alen)
+		return false;
+
+	u64 i = 0;
+	while (i < alen) {
+		if (a[i] != b[i])
+			return false;
+
+		++i;
+	}
+	return true;
+}
+
+
+#define STRBLDR_TYPE_LIST(X)\
+	X(SB_T_U8,		u8, parse_u8)\
+	X(SB_T_U16,		u16, parse_u16)\
+	X(SB_T_U32, 		u32, parse_u32)\
+	X(SB_T_U64, 		u64, parse_u64)\
+	X(SB_T_I8,		i8, parse_i8)\
+	X(SB_T_I16,		i16, parse_i16)\
+	X(SB_T_I32, 		i32, parse_i32)\
+	X(SB_T_I64, 		i64, parse_i64)\
+	X(SB_T_F32, 		f32, parse_f32)\
+	X(SB_T_F64, 		f64, parse_f64)\
+	X(SB_T_POINTER, 	p, parse_pointer)\
+	X(SB_T_HEX,		x, parse_hex)\
+	X(SB_T_BINARY,		b, parse_binary)\
+	X(SB_T_STC_STACK,	stc_stack, parse_stc_stack)\
+	X(SB_T_STC_STRING8,	string, parse_stc_string8)\
+	X(SB_T_STC_CSTRING,	cstring, parse_cstring)
+
+
+
+
+#define X(name, ...) name,
+enum strbldr_types {
+	SB_T_NIL,
+	STRBLDR_TYPE_LIST(X)
+	SB_TYPES_COUNT
+};
+#undef X
+
+
+#define X(index, name, ...) [index] = STR8LIT(#name),
+static struct stc_string8 strbldr_types_lit[] = {
+	STRBLDR_TYPE_LIST(X)
+};
+#undef X
+
+
 
 
 
@@ -84,9 +148,9 @@ inline bool stc_string8_cmp_simd(const struct stc_string8 a, const struct stc_st
 	u64 i = 0;
 
 	for (;i + 32 <= a.len; i += 32) {
-		simd_32_u8 a_load = _mm256_loadu_si256((const simd_32_u8 *)(a.str + i));
-		simd_32_u8 b_load = _mm256_loadu_si256((const simd_32_u8 *)(b.str + i));
-		simd_32_u8 cmp = _mm256_cmpeq_epi8(a_load, b_load);
+		simd_u8 a_load = _mm256_loadu_si256((const simd_u8 *)(a.str + i));
+		simd_u8 b_load = _mm256_loadu_si256((const simd_u8 *)(b.str + i));
+		simd_u8 cmp = _mm256_cmpeq_epi8(a_load, b_load);
 
 		int mask = _mm256_movemask_epi8(cmp);
 		if(mask != -1) return false;
@@ -106,8 +170,8 @@ thisfile inline int sstrcpyx(struct stc_string8 * restrict dest, const struct st
 
     for(; begin + 32 < source->len; begin+=32)
     {
-        simd_32_u8 source_v = _mm256_loadu_si256((const simd_32_u8 *)((const stc_byte *)source->str + begin));
-        _mm256_storeu_si256((simd_32_u8 *)((stc_byte *)dest->str + begin), source_v);
+        simd_u8 source_v = _mm256_loadu_si256((const simd_u8 *)((const stc_byte *)source->str + begin));
+        _mm256_storeu_si256((simd_u8 *)((stc_byte *)dest->str + begin), source_v);
     }
 
     for(; begin < source->len; begin++)
@@ -507,13 +571,13 @@ inline void stc_c_string_reverse (stc_byte *s, u64 len)
 }
 
 
-thisfile inline u64 stc_itohex(u64 n, stc_byte *s)
+thisfile inline u64 stc_utohex(u64 n, stc_byte *s)
 {
 	stc_byte *start = s;
 
 	do {
 		stc_byte digit = n & 0xF;
-		(*s) = (digit < 10) ? (digit | '0') : (digit - 10 + 'a');
+		(*s) = (digit < 10) ? (digit | '0') : (digit + ('a' - 10));
 		++s;
 		n >>= 4;
 	} while(n);
@@ -534,7 +598,7 @@ thisfile inline u64 stc_ftoa(f64 n, stc_byte *s)
 	i64 dec = (i64)((n - (i64)n) * 1e5 + 0.5);
 
 	do{
-		(*s) = (dec % 10) | '0';
+		(*s) = (dec % 10) + '0';
 		dec /= 10;
 		++s;
 	}while(dec);
@@ -545,7 +609,7 @@ thisfile inline u64 stc_ftoa(f64 n, stc_byte *s)
 
 	dec = (i64)n;
 	do{
-		(*s) = (dec % 10) | '0';
+		(*s) = (dec % 10) + '0';
 		dec /= 10;
 		++s;
 	}while(dec);
@@ -561,7 +625,7 @@ thisfile inline u64 stc_ftoa(f64 n, stc_byte *s)
 }
 
 
-i64 stc_itoa(i64 n, stc_byte *s)
+u64 stc_itoa(i64 n, stc_byte *s)
 {
 	stc_byte *start = s;
 	i64 sign;
@@ -570,7 +634,7 @@ i64 stc_itoa(i64 n, stc_byte *s)
 	}
 
 	do {
-		(*s) = n % 10 | '0';
+		(*s) = n % 10 + '0';
 		++s;
 	} while((n /= 10) > 0);
 
@@ -583,6 +647,44 @@ i64 stc_itoa(i64 n, stc_byte *s)
 	stc_c_string_reverse(start, s - start);
 	return s - start;
 }
+
+u64 stc_utobin(u64 n, stc_byte *s)
+{
+	stc_byte *start = s;
+	bool started = false;
+
+	for (int i = 63; i >= 0; --i) {
+		u64 mask = 1ull << i;
+		if (n & mask) {
+			started = true;
+			*s++ = '1';
+		} else if (started) {
+			*s++ = '0';
+		}
+	}
+
+	if (!started) {
+		*s++ = '0';
+	}
+
+	*s = '\0';
+	return (u64)(s - start);
+}
+
+u64 stc_utoa(u64 n, stc_byte *s)
+{
+	stc_byte *start = s;
+
+	do {
+		*s = (n % 10) + '0';
+		++s;
+	} while ((n /= 10) > 0);
+
+	*s = '\0';
+	stc_c_string_reverse(start, s - start);
+	return s - start;
+}
+
 
 
 
@@ -609,30 +711,56 @@ struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init)
 void check_alloc(struct stc_strbldr *b, u64 new_size)
 {
 	if (new_size > b->cmt) {
-		u64 new_cmt = b->cmt * 2;
-		while (new_cmt <= new_size) {
-			new_cmt *= 2;
+		u64 delta_aligned = STC_ALIGN_UP(new_size - b->cmt, PAGESIZE);
+		if (stc_os_mem_cmt((b->ptr + b->cmt), delta_aligned) == NULL) {
+			perror("mprotect");
+			exit(1);
 		}
-		stc_os_mem_cmt((b->ptr + b->cmt), new_cmt- b->cmt);
-
-		b->cmt = new_cmt;
+		b->cmt += delta_aligned;
 	}
-
 }
 
-void stc_strbldr_add_v(struct stc_strbldr * restrict b, stc_byte * restrict s, va_list args)
+
+void stc_strbldr_append(struct stc_strbldr *b, stc_byte *s, ...)
+{
+	va_list args;
+	va_start(args, s);
+	stc_strbldr_add_v(b, s, args);
+	va_end(args);
+}
+
+void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end)
+{
+	if ((end < start && end != -1) || (start < 0))
+		return;
+
+	const char *ptr_s = (const char *)(b->ptr + start);
+	if (end == -1) {
+		end = b->off;
+	}
+	int len = end - start;
+	printf("%.*s\n", len, ptr_s);
+}
+
+void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args)
 {
 	u32 len = stc_string8_len((stc_byte*)s);
-	u64 cur_ptr = (u64)b->ptr + b->off;
 	u64 new_size = b->off + len;
 
+	enum strbldr_types current_type = SB_T_NIL;
 
-	stc_byte *start = s;
-	stc_byte *end = s + len;
-	stc_byte ch;
-	stc_byte *cur_cstr = NULL;
+
+	const struct stc_string8 stack_cur_baseoff_txt = STR8LIT("[Stack base offset: ");
+	const struct stc_string8 stack_cur_mem_rsrv = STR8LIT("Stack reserved memory: ");
+	const struct stc_string8 stack_cur_mem_cmt = STR8LIT("Stack comitted memory: ");
+	const struct stc_string8 stack_cur_base_pointer = STR8LIT("Stack base pointer address: ");
+	const stc_byte *start = s;
+	const stc_byte *end = s + len;
+	const stc_byte *cur_cstr = NULL;
+	struct stc_stack *fmt_stack = NULL;
 	u32 len_cur_cstr = 0;
-	int cur_signed_int = 0;
+	i64 cur_signed_int = 0;
+	u64 cur_unsigned_int = 0;
 	u64 cur_hex = 0;
 	double cur_float = 0.;
 	stc_byte buff_digits[512] = {0};
@@ -642,23 +770,34 @@ void stc_strbldr_add_v(struct stc_strbldr * restrict b, stc_byte * restrict s, v
 
 loop:
 	if (start >= end) goto fin;
+	current_type = SB_T_NIL;
 
-	if (*start == '{') {
-		stc_byte *next = start + 1;
-		ch = *next;
-		switch (ch) {
-		case 's': start++;goto parse_string;
-		case 'd': start++;goto parse_digit;
-		case 'f': start++;goto parse_float;
-
-		case 'p':
-		case 'x': start++;goto parse_hex;
-		default:
-			b->ptr[b->off++] = '{';
-			goto advance;
-		}
+	if (*start != '{') {
+		b->ptr[b->off++] = *start;
+		++start;
+		goto loop;
 	}
-	b->ptr[b->off++] = *start;
+	++start;
+	u64 rem = (u64)(end - start);
+
+#define X(_id, _type, _label)                                                   \
+    if (rem >= strbldr_types_lit[_id].len &&                                    \
+        stc_c_string_cmp(start,                                                 \
+                         strbldr_types_lit[_id].len,                            \
+                         strbldr_types_lit[_id].str,                            \
+                         strbldr_types_lit[_id].len)) {                         \
+	current_type = _id;							\
+        goto _label;								\
+    }
+	STRBLDR_TYPE_LIST(X)
+#undef X
+	if (current_type == SB_T_NIL) {
+		fprintf(stderr, "Unknown type\n");
+		exit(1);
+	}
+
+	stc_unreachable;
+
 advance:
 	++start;
 	len_buff_digits = 0;
@@ -666,63 +805,230 @@ advance:
 	goto loop;
 
 
-parse_string:
-	cur_cstr = va_arg(args, stc_byte*);
+
+parse_binary:
+	start += strbldr_types_lit[SB_T_BINARY].len;
+	cur_unsigned_int = va_arg(args, u32);
+	len_buff_digits = stc_utobin(cur_unsigned_int, buff_digits);
+	new_size += len_buff_digits;
+	check_alloc(b, new_size);
+	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
+	b->off += len_buff_digits;
+	if (unlikely(*start != '}')) {
+		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
+		exit(1);
+	}
+	goto advance;
+
+parse_stc_stack:
+	start += strbldr_types_lit[SB_T_STC_STACK].len;
+	fmt_stack = va_arg(args, struct stc_stack*);
+	goto parse_stack_pretty;
+
+parse_stack_pretty:
+{
+	const struct stc_string8 stack_cur_baseoff_txt = STR8LIT("[Stack base offset: ");
+	const struct stc_string8 stack_cur_mem_rsrv   = STR8LIT("[Stack reserved memory: ");
+	const struct stc_string8 stack_cur_mem_cmt    = STR8LIT("[Stack committed memory: ");
+	const struct stc_string8 stack_cur_base_ptr   = STR8LIT("[Stack base pointer address: ");
+
+	// base offset
+	stc_memcpy(b->ptr + b->off, stack_cur_baseoff_txt.str, stack_cur_baseoff_txt.len);
+	b->off += stack_cur_baseoff_txt.len;
+
+	len_buff_digits = stc_utoa(fmt_stack->base_offset, buff_digits);
+	new_size += len_buff_digits;
+	check_alloc(b, new_size);
+	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
+	b->off += len_buff_digits;
+
+	b->ptr[b->off++] = ']';
+	b->ptr[b->off++] = '\n';
+
+	// reserved memory
+	stc_memcpy(b->ptr + b->off, stack_cur_mem_rsrv.str, stack_cur_mem_rsrv.len);
+	b->off += stack_cur_mem_rsrv.len;
+
+	len_buff_digits = stc_utoa(fmt_stack->mem_rsrv, buff_digits);
+	new_size += len_buff_digits;
+	check_alloc(b, new_size);
+	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
+	b->off += len_buff_digits;
+
+	b->ptr[b->off++] = ']';
+	b->ptr[b->off++] = '\n';
+
+	// committed memory
+	stc_memcpy(b->ptr + b->off, stack_cur_mem_cmt.str, stack_cur_mem_cmt.len);
+	b->off += stack_cur_mem_cmt.len;
+
+	len_buff_digits = stc_utoa(fmt_stack->mem_committed, buff_digits);
+	new_size += len_buff_digits;
+	check_alloc(b, new_size);
+	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
+	b->off += len_buff_digits;
+
+	b->ptr[b->off++] = ']';
+	b->ptr[b->off++] = '\n';
+
+	// base pointer
+	stc_memcpy(b->ptr + b->off, stack_cur_base_ptr.str, stack_cur_base_ptr.len);
+	b->off += stack_cur_base_ptr.len;
+
+	len_buff_digits = stc_utohex((u64)fmt_stack->base, buff_digits);
+	new_size += len_buff_digits + 2;
+	check_alloc(b, new_size);
+
+	b->ptr[b->off++] = '0';
+	b->ptr[b->off++] = 'x';
+	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
+	b->off += len_buff_digits;
+
+	b->ptr[b->off++] = ']';
+	b->ptr[b->off++] = '\n';
+
+	if (unlikely(*start != '}')) {
+		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
+		exit(1);
+	}
+
+	goto advance;
+}
+
+parse_i8:
+	start += strbldr_types_lit[SB_T_I8].len;
+	cur_signed_int = va_arg(args, int);
+	goto parse_signed;
+
+parse_i16:
+	start += strbldr_types_lit[SB_T_I16].len;
+	cur_signed_int = va_arg(args, int);
+	goto parse_signed;
+
+parse_i32:
+	start += strbldr_types_lit[SB_T_I32].len;
+	cur_signed_int = va_arg(args, int);
+	goto parse_signed;
+
+parse_i64:
+	start += strbldr_types_lit[SB_T_I64].len;
+	cur_signed_int = va_arg(args, i64);
+	goto parse_signed;
+
+parse_signed:
+	len_buff_digits = stc_itoa(cur_signed_int, (stc_byte*)buff_digits);
+	new_size += len_buff_digits;
+	check_alloc(b, new_size);
+	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
+	b->off += len_buff_digits;
+	if (unlikely(*start != '}')) {
+		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
+		exit(1);
+	}
+	goto advance;
+
+parse_u8:
+	start += strbldr_types_lit[SB_T_U8].len;
+	cur_unsigned_int = va_arg(args, int);
+	goto parse_unsigned;
+
+parse_u16:
+	start += strbldr_types_lit[SB_T_U16].len;
+	cur_unsigned_int = va_arg(args, int);
+	goto parse_unsigned;
+
+parse_u32:
+	start += strbldr_types_lit[SB_T_U32].len;
+	cur_unsigned_int = va_arg(args, u32);
+	goto parse_unsigned;
+
+parse_u64:
+	start += strbldr_types_lit[SB_T_U64].len;
+	cur_unsigned_int = va_arg(args, u64);
+	goto parse_unsigned;
+
+parse_unsigned:
+	len_buff_digits = stc_utoa(cur_unsigned_int, (stc_byte*)buff_digits);
+	new_size += len_buff_digits;
+	check_alloc(b, new_size);
+	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
+	b->off += len_buff_digits;
+	if (unlikely(*start != '}')) {
+		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
+		exit(1);
+	}
+	goto advance;
+
+
+parse_f32:
+	start += strbldr_types_lit[SB_T_F32].len;
+	/*Floats are promoted to doubles in variadics*/
+	cur_float = va_arg(args, f64);
+	goto parse_float;
+parse_f64:
+	start += strbldr_types_lit[SB_T_F64].len;
+	cur_float = va_arg(args, f64);
+	goto parse_float;
+
+parse_float:
+	len_buff_digits = stc_ftoa(cur_float, (stc_byte*)buff_digits);
+	new_size += len_buff_digits;
+	check_alloc(b, new_size);
+	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
+	b->off += len_buff_digits;
+	if (unlikely(*start != '}')) {
+		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
+		exit(1);
+	}
+	goto advance;
+
+
+
+parse_cstring:
+	start += strbldr_types_lit[SB_T_STC_CSTRING].len;
+	cur_cstr = va_arg(args, stc_byte *);
 	len_cur_cstr = stc_string8_len((stc_byte *)cur_cstr);
+	goto parse_string_common;
+
+parse_stc_string8: {
+	struct stc_string8 str8;
+
+	start += strbldr_types_lit[SB_T_STC_STRING8].len;
+	str8 = va_arg(args, struct stc_string8);
+	cur_cstr = str8.str;
+	len_cur_cstr = str8.len;
+	goto parse_string_common;
+}
+
+parse_string_common:
 	new_size += len_cur_cstr;
 	check_alloc(b, new_size);
 	stc_memcpy(b->ptr + b->off, cur_cstr, len_cur_cstr);
 	b->off += len_cur_cstr;
-	++start;
 	if (unlikely(*start != '}')) {
 		fprintf(stderr, "Expected '}' for string formatting\n");
 		exit(1);
 	}
 	goto advance;
 
-parse_digit:
-	cur_signed_int = va_arg(args, i64);
-	len_buff_digits = stc_itoa(cur_signed_int, (stc_byte*)buff_digits);
-	new_size += len_buff_digits;
-	check_alloc(b, new_size);
-	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
-	b->off += len_buff_digits;
-	++start;
-	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
-		exit(1);
-	}
-	goto advance;
 
-parse_float:
-	cur_float = va_arg(args, double);
-	len_buff_digits = stc_ftoa(cur_float, (stc_byte*)buff_digits);
-	new_size += len_buff_digits;
-	check_alloc(b, new_size);
-	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
-	b->off += len_buff_digits;
-	++start;
-	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
-		exit(1);
-	}
-	goto advance;
-
-
+parse_pointer:
+	start += strbldr_types_lit[SB_T_POINTER].len;
+	cur_hex = (u64)va_arg(args, void *);
+	goto parse_hex_pointer;
 parse_hex:
-	if (ch == 'p') {
-		cur_hex = (u64)va_arg(args, void*);
-	} else {
-		cur_hex = va_arg(args, u64);
-	}
-	len_buff_digits = stc_itohex(cur_hex, (stc_byte*)buff_digits);
+	start += strbldr_types_lit[SB_T_HEX].len;
+	cur_hex = va_arg(args, u32);
+	goto parse_hex_pointer;
+
+parse_hex_pointer:
+	len_buff_digits = stc_utohex(cur_hex, (stc_byte*)buff_digits);
 	new_size += len_buff_digits + 2;
 	check_alloc(b, new_size);
 	b->ptr[b->off++] = '0';
 	b->ptr[b->off++] = 'x';
 	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
 	b->off += len_buff_digits;
-	++start;
 	if (unlikely(*start != '}')) {
 		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
 		exit(1);

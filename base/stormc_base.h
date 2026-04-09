@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <immintrin.h>
 
 
 #ifndef PAGESIZE
@@ -63,14 +62,40 @@
 #include <immintrin.h>
 #include <inttypes.h>
 
-
-#ifndef __EMSCRIPTEN__
-typedef __m256d       simd_4_f64;
-typedef __m256        simd_8_f32;
-typedef __m128        simd_4_f32;
-typedef __m256i       simd_8_i32;
-typedef __m256i       simd_32_u8;
-typedef __m128i       simd_16_u8;
+#if defined(__wasm_simd128__)
+#include <wasm_simd128.h>
+typedef v128_t simd_i32;
+typedef v128_t simd_u32;
+typedef v128_t simd_i64;
+typedef v128_t simd_u64;
+typedef v128_t simd_f32;
+typedef v128_t simd_f64;
+typedef v128_t simd_i16;
+typedef v128_t simd_u16;
+typedef v128_t simd_i8;
+typedef v128_t simd_u8;
+#elif defined(__AVX2__)
+typedef __m256i simd_i32;
+typedef __m256i simd_u32;
+typedef __m256i simd_i64;
+typedef __m256i simd_u64;
+typedef __m256  simd_f32;
+typedef __m256d simd_f64;
+typedef __m256i simd_i16;
+typedef __m256i simd_u16;
+typedef __m256i simd_i8;
+typedef __m256i simd_u8;
+#elif defined(__SSE4_2__)
+typedef __m128i simd_i32;
+typedef __m128i simd_u32;
+typedef __m128i simd_i64;
+typedef __m128i simd_u64;
+typedef __m128  simd_f32;
+typedef __m128d simd_f64;
+typedef __m128i simd_i16;
+typedef __m128i simd_u16;
+typedef __m128i simd_i8;
+typedef __m128i simd_u8;
 #endif
 
 
