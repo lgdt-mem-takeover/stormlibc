@@ -728,7 +728,7 @@ void *exec_rebuild_self(struct stag_cmd_call *call)
 		exit(1);
 	}
 
-	if (system("cc main.c -O3 -o main") != 0) {
+	if (system("clang -mavx2 main.c -O3 -o main") != 0) {
 		perror("system");
 	}
 	const char *home = getenv("HOME");

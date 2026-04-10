@@ -6,3 +6,4 @@ assets/
 build/neiyeh.c
 .codex/
 __pycache__/
+*.pyc

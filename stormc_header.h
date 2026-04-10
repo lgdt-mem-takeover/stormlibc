@@ -8,7 +8,7 @@
 #endif
 #define MAX_UINT64 ((u64)-1)
 
-#define FONT_PATH_DEVAJU_SANS "/data/2026-projs/c/stormlibc/assets/ttf/DejaVuSans.ttf"
+#define FONT_PATH_DEVAJU_SANS "assets/ttf/DejaVuSans.ttf"
 
 #ifndef INF
 #define INF __builtin_inf()
