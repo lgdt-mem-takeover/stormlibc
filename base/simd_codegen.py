@@ -161,6 +161,43 @@ static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * r
 """.strip()
 
 
+def emit_stc_template_function_body_compare_expr(
+    op: str,
+    type_: str,
+    simd_type: str,
+    simd_store_func: str,
+    simd_load_func: str,
+    simd_lanes: str,
+    simd_cast: str,
+    scalar_cmp_expr: str,
+    simd_result_expr: str,
+    simd_prelude: str = "",
+) -> str:
+    prelude = ""
+    if simd_prelude:
+        prelude = f"{simd_prelude}\n\n"
+    return f"""
+static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len)
+{{
+    const u64 width = {simd_lanes};
+    u64 rem = len % width;
+    u64 i = 0;
+{prelude}    for (; (i + width) <= len; i += width) {{
+        {simd_type} va = {simd_load_func}((const {simd_cast}*)(a + i));
+        {simd_type} vb = {simd_load_func}((const {simd_cast}*)(b + i));
+        {simd_type} result = {simd_result_expr};
+        {simd_store_func}(({simd_cast}*)(a + i), result);
+    }}
+
+    while (rem) {{
+        a[i] = ({scalar_cmp_expr}) ? ({type_})~0 : ({type_})0;
+        ++i;
+        --rem;
+    }}
+}}
+""".strip()
+
+
 def emit_stc_template_function_body_shift(
     op: str,
     type_: str,
@@ -856,7 +893,7 @@ ops_compare_per_type: Dict[str, List[str]] = {
     "i8":  ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "i16": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "i32": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
-    "i64": ["cmpeq", "cmpne"],
+    "i64": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "f32": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
 };
 
@@ -926,7 +963,7 @@ ops_count_compare_scalar_per_type: Dict[str, List[str]] = {
     "i8": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "i16": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "i32": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
-    "i64": ["cmpeq", "cmpne"],
+    "i64": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "f32": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
 }
 
@@ -934,7 +971,7 @@ ops_first_compare_scalar_per_type: Dict[str, List[str]] = {
     "i8": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "i16": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "i32": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
-    "i64": ["cmpeq", "cmpne"],
+    "i64": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
     "f32": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
 }
 
@@ -1169,18 +1206,125 @@ def _emit_body_logical_unary(op: str, type_name: str, ctx: FamilyBodyContext) ->
 
 def _emit_body_compare(op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
     simd_op = ctx.backend_cfg.get("Compare", {}).get(op, {}).get(type_name)
-    if simd_op and simd_op != "_mm256_cmp_ps" and ctx.load_func and ctx.store_func:
-        return emit_stc_template_function_body_compare(
-            op=op,
-            type_=type_name,
-            simd_type=ctx.simd_type,
-            simd_store_func=ctx.store_func,
-            simd_load_func=ctx.load_func,
-            simd_op_func=simd_op,
-            simd_lanes=ctx.lanes,
-            simd_cast=ctx.simd_cast,
-            scalar_cmp_expr=cmp_scalar_expr[op],
-        )
+    if ctx.load_func and ctx.store_func:
+        if ctx.backend == "AVX2" and type_name == "f32":
+            imm_by_op = {
+                "cmpeq": "_CMP_EQ_OQ",
+                "cmpne": "_CMP_NEQ_OQ",
+                "cmplt": "_CMP_LT_OQ",
+                "cmpgt": "_CMP_GT_OQ",
+                "cmple": "_CMP_LE_OQ",
+                "cmpge": "_CMP_GE_OQ",
+            }
+            return emit_stc_template_function_body_compare_expr(
+                op=op,
+                type_=type_name,
+                simd_type=ctx.simd_type,
+                simd_store_func=ctx.store_func,
+                simd_load_func=ctx.load_func,
+                simd_lanes=ctx.lanes,
+                simd_cast=ctx.simd_cast,
+                scalar_cmp_expr=cmp_scalar_expr[op],
+                simd_result_expr=f"_mm256_cmp_ps(va, vb, {imm_by_op[op]})",
+            )
+
+        if ctx.backend == "SSE42" and type_name == "f32":
+            sse_f32_cmp = {
+                "cmpeq": "_mm_cmpeq_ps",
+                "cmpne": "_mm_cmpneq_ps",
+                "cmplt": "_mm_cmplt_ps",
+                "cmpgt": "_mm_cmpgt_ps",
+                "cmple": "_mm_cmple_ps",
+                "cmpge": "_mm_cmpge_ps",
+            }
+            return emit_stc_template_function_body_compare_expr(
+                op=op,
+                type_=type_name,
+                simd_type=ctx.simd_type,
+                simd_store_func=ctx.store_func,
+                simd_load_func=ctx.load_func,
+                simd_lanes=ctx.lanes,
+                simd_cast=ctx.simd_cast,
+                scalar_cmp_expr=cmp_scalar_expr[op],
+                simd_result_expr=f"{sse_f32_cmp[op]}(va, vb)",
+            )
+
+        if ctx.backend in ("SSE42", "AVX2") and type_name != "f32":
+            eq_fn = ctx.backend_cfg.get("Compare", {}).get("cmpeq", {}).get(type_name)
+            gt_fn = ctx.backend_cfg.get("Compare", {}).get("cmpgt", {}).get(type_name)
+            xor_fn = ctx.backend_cfg.get("Logical", {}).get("xor", {}).get(type_name)
+            set1_fn = ctx.backend_cfg.get("Set", {}).get("set1", {}).get(type_name)
+
+            if op == "cmpeq" and eq_fn:
+                simd_expr = f"{eq_fn}(va, vb)"
+                return emit_stc_template_function_body_compare_expr(
+                    op=op,
+                    type_=type_name,
+                    simd_type=ctx.simd_type,
+                    simd_store_func=ctx.store_func,
+                    simd_load_func=ctx.load_func,
+                    simd_lanes=ctx.lanes,
+                    simd_cast=ctx.simd_cast,
+                    scalar_cmp_expr=cmp_scalar_expr[op],
+                    simd_result_expr=simd_expr,
+                )
+
+            if op == "cmpgt" and gt_fn:
+                simd_expr = f"{gt_fn}(va, vb)"
+                return emit_stc_template_function_body_compare_expr(
+                    op=op,
+                    type_=type_name,
+                    simd_type=ctx.simd_type,
+                    simd_store_func=ctx.store_func,
+                    simd_load_func=ctx.load_func,
+                    simd_lanes=ctx.lanes,
+                    simd_cast=ctx.simd_cast,
+                    scalar_cmp_expr=cmp_scalar_expr[op],
+                    simd_result_expr=simd_expr,
+                )
+
+            if gt_fn and eq_fn and xor_fn and set1_fn:
+                simd_prelude = ""
+                if op == "cmplt":
+                    simd_expr = f"{gt_fn}(vb, va)"
+                elif op == "cmpne":
+                    simd_prelude = f"    const {ctx.simd_type} all_ones = {set1_fn}(-1);"
+                    simd_expr = f"{xor_fn}({eq_fn}(va, vb), all_ones)"
+                elif op == "cmple":
+                    simd_prelude = f"    const {ctx.simd_type} all_ones = {set1_fn}(-1);"
+                    simd_expr = f"{xor_fn}({gt_fn}(va, vb), all_ones)"
+                elif op == "cmpge":
+                    simd_prelude = f"    const {ctx.simd_type} all_ones = {set1_fn}(-1);"
+                    simd_expr = f"{xor_fn}({gt_fn}(vb, va), all_ones)"
+                else:
+                    simd_expr = ""
+                if simd_expr:
+                    return emit_stc_template_function_body_compare_expr(
+                        op=op,
+                        type_=type_name,
+                        simd_type=ctx.simd_type,
+                        simd_store_func=ctx.store_func,
+                        simd_load_func=ctx.load_func,
+                        simd_lanes=ctx.lanes,
+                        simd_cast=ctx.simd_cast,
+                        scalar_cmp_expr=cmp_scalar_expr[op],
+                        simd_result_expr=simd_expr,
+                        simd_prelude=simd_prelude,
+                    )
+
+        if simd_op:
+            return emit_stc_template_function_body_compare(
+                op=op,
+                type_=type_name,
+                simd_type=ctx.simd_type,
+                simd_store_func=ctx.store_func,
+                simd_load_func=ctx.load_func,
+                simd_op_func=simd_op,
+                simd_lanes=ctx.lanes,
+                simd_cast=ctx.simd_cast,
+                scalar_cmp_expr=cmp_scalar_expr[op],
+            )
+
     return emit_scalar_compare(op, type_name)
 
 
@@ -1363,6 +1507,101 @@ static inline void stc_simd_{op}_{type_name}({type_name} * restrict a, const {ty
 """.strip()
 
 
+def _compare_expr_scalar_reducer(
+    op: str,
+    type_name: str,
+    ctx: FamilyBodyContext,
+    va_name: str,
+    vv_name: str,
+) -> tuple[Optional[str], str]:
+    if ctx.backend == "AVX2" and type_name == "f32":
+        imm_by_op = {
+            "cmpeq": "_CMP_EQ_OQ",
+            "cmpne": "_CMP_NEQ_OQ",
+            "cmplt": "_CMP_LT_OQ",
+            "cmpgt": "_CMP_GT_OQ",
+            "cmple": "_CMP_LE_OQ",
+            "cmpge": "_CMP_GE_OQ",
+        }
+        return f"_mm256_cmp_ps({va_name}, {vv_name}, {imm_by_op[op]})", ""
+
+    if ctx.backend == "SSE42" and type_name == "f32":
+        sse_f32_cmp = {
+            "cmpeq": "_mm_cmpeq_ps",
+            "cmpne": "_mm_cmpneq_ps",
+            "cmplt": "_mm_cmplt_ps",
+            "cmpgt": "_mm_cmpgt_ps",
+            "cmple": "_mm_cmple_ps",
+            "cmpge": "_mm_cmpge_ps",
+        }
+        return f"{sse_f32_cmp[op]}({va_name}, {vv_name})", ""
+
+    simd_op = ctx.backend_cfg.get("Compare", {}).get(op, {}).get(type_name)
+    if simd_op:
+        return f"{simd_op}({va_name}, {vv_name})", ""
+
+    if ctx.backend in ("SSE42", "AVX2") and type_name != "f32":
+        eq_fn = ctx.backend_cfg.get("Compare", {}).get("cmpeq", {}).get(type_name)
+        gt_fn = ctx.backend_cfg.get("Compare", {}).get("cmpgt", {}).get(type_name)
+        xor_fn = ctx.backend_cfg.get("Logical", {}).get("xor", {}).get(type_name)
+        set1_fn = ctx.backend_cfg.get("Set", {}).get("set1", {}).get(type_name)
+        if op == "cmpeq" and eq_fn:
+            return f"{eq_fn}({va_name}, {vv_name})", ""
+        if op == "cmpgt" and gt_fn:
+            return f"{gt_fn}({va_name}, {vv_name})", ""
+        if gt_fn and eq_fn and xor_fn and set1_fn:
+            prelude = f"    const {ctx.simd_type} all_ones = {set1_fn}(-1);"
+            if op == "cmplt":
+                return f"{gt_fn}({vv_name}, {va_name})", ""
+            if op == "cmpne":
+                return f"{xor_fn}({eq_fn}({va_name}, {vv_name}), all_ones)", prelude
+            if op == "cmple":
+                return f"{xor_fn}({gt_fn}({va_name}, {vv_name}), all_ones)", prelude
+            if op == "cmpge":
+                return f"{xor_fn}({gt_fn}({vv_name}, {va_name}), all_ones)", prelude
+
+    return None, ""
+
+
+def _mask_bits_expr_for_reducer(type_name: str, ctx: FamilyBodyContext, mask_var: str) -> tuple[Optional[str], int]:
+    if ctx.backend == "WASM":
+        if type_name == "f32":
+            return f"wasm_i32x4_bitmask((simd_i32){mask_var})", 1
+        wasm_bitmask_fn = {
+            "i8": "wasm_i8x16_bitmask",
+            "i16": "wasm_i16x8_bitmask",
+            "i32": "wasm_i32x4_bitmask",
+            "i64": "wasm_i64x2_bitmask",
+        }.get(type_name)
+        if wasm_bitmask_fn:
+            return f"{wasm_bitmask_fn}({mask_var})", 1
+        return None, 1
+
+    if ctx.backend == "AVX2":
+        if type_name == "f32":
+            return f"_mm256_movemask_ps({mask_var})", 1
+        scale = {"i8": 1, "i16": 2, "i32": 4, "i64": 8}.get(type_name)
+        if scale:
+            return f"_mm256_movemask_epi8({mask_var})", scale
+        return None, 1
+
+    if ctx.backend == "SSE42":
+        if type_name == "f32":
+            return f"_mm_movemask_ps({mask_var})", 1
+        scale = {"i8": 1, "i16": 2, "i32": 4, "i64": 8}.get(type_name)
+        if scale:
+            return f"_mm_movemask_epi8({mask_var})", scale
+        return None, 1
+
+    return None, 1
+
+
+def _splat_scalar_value_fn(type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
+    if ctx.backend == "WASM":
+        return ctx.backend_cfg.get("Set", {}).get("splat", {}).get(type_name)
+    return ctx.backend_cfg.get("Set", {}).get("set1", {}).get(type_name)
+
+
 def _emit_body_count_true(_op: str, type_name: str, _ctx: FamilyBodyContext) -> Optional[str]:
     return f"""
 static inline u64 stc_simd_count_true_{type_name}(const {type_name} * restrict a, const u64 len)
@@ -1390,6 +1629,48 @@ static inline u64 stc_simd_first_true_{type_name}(const {type_name} * restrict a
 
 def _emit_body_count_compare_scalar(op: str, type_name: str, _ctx: FamilyBodyContext) -> Optional[str]:
     cmp_expr = cmp_scalar_expr[op].replace("b[i]", "value")
+    splat_fn = _splat_scalar_value_fn(type_name, _ctx)
+    simd_cmp_expr, prelude = _compare_expr_scalar_reducer(op, type_name, _ctx, "va", "vv")
+    bits_expr, scale = _mask_bits_expr_for_reducer(type_name, _ctx, "mask")
+    if _ctx.load_func and splat_fn and simd_cmp_expr and bits_expr:
+        ct_expr = "__builtin_popcount((u32)bits)"
+        if scale != 1:
+            ct_expr = f"(__builtin_popcount((u32)bits) / {scale})"
+        prelude_block = f"{prelude}\n" if prelude else ""
+        return f"""
+static inline u64 stc_simd_count_{op}_scalar_{type_name}(const {type_name} * restrict a, const {type_name} value, const u64 len)
+{{
+    const u64 width = {_ctx.lanes};
+    u64 i = 0;
+    u64 ct = 0;
+    const {_ctx.simd_type} vv = {splat_fn}(value);
+{prelude_block}
+    for (; (i + (2 * width)) <= len; i += (2 * width)) {{
+        {_ctx.simd_type} va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i));
+        {_ctx.simd_type} mask = {simd_cmp_expr};
+        u32 bits = (u32)({bits_expr});
+        ct += (u64)({ct_expr});
+
+        va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i + width));
+        mask = {simd_cmp_expr};
+        bits = (u32)({bits_expr});
+        ct += (u64)({ct_expr});
+    }}
+
+    for (; (i + width) <= len; i += width) {{
+        {_ctx.simd_type} va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i));
+        {_ctx.simd_type} mask = {simd_cmp_expr};
+        u32 bits = (u32)({bits_expr});
+        ct += (u64)({ct_expr});
+    }}
+
+    for (; i < len; ++i) {{
+        ct += (u64)({cmp_expr});
+    }}
+
+    return ct;
+}}
+""".strip()
     return f"""
 static inline u64 stc_simd_count_{op}_scalar_{type_name}(const {type_name} * restrict a, const {type_name} value, const u64 len)
 {{
@@ -1404,6 +1685,46 @@ static inline u64 stc_simd_count_{op}_scalar_{type_name}(const {type_name} * res
 
 def _emit_body_first_compare_scalar(op: str, type_name: str, _ctx: FamilyBodyContext) -> Optional[str]:
     cmp_expr = cmp_scalar_expr[op].replace("b[i]", "value")
+    splat_fn = _splat_scalar_value_fn(type_name, _ctx)
+    simd_cmp_expr, prelude = _compare_expr_scalar_reducer(op, type_name, _ctx, "va", "vv")
+    bits_expr, scale = _mask_bits_expr_for_reducer(type_name, _ctx, "mask")
+    if _ctx.load_func and splat_fn and simd_cmp_expr and bits_expr:
+        lane_expr = "__builtin_ctz((u32)bits)"
+        if scale != 1:
+            lane_expr = f"(__builtin_ctz((u32)bits) / {scale})"
+        prelude_block = f"{prelude}\n" if prelude else ""
+        return f"""
+static inline u64 stc_simd_first_{op}_scalar_{type_name}(const {type_name} * restrict a, const {type_name} value, const u64 len)
+{{
+    const u64 width = {_ctx.lanes};
+    u64 i = 0;
+    const {_ctx.simd_type} vv = {splat_fn}(value);
+{prelude_block}
+    for (; (i + (2 * width)) <= len; i += (2 * width)) {{
+        {_ctx.simd_type} va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i));
+        {_ctx.simd_type} mask = {simd_cmp_expr};
+        u32 bits = (u32)({bits_expr});
+        if (bits) return i + (u64){lane_expr};
+
+        va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i + width));
+        mask = {simd_cmp_expr};
+        bits = (u32)({bits_expr});
+        if (bits) return (i + width) + (u64){lane_expr};
+    }}
+
+    for (; (i + width) <= len; i += width) {{
+        {_ctx.simd_type} va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i));
+        {_ctx.simd_type} mask = {simd_cmp_expr};
+        u32 bits = (u32)({bits_expr});
+        if (bits) return i + (u64){lane_expr};
+    }}
+
+    for (; i < len; ++i) {{
+        if ({cmp_expr}) return i;
+    }}
+    return (u64)-1;
+}}
+""".strip()
     return f"""
 static inline u64 stc_simd_first_{op}_scalar_{type_name}(const {type_name} * restrict a, const {type_name} value, const u64 len)
 {{
