@@ -1,0 +1,345 @@
+Dump of assembler code for function main:
+   0x00000000000012d0 <+0>:	endbr64
+   0x00000000000012d4 <+4>:	push   r15
+   0x00000000000012d6 <+6>:	push   r14
+   0x00000000000012d8 <+8>:	push   rbx
+   0x00000000000012d9 <+9>:	movabs rbx,0x200000000
+   0x00000000000012e3 <+19>:	xor    edi,edi
+   0x00000000000012e5 <+21>:	mov    rsi,rbx
+   0x00000000000012e8 <+24>:	xor    edx,edx
+   0x00000000000012ea <+26>:	mov    ecx,0x22
+   0x00000000000012ef <+31>:	mov    r8d,0xffffffff
+   0x00000000000012f5 <+37>:	xor    r9d,r9d
+   0x00000000000012f8 <+40>:	call   0x10d0 <mmap@plt>
+   0x00000000000012fd <+45>:	mov    r14,rax
+   0x0000000000001300 <+48>:	mov    esi,0x9000
+   0x0000000000001305 <+53>:	mov    rdi,rax
+   0x0000000000001308 <+56>:	mov    edx,0x3
+   0x000000000000130d <+61>:	call   0x10f0 <mprotect@plt>
+   0x0000000000001312 <+66>:	test   eax,eax
+   0x0000000000001314 <+68>:	jne    0x1890 <main+1472>
+   0x000000000000131a <+74>:	test   r14,r14
+   0x000000000000131d <+77>:	je     0x18a0 <main+1488>
+   0x0000000000001323 <+83>:	lea    r15,[r14+0x925f]
+   0x000000000000132a <+90>:	and    r15,0xfffffffffffff000
+   0x0000000000001331 <+97>:	mov    esi,0x1000
+   0x0000000000001336 <+102>:	mov    rdi,r15
+   0x0000000000001339 <+105>:	mov    edx,0x3
+   0x000000000000133e <+110>:	call   0x10f0 <mprotect@plt>
+   0x0000000000001343 <+115>:	test   eax,eax
+   0x0000000000001345 <+117>:	jne    0x18a9 <main+1497>
+   0x000000000000134b <+123>:	test   r15,r15
+   0x000000000000134e <+126>:	je     0x18b9 <main+1513>
+   0x0000000000001354 <+132>:	add    rbx,r14
+   0x0000000000001357 <+135>:	sub    rbx,r15
+   0x000000000000135a <+138>:	mov    QWORD PTR [r14+0x8258],r15
+   0x0000000000001361 <+145>:	mov    QWORD PTR [r14+0x8238],rbx
+   0x0000000000001368 <+152>:	mov    QWORD PTR [r14+0x8240],0x1000
+   0x0000000000001373 <+163>:	mov    QWORD PTR [r14+0x8248],0x0
+   0x000000000000137e <+174>:	mov    esi,0x200000
+   0x0000000000001383 <+179>:	xor    edi,edi
+   0x0000000000001385 <+181>:	xor    edx,edx
+   0x0000000000001387 <+183>:	mov    ecx,0x22
+   0x000000000000138c <+188>:	mov    r8d,0xffffffff
+   0x0000000000001392 <+194>:	xor    r9d,r9d
+   0x0000000000001395 <+197>:	call   0x10d0 <mmap@plt>
+   0x000000000000139a <+202>:	mov    QWORD PTR [r14+0x8228],rax
+   0x00000000000013a1 <+209>:	mov    esi,0x200000
+   0x00000000000013a6 <+214>:	xor    edi,edi
+   0x00000000000013a8 <+216>:	xor    edx,edx
+   0x00000000000013aa <+218>:	mov    ecx,0x22
+   0x00000000000013af <+223>:	mov    r8d,0xffffffff
+   0x00000000000013b5 <+229>:	xor    r9d,r9d
+   0x00000000000013b8 <+232>:	call   0x10d0 <mmap@plt>
+   0x00000000000013bd <+237>:	mov    QWORD PTR [r14+0x8230],rax
+   0x00000000000013c4 <+244>:	mov    rdi,QWORD PTR [r14+0x8228]
+   0x00000000000013cb <+251>:	mov    esi,0x8000
+   0x00000000000013d0 <+256>:	mov    edx,0x3
+   0x00000000000013d5 <+261>:	call   0x10f0 <mprotect@plt>
+   0x00000000000013da <+266>:	test   eax,eax
+   0x00000000000013dc <+268>:	jne    0x18dd <main+1549>
+   0x00000000000013e2 <+274>:	mov    rdi,QWORD PTR [r14+0x8230]
+   0x00000000000013e9 <+281>:	mov    esi,0x8000
+   0x00000000000013ee <+286>:	mov    edx,0x3
+   0x00000000000013f3 <+291>:	call   0x10f0 <mprotect@plt>
+   0x00000000000013f8 <+296>:	test   eax,eax
+   0x00000000000013fa <+298>:	jne    0x18f2 <main+1570>
+   0x0000000000001400 <+304>:	mov    QWORD PTR [r14+0x8220],0x40000
+   0x000000000000140b <+315>:	mov    rdi,r14
+   0x000000000000140e <+318>:	call   0x1910 <_stc_stack_push>
+   0x0000000000001413 <+323>:	mov    rbx,rax
+   0x0000000000001416 <+326>:	mov    rdi,r14
+   0x0000000000001419 <+329>:	call   0x1910 <_stc_stack_push>
+   0x000000000000141e <+334>:	mov    DWORD PTR [rbx],0x3f800000
+   0x0000000000001424 <+340>:	mov    DWORD PTR [rax],0x3f800000
+   0x000000000000142a <+346>:	mov    DWORD PTR [rbx+0x4],0x40800000
+   0x0000000000001431 <+353>:	mov    DWORD PTR [rax+0x4],0x41800000
+   0x0000000000001438 <+360>:	mov    DWORD PTR [rbx+0x8],0x41100000
+   0x000000000000143f <+367>:	mov    DWORD PTR [rax+0x8],0x42a20000
+   0x0000000000001446 <+374>:	mov    DWORD PTR [rbx+0xc],0x41800000
+   0x000000000000144d <+381>:	mov    DWORD PTR [rax+0xc],0x43800000
+   0x0000000000001454 <+388>:	mov    DWORD PTR [rbx+0x10],0x41c80000
+   0x000000000000145b <+395>:	mov    DWORD PTR [rax+0x10],0x441c4000
+   0x0000000000001462 <+402>:	mov    DWORD PTR [rbx+0x14],0x42100000
+   0x0000000000001469 <+409>:	mov    DWORD PTR [rax+0x14],0x44a20000
+   0x0000000000001470 <+416>:	mov    DWORD PTR [rbx+0x18],0x42440000
+   0x0000000000001477 <+423>:	mov    DWORD PTR [rax+0x18],0x45161000
+   0x000000000000147e <+430>:	mov    DWORD PTR [rbx+0x1c],0x42800000
+   0x0000000000001485 <+437>:	mov    DWORD PTR [rax+0x1c],0x45800000
+   0x000000000000148c <+444>:	mov    DWORD PTR [rbx+0x20],0x42a20000
+   0x0000000000001493 <+451>:	mov    DWORD PTR [rax+0x20],0x45cd0800
+   0x000000000000149a <+458>:	mov    DWORD PTR [rbx+0x24],0x42c80000
+   0x00000000000014a1 <+465>:	mov    DWORD PTR [rax+0x24],0x461c4000
+   0x00000000000014a8 <+472>:	mov    DWORD PTR [rbx+0x28],0x42f20000
+   0x00000000000014af <+479>:	mov    DWORD PTR [rax+0x28],0x4664c400
+   0x00000000000014b6 <+486>:	mov    DWORD PTR [rbx+0x2c],0x43100000
+   0x00000000000014bd <+493>:	mov    DWORD PTR [rax+0x2c],0x46a20000
+   0x00000000000014c4 <+500>:	mov    DWORD PTR [rbx+0x30],0x43290000
+   0x00000000000014cb <+507>:	mov    DWORD PTR [rax+0x30],0x46df2200
+   0x00000000000014d2 <+514>:	mov    DWORD PTR [rbx+0x34],0x43440000
+   0x00000000000014d9 <+521>:	mov    DWORD PTR [rax+0x34],0x47161000
+   0x00000000000014e0 <+528>:	mov    DWORD PTR [rbx+0x38],0x43610000
+   0x00000000000014e7 <+535>:	mov    DWORD PTR [rax+0x38],0x4745c100
+   0x00000000000014ee <+542>:	mov    DWORD PTR [rbx+0x3c],0x43800000
+   0x00000000000014f5 <+549>:	mov    DWORD PTR [rax+0x3c],0x47800000
+   0x00000000000014fc <+556>:	mov    DWORD PTR [rbx+0x40],0x43908000
+   0x0000000000001503 <+563>:	mov    DWORD PTR [rax+0x40],0x47a32080
+   0x000000000000150a <+570>:	mov    DWORD PTR [rbx+0x44],0x43a20000
+   0x0000000000001511 <+577>:	mov    DWORD PTR [rax+0x44],0x47cd0800
+   0x0000000000001518 <+584>:	mov    DWORD PTR [rbx+0x48],0x43b48000
+   0x000000000000151f <+591>:	mov    DWORD PTR [rax+0x48],0x47fe8880
+   0x0000000000001526 <+598>:	mov    DWORD PTR [rbx+0x4c],0x43c80000
+   0x000000000000152d <+605>:	mov    DWORD PTR [rax+0x4c],0x481c4000
+   0x0000000000001534 <+612>:	mov    DWORD PTR [rbx+0x50],0x43dc8000
+   0x000000000000153b <+619>:	mov    DWORD PTR [rax+0x50],0x483dec40
+   0x0000000000001542 <+626>:	mov    DWORD PTR [rbx+0x54],0x43f20000
+   0x0000000000001549 <+633>:	mov    DWORD PTR [rax+0x54],0x4864c400
+   0x0000000000001550 <+640>:	mov    DWORD PTR [rbx+0x58],0x44044000
+   0x0000000000001557 <+647>:	mov    DWORD PTR [rax+0x58],0x4888a420
+   0x000000000000155e <+654>:	mov    DWORD PTR [rbx+0x5c],0x44100000
+   0x0000000000001565 <+661>:	mov    DWORD PTR [rax+0x5c],0x48a20000
+   0x000000000000156c <+668>:	mov    DWORD PTR [rbx+0x60],0x441c4000
+   0x0000000000001573 <+675>:	mov    DWORD PTR [rax+0x60],0x48bebc20
+   0x000000000000157a <+682>:	mov    DWORD PTR [rbx+0x64],0x44290000
+   0x0000000000001581 <+689>:	mov    DWORD PTR [rax+0x64],0x48df2200
+   0x0000000000001588 <+696>:	mov    DWORD PTR [rbx+0x68],0x44364000
+   0x000000000000158f <+703>:	mov    DWORD PTR [rax+0x68],0x4901bf10
+   0x0000000000001596 <+710>:	mov    DWORD PTR [rbx+0x6c],0x44440000
+   0x000000000000159d <+717>:	mov    DWORD PTR [rax+0x6c],0x49161000
+   0x00000000000015a4 <+724>:	mov    DWORD PTR [rbx+0x70],0x44524000
+   0x00000000000015ab <+731>:	mov    DWORD PTR [rax+0x70],0x492cad10
+   0x00000000000015b2 <+738>:	mov    DWORD PTR [rbx+0x74],0x44610000
+   0x00000000000015b9 <+745>:	mov    DWORD PTR [rax+0x74],0x4945c100
+   0x00000000000015c0 <+752>:	mov    DWORD PTR [rbx+0x78],0x44704000
+   0x00000000000015c7 <+759>:	mov    DWORD PTR [rax+0x78],0x49617810
+   0x00000000000015ce <+766>:	mov    DWORD PTR [rbx+0x7c],0x44800000
+   0x00000000000015d5 <+773>:	mov    DWORD PTR [rax+0x7c],0x49800000
+   0x00000000000015dc <+780>:	vmovaps ymm0,YMMWORD PTR [rbx]
+   0x00000000000015e0 <+784>:	vdivps ymm0,ymm0,YMMWORD PTR [rax]
+   0x00000000000015e4 <+788>:	vmovaps YMMWORD PTR [rbx],ymm0
+   0x00000000000015e8 <+792>:	vmovaps ymm1,YMMWORD PTR [rbx+0x20]
+   0x00000000000015ed <+797>:	vdivps ymm1,ymm1,YMMWORD PTR [rax+0x20]
+   0x00000000000015f2 <+802>:	vmovaps ymm2,YMMWORD PTR [rbx+0x40]
+   0x00000000000015f7 <+807>:	vmovaps ymm3,YMMWORD PTR [rbx+0x60]
+   0x00000000000015fc <+812>:	vmovaps YMMWORD PTR [rbx+0x20],ymm1
+   0x0000000000001601 <+817>:	vdivps ymm1,ymm2,YMMWORD PTR [rax+0x40]
+   0x0000000000001606 <+822>:	vmovaps YMMWORD PTR [rbx+0x40],ymm1
+   0x000000000000160b <+827>:	vdivps ymm1,ymm3,YMMWORD PTR [rax+0x60]
+   0x0000000000001610 <+832>:	vmovaps YMMWORD PTR [rbx+0x60],ymm1
+   0x0000000000001615 <+837>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001619 <+841>:	lea    r14,[rip+0x9ec]        # 0x200c
+   0x0000000000001620 <+848>:	mov    rdi,r14
+   0x0000000000001623 <+851>:	mov    al,0x1
+   0x0000000000001625 <+853>:	vzeroupper
+   0x0000000000001628 <+856>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x000000000000162d <+861>:	vmovss xmm0,DWORD PTR [rbx+0x4]
+   0x0000000000001632 <+866>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001636 <+870>:	mov    rdi,r14
+   0x0000000000001639 <+873>:	mov    al,0x1
+   0x000000000000163b <+875>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001640 <+880>:	vmovss xmm0,DWORD PTR [rbx+0x8]
+   0x0000000000001645 <+885>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001649 <+889>:	mov    rdi,r14
+   0x000000000000164c <+892>:	mov    al,0x1
+   0x000000000000164e <+894>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001653 <+899>:	vmovss xmm0,DWORD PTR [rbx+0xc]
+   0x0000000000001658 <+904>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x000000000000165c <+908>:	mov    rdi,r14
+   0x000000000000165f <+911>:	mov    al,0x1
+   0x0000000000001661 <+913>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001666 <+918>:	vmovss xmm0,DWORD PTR [rbx+0x10]
+   0x000000000000166b <+923>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x000000000000166f <+927>:	mov    rdi,r14
+   0x0000000000001672 <+930>:	mov    al,0x1
+   0x0000000000001674 <+932>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001679 <+937>:	vmovss xmm0,DWORD PTR [rbx+0x14]
+   0x000000000000167e <+942>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001682 <+946>:	mov    rdi,r14
+   0x0000000000001685 <+949>:	mov    al,0x1
+   0x0000000000001687 <+951>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x000000000000168c <+956>:	vmovss xmm0,DWORD PTR [rbx+0x18]
+   0x0000000000001691 <+961>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001695 <+965>:	mov    rdi,r14
+   0x0000000000001698 <+968>:	mov    al,0x1
+   0x000000000000169a <+970>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x000000000000169f <+975>:	vmovss xmm0,DWORD PTR [rbx+0x1c]
+   0x00000000000016a4 <+980>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000016a8 <+984>:	mov    rdi,r14
+   0x00000000000016ab <+987>:	mov    al,0x1
+   0x00000000000016ad <+989>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000016b2 <+994>:	vmovss xmm0,DWORD PTR [rbx+0x20]
+   0x00000000000016b7 <+999>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000016bb <+1003>:	mov    rdi,r14
+   0x00000000000016be <+1006>:	mov    al,0x1
+   0x00000000000016c0 <+1008>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000016c5 <+1013>:	vmovss xmm0,DWORD PTR [rbx+0x24]
+   0x00000000000016ca <+1018>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000016ce <+1022>:	mov    rdi,r14
+   0x00000000000016d1 <+1025>:	mov    al,0x1
+   0x00000000000016d3 <+1027>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000016d8 <+1032>:	vmovss xmm0,DWORD PTR [rbx+0x28]
+   0x00000000000016dd <+1037>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000016e1 <+1041>:	mov    rdi,r14
+   0x00000000000016e4 <+1044>:	mov    al,0x1
+   0x00000000000016e6 <+1046>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000016eb <+1051>:	vmovss xmm0,DWORD PTR [rbx+0x2c]
+   0x00000000000016f0 <+1056>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000016f4 <+1060>:	mov    rdi,r14
+   0x00000000000016f7 <+1063>:	mov    al,0x1
+   0x00000000000016f9 <+1065>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000016fe <+1070>:	vmovss xmm0,DWORD PTR [rbx+0x30]
+   0x0000000000001703 <+1075>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001707 <+1079>:	mov    rdi,r14
+   0x000000000000170a <+1082>:	mov    al,0x1
+   0x000000000000170c <+1084>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001711 <+1089>:	vmovss xmm0,DWORD PTR [rbx+0x34]
+   0x0000000000001716 <+1094>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x000000000000171a <+1098>:	mov    rdi,r14
+   0x000000000000171d <+1101>:	mov    al,0x1
+   0x000000000000171f <+1103>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001724 <+1108>:	vmovss xmm0,DWORD PTR [rbx+0x38]
+   0x0000000000001729 <+1113>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x000000000000172d <+1117>:	mov    rdi,r14
+   0x0000000000001730 <+1120>:	mov    al,0x1
+   0x0000000000001732 <+1122>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001737 <+1127>:	vmovss xmm0,DWORD PTR [rbx+0x3c]
+   0x000000000000173c <+1132>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001740 <+1136>:	mov    rdi,r14
+   0x0000000000001743 <+1139>:	mov    al,0x1
+   0x0000000000001745 <+1141>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x000000000000174a <+1146>:	vmovss xmm0,DWORD PTR [rbx+0x40]
+   0x000000000000174f <+1151>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001753 <+1155>:	mov    rdi,r14
+   0x0000000000001756 <+1158>:	mov    al,0x1
+   0x0000000000001758 <+1160>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x000000000000175d <+1165>:	vmovss xmm0,DWORD PTR [rbx+0x44]
+   0x0000000000001762 <+1170>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001766 <+1174>:	mov    rdi,r14
+   0x0000000000001769 <+1177>:	mov    al,0x1
+   0x000000000000176b <+1179>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001770 <+1184>:	vmovss xmm0,DWORD PTR [rbx+0x48]
+   0x0000000000001775 <+1189>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001779 <+1193>:	mov    rdi,r14
+   0x000000000000177c <+1196>:	mov    al,0x1
+   0x000000000000177e <+1198>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001783 <+1203>:	vmovss xmm0,DWORD PTR [rbx+0x4c]
+   0x0000000000001788 <+1208>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x000000000000178c <+1212>:	mov    rdi,r14
+   0x000000000000178f <+1215>:	mov    al,0x1
+   0x0000000000001791 <+1217>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001796 <+1222>:	vmovss xmm0,DWORD PTR [rbx+0x50]
+   0x000000000000179b <+1227>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x000000000000179f <+1231>:	mov    rdi,r14
+   0x00000000000017a2 <+1234>:	mov    al,0x1
+   0x00000000000017a4 <+1236>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000017a9 <+1241>:	vmovss xmm0,DWORD PTR [rbx+0x54]
+   0x00000000000017ae <+1246>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000017b2 <+1250>:	mov    rdi,r14
+   0x00000000000017b5 <+1253>:	mov    al,0x1
+   0x00000000000017b7 <+1255>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000017bc <+1260>:	vmovss xmm0,DWORD PTR [rbx+0x58]
+   0x00000000000017c1 <+1265>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000017c5 <+1269>:	mov    rdi,r14
+   0x00000000000017c8 <+1272>:	mov    al,0x1
+   0x00000000000017ca <+1274>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000017cf <+1279>:	vmovss xmm0,DWORD PTR [rbx+0x5c]
+   0x00000000000017d4 <+1284>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000017d8 <+1288>:	mov    rdi,r14
+   0x00000000000017db <+1291>:	mov    al,0x1
+   0x00000000000017dd <+1293>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000017e2 <+1298>:	vmovss xmm0,DWORD PTR [rbx+0x60]
+   0x00000000000017e7 <+1303>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000017eb <+1307>:	mov    rdi,r14
+   0x00000000000017ee <+1310>:	mov    al,0x1
+   0x00000000000017f0 <+1312>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000017f5 <+1317>:	vmovss xmm0,DWORD PTR [rbx+0x64]
+   0x00000000000017fa <+1322>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x00000000000017fe <+1326>:	mov    rdi,r14
+   0x0000000000001801 <+1329>:	mov    al,0x1
+   0x0000000000001803 <+1331>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001808 <+1336>:	vmovss xmm0,DWORD PTR [rbx+0x68]
+   0x000000000000180d <+1341>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001811 <+1345>:	mov    rdi,r14
+   0x0000000000001814 <+1348>:	mov    al,0x1
+   0x0000000000001816 <+1350>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x000000000000181b <+1355>:	vmovss xmm0,DWORD PTR [rbx+0x6c]
+   0x0000000000001820 <+1360>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001824 <+1364>:	mov    rdi,r14
+   0x0000000000001827 <+1367>:	mov    al,0x1
+   0x0000000000001829 <+1369>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x000000000000182e <+1374>:	vmovss xmm0,DWORD PTR [rbx+0x70]
+   0x0000000000001833 <+1379>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001837 <+1383>:	mov    rdi,r14
+   0x000000000000183a <+1386>:	mov    al,0x1
+   0x000000000000183c <+1388>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001841 <+1393>:	vmovss xmm0,DWORD PTR [rbx+0x74]
+   0x0000000000001846 <+1398>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x000000000000184a <+1402>:	mov    rdi,r14
+   0x000000000000184d <+1405>:	mov    al,0x1
+   0x000000000000184f <+1407>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001854 <+1412>:	vmovss xmm0,DWORD PTR [rbx+0x78]
+   0x0000000000001859 <+1417>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x000000000000185d <+1421>:	mov    rdi,r14
+   0x0000000000001860 <+1424>:	mov    al,0x1
+   0x0000000000001862 <+1426>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001867 <+1431>:	vmovss xmm0,DWORD PTR [rbx+0x7c]
+   0x000000000000186c <+1436>:	vcvtss2sd xmm0,xmm0,xmm0
+   0x0000000000001870 <+1440>:	mov    rdi,r14
+   0x0000000000001873 <+1443>:	mov    al,0x1
+   0x0000000000001875 <+1445>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x000000000000187a <+1450>:	lea    rdi,[rip+0x78f]        # 0x2010
+   0x0000000000001881 <+1457>:	xor    eax,eax
+   0x0000000000001883 <+1459>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001888 <+1464>:	xor    eax,eax
+   0x000000000000188a <+1466>:	pop    rbx
+   0x000000000000188b <+1467>:	pop    r14
+   0x000000000000188d <+1469>:	pop    r15
+   0x000000000000188f <+1471>:	ret
+   0x0000000000001890 <+1472>:	lea    rdi,[rip+0x7cd]        # 0x2064
+   0x0000000000001897 <+1479>:	mov    edx,eax
+   0x0000000000001899 <+1481>:	xor    eax,eax
+   0x000000000000189b <+1483>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000018a0 <+1488>:	lea    rdi,[rip+0x77f]        # 0x2026
+   0x00000000000018a7 <+1495>:	jmp    0x18c0 <main+1520>
+   0x00000000000018a9 <+1497>:	lea    rdi,[rip+0x7b4]        # 0x2064
+   0x00000000000018b0 <+1504>:	mov    edx,eax
+   0x00000000000018b2 <+1506>:	xor    eax,eax
+   0x00000000000018b4 <+1508>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000018b9 <+1513>:	lea    rdi,[rip+0x789]        # 0x2049
+   0x00000000000018c0 <+1520>:	xor    eax,eax
+   0x00000000000018c2 <+1522>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000018c7 <+1527>:	lea    rdi,[rip+0x772]        # 0x2040
+   0x00000000000018ce <+1534>:	call   0x1100 <perror@plt>
+   0x00000000000018d3 <+1539>:	mov    edi,0x1
+   0x00000000000018d8 <+1544>:	call   0x1110 <exit@plt>
+   0x00000000000018dd <+1549>:	lea    rdi,[rip+0x780]        # 0x2064
+   0x00000000000018e4 <+1556>:	mov    edx,eax
+   0x00000000000018e6 <+1558>:	xor    eax,eax
+   0x00000000000018e8 <+1560>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x00000000000018ed <+1565>:	jmp    0x13e2 <main+274>
+   0x00000000000018f2 <+1570>:	lea    rdi,[rip+0x76b]        # 0x2064
+   0x00000000000018f9 <+1577>:	mov    edx,eax
+   0x00000000000018fb <+1579>:	xor    eax,eax
+   0x00000000000018fd <+1581>:	call   0x1bd0 <_ZL6printfPKcU17pass_object_size1z>
+   0x0000000000001902 <+1586>:	jmp    0x1400 <main+304>
+End of assembler dump.

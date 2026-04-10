@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stormc_math.c"
+#include "stormc_base.h"
 #include "/data/2026-projs/c/stormlibc/stormc_header.h"
 
 struct free_list {
@@ -61,6 +62,9 @@ static void			stc_os_mem_free(void *mem, u64 size);
 
 #define stc_stack_push(__stack, __type, __count)\
 	_stc_stack_push((__stack), ALIGNOF(__type), (sizeof(__type) * (__count)))
+
+#define stc_stack_push_simd(__stack, __type, __count) \
+	_stc_stack_push((__stack), STC_SIMD_ALIGN, sizeof(__type) * (__count))
 
 
 struct stc_stack *stc_stack_gen(u64 rsrv)

@@ -5,7 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-
 #ifndef PAGESIZE
 #define PAGESIZE 4096
 #endif
@@ -59,11 +58,27 @@
 
 
 #include <stdbool.h>
-#include <immintrin.h>
 #include <inttypes.h>
-
 #if defined(__wasm_simd128__)
 #include <wasm_simd128.h>
+#endif
+
+#if defined(__AVX2__)
+#define STC_SIMD_ALIGN 32
+#elif defined(__SSE4_2__) || defined(__wasm_simd128__)
+#define STC_SIMD_ALIGN 16
+#endif
+
+
+#ifndef STC_SIMD_ALIGN
+#define STC_SIMD_ALIGN 16
+#endif
+
+#if defined(__AVX2__) || defined(__SSE4_2__)
+#include <immintrin.h>
+#endif
+
+#if defined(__wasm_simd128__)
 typedef v128_t simd_i32;
 typedef v128_t simd_u32;
 typedef v128_t simd_i64;
@@ -111,6 +126,8 @@ typedef  int32_t   		i32;
 typedef  int64_t   		i64;
 typedef  double			f64;
 typedef  float			f32;
+
+#include "stc_simd_codegen.h"
 
 
 
@@ -163,6 +180,5 @@ struct stormc_buildinfo {
 	u64	flags_len;
 	char	compiler_flags[4096];
 };
-
 
 
