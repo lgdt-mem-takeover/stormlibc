@@ -5,9 +5,10 @@
 #include "../stormc_header.h"
 
 struct free_list {
-	struct stc_ilt	ilt;
+	struct ilt64	ilt;
 	u64		*ptr;
 	u64		*size;
+	u64		used_count;
 };
 
 //@STACK STC RUNTIME
@@ -92,11 +93,11 @@ struct stc_stack *stc_stack_gen(u64 rsrv)
 	pl->mem_rsrv = rsrv;
 	pl->mem_committed = PAGESIZE;
 	pl->base_offset = 0;
-	pl->free_list.ptr = (u64*)stc_os_mem_rsrv(sizeof(u64) * ILT_TOTAL_INDICES);
-	pl->free_list.size = (u64*)stc_os_mem_rsrv(sizeof(u64) * ILT_TOTAL_INDICES);
+	pl->free_list.ptr = (u64*)stc_os_mem_rsrv(sizeof(u64) * ILT64_CAPACITY);
+	pl->free_list.size = (u64*)stc_os_mem_rsrv(sizeof(u64) * ILT64_CAPACITY);
 	stc_os_mem_cmt(pl->free_list.ptr, sizeof(u64) * PAGESIZE);
 	stc_os_mem_cmt(pl->free_list.size, sizeof(u64) * PAGESIZE);
-	pl->free_list.ilt.max = ILT_TOTAL_INDICES;
+	pl->free_list.used_count = 0;
 	return pl;
 }
 
@@ -112,39 +113,27 @@ void *_stc_stack_push(struct stc_stack *s, u64 alignment, u64 total_size)
 	u64 size_new = end_new - (u64)s->base;
 
 
-	if (!ilt_is_empty(&s->free_list.ilt)) {
+	if (s->free_list.used_count != 0) {
 		u64 smallest_fit = MAX_UINT64;
 		u64 smallest_fit_position = MAX_UINT64;
-		for (u64 ml1_indx = 0; ml1_indx < 64; ++ml1_indx) {
-			for (u64 ml1_group = 0; ml1_group < 64; ++ml1_group) {
-				u64 ml0_idx = ilt_get_ml0_idx((u64)ml1_indx, ml1_group);
-
-				if (s->free_list.ilt.ml0[ml0_idx] != 0) {
-					int bit_idx = 0;
-					while (bit_idx < 64) {
-						if (!(s->free_list.ilt.ml0[ml0_idx] & (1llu << bit_idx))) {
-							++bit_idx;
-							continue;
-						}
-						u64 real_idx = ilt_get_real_idx(ml1_indx, ml1_group, (u64)bit_idx);
-						if (((u64)(s->free_list.ptr[real_idx] & (alignment - 1)) == 0)) {
-							if (s->free_list.size[real_idx] < smallest_fit && s->free_list.size[real_idx] >= total_size) {
-								smallest_fit = s->free_list.size[real_idx];
-								smallest_fit_position = real_idx;
-							}
-						}
-						++bit_idx;
+		for (u64 ml0_idx = 0; ml0_idx < ILT64_ML0; ++ml0_idx) {
+			u64 word = s->free_list.ilt.ml0[ml0_idx];
+			while (word) {
+				u64 bit_idx = (u64)__builtin_ctzll(word);
+				u64 real_idx = ml0_idx * 64ULL + bit_idx;
+				if (((u64)(s->free_list.ptr[real_idx] & (alignment - 1)) == 0)) {
+					if (s->free_list.size[real_idx] < smallest_fit && s->free_list.size[real_idx] >= total_size) {
+						smallest_fit = s->free_list.size[real_idx];
+						smallest_fit_position = real_idx;
 					}
 				}
+				word &= word - 1;
 			}
 		}
 
 		if (smallest_fit != MAX_UINT64) {
-			u64 best_ml1_idx = smallest_fit_position / ILT_ML0_CT;
-			u64 best_ml1_group = (smallest_fit_position / ILT_GROUPS_COUNT) % ILT_GROUPS_COUNT;
-			s->free_list.ilt.ml0[(smallest_fit_position / ILT_GROUPS_COUNT)] &= ~(1llu << (smallest_fit_position % ILT_GROUPS_COUNT));
-			ilt_unset_ml1_group(&s->free_list.ilt, best_ml1_idx, best_ml1_group);
-			s->free_list.ilt.used_count--;
+			ilt64_remove_idx(&s->free_list.ilt, smallest_fit_position);
+			s->free_list.used_count--;
 			return (void*)s->free_list.ptr[smallest_fit_position];
 		}
 	}
@@ -171,10 +160,14 @@ void *_stc_stack_push(struct stc_stack *s, u64 alignment, u64 total_size)
 
 void stc_stack_free(struct stc_stack *s, void* mem_addrs, u64 size)
 {
-	u64 next_index = ilt_next_idx(&s->free_list.ilt);
+	u64 next_index = ilt64_gen_idx(&s->free_list.ilt);
+	if (unlikely(next_index == ILT64_NIL_IDX)) {
+		printf("free_list ILT is full\nAborting\n");
+		exit(1);
+	}
 	s->free_list.ptr[next_index] = (u64)mem_addrs;
 	s->free_list.size[next_index] = size;
-	ilt_count_inc(&s->free_list.ilt);
+	s->free_list.used_count++;
 }
 
 void stc_stack_pop(struct stc_stack *stack, u64 size)
@@ -198,5 +191,4 @@ void stack_end(struct stc_stack *s)
 {
 	s->base_offset = s->checkpoint_offset;
 }
-
 

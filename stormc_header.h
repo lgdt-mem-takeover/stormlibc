@@ -7,6 +7,7 @@
 #pragma GCC diagnostic ignored "-Wc23-extensions"
 #endif
 #define MAX_UINT64 ((u64)-1)
+#define MAX_U(type) ((type)-1)
 
 #define FONT_PATH_DEVAJU_SANS "assets/ttf/DejaVuSans.ttf"
 
@@ -93,44 +94,6 @@ static const u32 MANTISSAF32 = 0x7FFFFF;
 #define STRING8_NULL (struct stc_string8){.str = NULL, .len = 0}
 
 
-#define ILT_GROUPS_COUNT 64ULL
-#define ILT_ML0_CT (ILT_GROUPS_COUNT * ILT_GROUPS_COUNT)
-#define ILT_TOTAL_INDICES (ILT_ML0_CT * 64ULL)
-#define ILT_NIL_REAL_IDX (~0ULL)
-
-
-struct stc_ilt{
-	u64	ml0[ILT_ML0_CT];
-	u64	ml0_count;
-	u64	ml1[ILT_GROUPS_COUNT];
-	u64	ml1_count;
-	u64	ml2;
-	u64	used_count;
-	u64	max;
-};
-
-
-
-struct ilt_ctx_frame{
-	u64	ml1_idx;
-	u64	ml1_group;
-	u64	ml0_idx;
-	u64	ml0_bit;
-};
-
-static u64 ilt_next_idx(struct stc_ilt *ilt);
-static u64 ilt_top_idx(struct stc_ilt *ilt);
-static bool32 ilt_is_empty(struct stc_ilt *ilt);
-static bool32 ilt_is_full(struct stc_ilt *ilt);
-static u64 ilt_get_ml0_idx(u64 ml1_idx, u64 ml1_current_full_groups);
-static u64 ilt_get_real_idx(u64 ml1_idx, u64 ml1_current_full_groups, u64 ml0_bit_offset);
-static void ilt_set_ml1_group(struct stc_ilt *ilt, u64 ml1_idx, u64 ml1_group);
-static void ilt_unset_ml1_group(struct stc_ilt *ilt, u64 ml1_idx, u64 ml1_group);
-static void ilt_count_inc(struct stc_ilt *ilt);
-static void ilt_count_dec(struct stc_ilt *ilt);
-static struct ilt_ctx_frame ilt_get_ctx_frame(struct stc_ilt *ilt);
-
-
 struct stc_strbldr{
 	stc_byte	*ptr;
 	u64		off;
@@ -184,127 +147,110 @@ struct hash_params{
 
 
 
+#define ILT_CAT2_(a, b) a##b
+#define ILT_CAT2(a, b)  ILT_CAT2_(a, b)
+#define ILT_CAT3_(a, b, c) a##b##c
+#define ILT_CAT3(a, b, c)  ILT_CAT3_(a, b, c)
 
-u64 ilt_get_real_idx(u64 ml1_idx, u64 ml1_current_full_groups, u64 ml0_bit_offset)
-{
-	return ml1_idx * ILT_ML0_CT + ml1_current_full_groups * ILT_GROUPS_COUNT + ml0_bit_offset;
-}
+#define ILT_U(width)        ILT_CAT2(u, width)
+#define ILT_UINT_MAX(width) ILT_CAT3(UINT, width, _MAX)
 
-
-void ilt_set_ml1_group(struct stc_ilt *ilt, u64 ml1_idx, u64 ml1_group)
-{
-	ilt->ml1[ml1_idx] |= (1llu << ml1_group);
-
-	if (ilt->ml1[ml1_idx] == ~0ULL) {
-		ilt->ml2 |= (1llu << ml1_idx);
-	}
-}
-
-
-void ilt_unset_ml1_group(struct stc_ilt *ilt, u64 ml1_idx, u64 ml1_group)
-{
-	ilt->ml1[ml1_idx] &= ~(1llu << ml1_group);
-
-	if (ilt->ml1[ml1_idx] != ~0ULL) {
-		ilt->ml2 &= ~(1llu << ml1_idx);
-	}
-}
-
-
-u64 ilt_get_ml0_idx(u64 ml1_idx, u64 ml1_current_full_groups)
-{
-	return ml1_idx * ILT_GROUPS_COUNT + ml1_current_full_groups;
-}
-
-void ilt_count_inc(struct stc_ilt *ilt)
-{
-	ilt->used_count++;
-}
-
-void ilt_count_dec(struct stc_ilt *ilt)
-{
-	ilt->used_count--;
-}
-
-
-struct ilt_ctx_frame ilt_get_ctx_frame(struct stc_ilt *ilt)
-{
-	struct ilt_ctx_frame pl;
-	u64 ml2_free_mask = ~ilt->ml2;
-	if (!ml2_free_mask) {
-		printf("ILT is full\nAborting\n");
-		pl.ml0_bit = ~0ULL;
-		pl.ml1_idx = ~0ULL;
-		pl.ml0_idx = ~0ULL;
-		pl.ml1_group = ~0ULL;
-		return pl;
-	}
-	u64 ml1_idx = __builtin_ctzll(ml2_free_mask);
-	u64 ml1_free_mask = ~ilt->ml1[ml1_idx];
-	assert(ml1_free_mask != 0);
-	u64 group = __builtin_ctzll(ml1_free_mask);
-	u64 ml0_idx = ilt_get_ml0_idx(ml1_idx, group);
-	u64 ml0_free_mask = ~ilt->ml0[ml0_idx];
-	assert(ml0_free_mask != 0);
-	u64 bit = __builtin_ctzll(ml0_free_mask);
-	pl.ml1_idx = ml1_idx;
-	pl.ml0_idx = ml0_idx;
-	pl.ml0_bit = bit;
-	pl.ml1_group = group;
-
-	return pl;
-}
-
-
-bool32 ilt_is_full(struct stc_ilt *ilt)
-{
-	return ilt_top_idx(ilt) == ~0ULL;
-}
-
-inline bool32 ilt_is_empty(struct stc_ilt *ilt)
-{
-	return ilt->used_count == 0;
-}
-
-
-u64 ilt_top_idx(struct stc_ilt *ilt)
-{
-	struct ilt_ctx_frame frame = ilt_get_ctx_frame(ilt);
-	if (frame.ml1_idx == ~0ULL)
-		return ~0ULL;
-
-	return ilt_get_real_idx(frame.ml1_idx, frame.ml1_group, frame.ml0_bit);
-}
-
-u64 ilt_next_idx(struct stc_ilt *ilt)
-{
-	u64 ml2_free = ~ilt->ml2;
-	if (unlikely(ml2_free == 0)) {
-		printf("ILT is full\nAborting\n");
-		exit(1);
-	}
-
-	while(ml2_free) {
-		u64 ml1_idx = __builtin_ctzll(ml2_free);
-		ml2_free &= ml2_free - 1;
-		u64 ml1_free = ~ilt->ml1[ml1_idx];
-		if (!ml1_free) continue;
-
-		u64 found = __builtin_ctzll(ml1_free);
-
-		u64 ml0_idx = ilt_get_ml0_idx(ml1_idx, found);
-		u64 ml0_free = ~ilt->ml0[ml0_idx];
-		assert(ml0_free != 0);
-		u64 next_ml0_idx = __builtin_ctzll(ml0_free);
-		ilt->ml0[ml0_idx] |= (1ULL << next_ml0_idx);
-		if (ilt->ml0[ml0_idx] == ~0ULL) {
-			ilt_set_ml1_group(ilt, ml1_idx, found);
-		}
-		return ilt_get_real_idx(ml1_idx, found, next_ml0_idx);
+#define STC_MAKE_ILT(width)                                                      \
+	_Static_assert(                                                              \
+		(width) == 16 || (width) == 32 || (width) == 64,                        \
+		"STC_MAKE_ILT(width): width must be one of 16, 32, 64"                  \
+	);                                                                           \
+                                                                                 \
+	enum {                                                                       \
+		ILT##width##_ML2 = 1,                                                    \
+		ILT##width##_ML1 = ILT##width##_ML2 * (width),                           \
+		ILT##width##_ML0 = ILT##width##_ML1 * (width),                           \
+		ILT##width##_CAPACITY = ILT##width##_ML0 * (width),                     \
+		ILT##width##_SHIFT = ((width) == 16 ? 4 : ((width) == 32 ? 5 : 6)),     \
+		ILT##width##_MASK = (width) - 1,                                         \
+		ILT##width##_NIL_IDX = ILT##width##_CAPACITY                             \
+	};                                                                           \
+                                                                                 \
+	struct ILT_CAT2(ilt, width) {                                                \
+		ILT_U(width) ml0[ILT##width##_ML0];                                      \
+		ILT_U(width) ml1[ILT##width##_ML1];                                      \
+		ILT_U(width) ml2;                                                        \
+	};                                                                           \
+                                                                                 \
+	static inline ILT_U(width) ILT_CAT3(stc_ctz_u, width, )(ILT_U(width) n)      \
+	{                                                                            \
+		return n ? (ILT_U(width))__builtin_ctzll((unsigned long long)n)          \
+		         : (ILT_U(width))(width);                                        \
+	}                                                                            \
+                                                                                 \
+	static inline ILT_U(width) ILT_CAT3(ilt, width, _get_ml2_from_idx)(ILT_U(width) idx) \
+	{                                                                            \
+		return idx >> (ILT##width##_SHIFT * 3u);                                 \
+	}                                                                            \
+                                                                                 \
+	static inline ILT_U(width) ILT_CAT3(ilt, width, _get_ml1_from_idx)(ILT_U(width) idx) \
+	{                                                                            \
+		return idx >> (ILT##width##_SHIFT * 2u);                                 \
+	}                                                                            \
+                                                                                 \
+	static inline ILT_U(width) ILT_CAT3(ilt, width, _get_ml0_from_idx)(ILT_U(width) idx) \
+	{                                                                            \
+		return idx >> ILT##width##_SHIFT;                                        \
+	}                                                                            \
+                                                                                 \
+	static inline ILT_U(width) ILT_CAT3(ilt, width, _get_ml0_bit_offset_from_idx)(ILT_U(width) idx) \
+	{                                                                            \
+		return idx & (ILT_U(width))ILT##width##_MASK;                            \
+	}                                                                            \
+                                                                                 \
+	static inline ILT_U(width) ILT_CAT3(ilt, width, _get_ml1_bit_offset_from_ml0)(ILT_U(width) ml0) \
+	{                                                                            \
+		return ml0 & (ILT_U(width))ILT##width##_MASK;                            \
+	}                                                                            \
+                                                                                 \
+	static inline ILT_U(width) ILT_CAT3(ilt, width, _get_ml2_bit_offset_from_ml1)(ILT_U(width) ml1) \
+	{                                                                            \
+		return ml1 & (ILT_U(width))ILT##width##_MASK;                            \
+	}                                                                            \
+                                                                                 \
+	static inline ILT_U(width) ILT_CAT3(ilt, width, _gen_idx)(struct ILT_CAT2(ilt, width) *i) \
+	{                                                                            \
+		if (i->ml2 == (ILT_U(width))ILT_UINT_MAX(width)) {                       \
+			return (ILT_U(width))ILT##width##_NIL_IDX;                           \
+		}                                                                        \
+                                                                                 \
+		ILT_U(width) ml1_idx = ILT_CAT3(stc_ctz_u, width, )((ILT_U(width))~i->ml2); \
+		ILT_U(width) ml1_word = i->ml1[ml1_idx];                                 \
+		ILT_U(width) ml1_bit_offset = ILT_CAT3(stc_ctz_u, width, )((ILT_U(width))~ml1_word); \
+		ILT_U(width) ml0_idx = (ml1_idx * (ILT_U(width))(width)) + ml1_bit_offset; \
+		ILT_U(width) ml0_word = i->ml0[ml0_idx];                                 \
+		ILT_U(width) ml0_bit_offset = ILT_CAT3(stc_ctz_u, width, )((ILT_U(width))~ml0_word); \
+                                                                                 \
+		i->ml0[ml0_idx] |= ((ILT_U(width))1u << ml0_bit_offset);                 \
+                                                                                 \
+		if (i->ml0[ml0_idx] == (ILT_U(width))ILT_UINT_MAX(width)) {              \
+			i->ml1[ml1_idx] |= ((ILT_U(width))1u << ml1_bit_offset);             \
+			if (i->ml1[ml1_idx] == (ILT_U(width))ILT_UINT_MAX(width)) {          \
+				i->ml2 |= ((ILT_U(width))1u << ml1_idx);                         \
+			}                                                                    \
+		}                                                                        \
+                                                                                 \
+		return (ml0_idx * (ILT_U(width))(width)) + ml0_bit_offset;              \
+	}                                                                            \
+                                                                                 \
+	static inline void ILT_CAT3(ilt, width, _remove_idx)(struct ILT_CAT2(ilt, width) *i, ILT_U(width) idx) \
+	{                                                                            \
+		ILT_U(width) ml1 = ILT_CAT3(ilt, width, _get_ml1_from_idx)(idx);        \
+		ILT_U(width) ml0 = ILT_CAT3(ilt, width, _get_ml0_from_idx)(idx);        \
+		ILT_U(width) ml0_bit_offset = ILT_CAT3(ilt, width, _get_ml0_bit_offset_from_idx)(idx); \
+		ILT_U(width) ml1_bit_offset = ILT_CAT3(ilt, width, _get_ml1_bit_offset_from_ml0)(ml0); \
+                                                                                 \
+		i->ml0[ml0] &= ~((ILT_U(width))1u << ml0_bit_offset);                    \
+		i->ml1[ml1] &= ~((ILT_U(width))1u << ml1_bit_offset);                    \
+		i->ml2 &= ~((ILT_U(width))1u << ml1);                                    \
 	}
 
-	return ~0ULL;
-}
+STC_MAKE_ILT(64)
 
 
 

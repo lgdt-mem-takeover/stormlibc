@@ -16,251 +16,6 @@ def emit_shift_scalar_expr(op: str, type_: str) -> str:
     raise ValueError(f"unsupported shift op: {op}")
 
 
-
-
-def emit_stc_template_function_body_logical_binary(
-    op: str,
-    type_: str,
-    simd_type: str,
-    simd_store_func: str,
-    simd_load_func: str,
-    simd_op_func: str,
-    simd_lanes: str,
-    simd_cast: str
-) -> str:
-    if type_ == "f32":
-        scalar_expr_u32 = {
-            "and": "ua.u & ub.u",
-            "or": "ua.u | ub.u",
-            "xor": "ua.u ^ ub.u",
-            "andnot": "(~ua.u) & ub.u",
-        }[op]
-        scalar_tail = f"""
-    while (rem) {{
-        union {{ u32 u; f32 f; }} ua, ub, ur;
-        ua.f = a[i];
-        ub.f = b[i];
-        ur.u = {scalar_expr_u32};
-        a[i] = ur.f;
-        ++i;
-        --rem;
-    }}
-"""
-    else:
-        scalar_expr = {
-            "and": "a[i] & b[i]",
-            "or": "a[i] | b[i]",
-            "xor": "a[i] ^ b[i]",
-            "andnot": "(~a[i]) & b[i]",
-        }[op]
-        scalar_tail = f"""
-    while (rem) {{
-        a[i] = {scalar_expr};
-        ++i;
-        --rem;
-    }}
-"""
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len)
-{{
-    const u64 width = {simd_lanes};
-    u64 rem = len % width;
-    u64 i = 0;
-
-    for (; (i + width) <= len; i += width) {{
-        {simd_type} va = {simd_load_func}((const {simd_cast}*)(a + i));
-        {simd_type} vb = {simd_load_func}((const {simd_cast}*)(b + i));
-        {simd_type} result = {simd_op_func}(va, vb);
-        {simd_store_func}(({simd_cast}*)(a + i), result);
-    }}
-
-{scalar_tail.rstrip()}
-}}
-""".strip()
-
-
-def emit_stc_template_function_body_logical_unary(
-    op: str,
-    type_: str,
-    simd_type: str,
-    simd_store_func: str,
-    simd_load_func: str,
-    simd_op_func: str,
-    simd_lanes: str,
-    simd_cast: str,
-    scalar_symbol: str
-) -> str:
-    if type_ == "f32" and scalar_symbol == "~":
-        scalar_tail = """
-    while (rem) {
-        union { u32 u; f32 f; } ua;
-        ua.f = a[i];
-        ua.u = ~ua.u;
-        a[i] = ua.f;
-        ++i;
-        --rem;
-    }
-"""
-    else:
-        scalar_tail = f"""
-    while (rem) {{
-        a[i] = {scalar_symbol}a[i];
-        ++i;
-        --rem;
-    }}
-"""
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const u64 len)
-{{
-    const u64 width = {simd_lanes};
-    u64 rem = len % width;
-    u64 i = 0;
-
-    for (; (i + width) <= len; i += width) {{
-        {simd_type} va = {simd_load_func}((const {simd_cast}*)(a + i));
-        {simd_type} result = {simd_op_func}(va);
-        {simd_store_func}(({simd_cast}*)(a + i), result);
-    }}
-
-{scalar_tail.rstrip()}
-}}
-""".strip()
-
-
-def emit_stc_template_function_body_compare(
-    op: str,
-    type_: str,
-    simd_type: str,
-    simd_store_func: str,
-    simd_load_func: str,
-    simd_op_func: str,
-    simd_lanes: str,
-    simd_cast: str,
-    scalar_cmp_expr: str
-) -> str:
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len)
-{{
-    const u64 width = {simd_lanes};
-    u64 rem = len % width;
-    u64 i = 0;
-
-    for (; (i + width) <= len; i += width) {{
-        {simd_type} va = {simd_load_func}((const {simd_cast}*)(a + i));
-        {simd_type} vb = {simd_load_func}((const {simd_cast}*)(b + i));
-        {simd_type} result = {simd_op_func}(va, vb);
-        {simd_store_func}(({simd_cast}*)(a + i), result);
-    }}
-
-    while (rem) {{
-        a[i] = ({scalar_cmp_expr}) ? ({type_})~0 : ({type_})0;
-        ++i;
-        --rem;
-    }}
-}}
-""".strip()
-
-
-def emit_stc_template_function_body_compare_expr(
-    op: str,
-    type_: str,
-    simd_type: str,
-    simd_store_func: str,
-    simd_load_func: str,
-    simd_lanes: str,
-    simd_cast: str,
-    scalar_cmp_expr: str,
-    simd_result_expr: str,
-    simd_prelude: str = "",
-) -> str:
-    prelude = ""
-    if simd_prelude:
-        prelude = f"{simd_prelude}\n\n"
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len)
-{{
-    const u64 width = {simd_lanes};
-    u64 rem = len % width;
-    u64 i = 0;
-{prelude}    for (; (i + width) <= len; i += width) {{
-        {simd_type} va = {simd_load_func}((const {simd_cast}*)(a + i));
-        {simd_type} vb = {simd_load_func}((const {simd_cast}*)(b + i));
-        {simd_type} result = {simd_result_expr};
-        {simd_store_func}(({simd_cast}*)(a + i), result);
-    }}
-
-    while (rem) {{
-        a[i] = ({scalar_cmp_expr}) ? ({type_})~0 : ({type_})0;
-        ++i;
-        --rem;
-    }}
-}}
-""".strip()
-
-
-def emit_stc_template_function_body_shift(
-    op: str,
-    type_: str,
-    simd_type: str,
-    simd_store_func: str,
-    simd_load_func: str,
-    simd_op_func: str,
-    simd_lanes: str,
-    simd_cast: str,
-    scalar_shift_expr: str
-) -> str:
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const u32 shift_by, const u64 len)
-{{
-    const u64 width = {simd_lanes};
-    u64 rem = len % width;
-    u64 i = 0;
-
-    for (; (i + width) <= len; i += width) {{
-        {simd_type} va = {simd_load_func}((const {simd_cast}*)(a + i));
-        {simd_type} result = {simd_op_func}(va, shift_by);
-        {simd_store_func}(({simd_cast}*)(a + i), result);
-    }}
-
-    while (rem) {{
-        a[i] = {scalar_shift_expr};
-        ++i;
-        --rem;
-    }}
-}}
-""".strip()
-
-
-def emit_stc_template_function_body_splat(
-    type_: str,
-    simd_type: str,
-    simd_store_func: str,
-    simd_set_func: str,
-    simd_lanes: str,
-    simd_cast: str
-) -> str:
-    return f"""
-static inline void stc_simd_splat_{type_}({type_} * restrict a, const {type_} value, const u64 len)
-{{
-    const u64 width = {simd_lanes};
-    u64 rem = len % width;
-    u64 i = 0;
-
-    {simd_type} vv = {simd_set_func}(value);
-
-    for (; (i + width) <= len; i += width) {{
-        {simd_store_func}(({simd_cast}*)(a + i), vv);
-    }}
-
-    while (rem) {{
-        a[i] = value;
-        ++i;
-        --rem;
-    }}
-}}
-""".strip()
-
-
 def emit_simd_cast(type_: str) -> str:
     cast_ty: str = simd_cast_mapping[type_];
     return cast_ty;
@@ -268,14 +23,23 @@ def emit_simd_cast(type_: str) -> str:
 def lanes(backend, type_) -> int:
     return backend_bits[backend] // (type_sizes[type_] * 8);
 
+def lane_macro(type_: str) -> str:
+    return {
+        "i8": "LANES_I8",
+        "i16": "LANES_I16",
+        "i32": "LANES_I32",
+        "i64": "LANES_I64",
+        "f32": "LANES_F32",
+    }[type_]
+
 def emit_stc_template_function_signature_arith(op: str, type_: str) -> str:
-    return f"static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len);";
+    return f"static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const {type_} * restrict b, const u64 len);";
 
 def emit_stc_template_function_signature_logical_binary(op: str, type_: str) -> str:
-    return f"static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len);"
+    return f"static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const {type_} * restrict b, const u64 len);"
 
 def emit_stc_template_function_signature_logical_unary(op: str, type_: str) -> str:
-    return f"static inline void stc_simd_{op}_{type_}({type_} * restrict a, const u64 len);"
+    return f"static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const u64 len);"
 
 def emit_stc_template_function_signature_any_true(type_: str) -> str:
     return f"static inline bool stc_simd_any_true_{type_}(const {type_} * restrict a, const u64 len);"
@@ -299,79 +63,339 @@ def emit_stc_template_function_signature_first_compare_scalar(op: str, type_: st
     return f"static inline u64 stc_simd_first_{op}_scalar_{type_}(const {type_} * restrict a, const {type_} value, const u64 len);"
 
 def emit_stc_template_function_signature_set_splat(type_: str) -> str:
-    return f"static inline void stc_simd_splat_{type_}({type_} * restrict a, const {type_} value, const u64 len);"
+    return f"static inline {type_} *stc_simd_splat_{type_}({type_} * restrict out, const {type_} value, const u64 len);"
 
 def emit_stc_template_function_signature_shift(op: str, type_: str) -> str:
-    return f"static inline void stc_simd_{op}_{type_}({type_} * restrict a, const u32 shift_by, const u64 len);"
+    return f"static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const u32 shift_by, const u64 len);"
 
 def emit_stc_template_function_signature_compare(op: str, type_: str) -> str:
-    return f"static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len);"
+    return f"static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const {type_} * restrict b, const u64 len);"
+
+def emit_stc_template_function_signature_reduce(op: str, type_: str) -> str:
+    return f"static inline {type_} stc_simd_reduce_{op}_{type_}(const {type_} * restrict a, const u64 len);"
 
 
-
-def emit_stc_template_function_body_arith(
+def emit_slice_binary_body(
     op: str,
     type_: str,
     simd_type: str,
-    simd_store_func: str,
-    simd_load_func: str,
-    simd_op_func: str,
-    simd_op_symbol: str,
-    simd_lanes: str,
-    simd_cast: str
+    load_func: str,
+    store_func: str,
+    simd_cast: str,
+    lanes_value: int,
+    simd_expr: Optional[str],
+    scalar_tail: str,
+    prelude: str = "",
 ) -> str:
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len)
+    if simd_expr and load_func and store_func:
+        prelude_block = f"{prelude}\n" if prelude else ""
+        return f"""
+static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const {type_} * restrict b, const u64 len)
 {{
-    const u64 width = {simd_lanes};
+    const u64 width = {lanes_value};
     u64 rem = len % width;
     u64 i = 0;
-
-    for (; (i + width) <= len; i += width) {{
-        {simd_type} va = {simd_load_func}((const {simd_cast}*)(a + i));
-        {simd_type} vb = {simd_load_func}((const {simd_cast}*)(b + i));
-        {simd_type} result = {simd_op_func}(va, vb);
-        {simd_store_func}(({simd_cast}*)(a + i), result);
+{prelude_block}    for (; (i + width) <= len; i += width) {{
+        {simd_type} va = {load_func}((const {simd_cast}*)(a + i));
+        {simd_type} vb = {load_func}((const {simd_cast}*)(b + i));
+        {simd_type} vr = {simd_expr};
+        {store_func}(({simd_cast}*)(out + i), vr);
     }}
 
     while (rem) {{
-        a[i] {simd_op_symbol}= b[i];
+{scalar_tail}
         ++i;
         --rem;
     }}
-}}
-""".strip();
 
-def emit_stc_template_function_body_minmax(
+    return out;
+}}
+""".strip()
+    return f"""
+static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const {type_} * restrict b, const u64 len)
+{{
+    for (u64 i = 0; i < len; ++i) {{
+{scalar_tail}
+    }}
+    return out;
+}}
+""".strip()
+
+
+def emit_slice_unary_body(
     op: str,
     type_: str,
     simd_type: str,
-    simd_store_func: str,
-    simd_load_func: str,
-    simd_op_func: str,
-    simd_lanes: str,
+    load_func: str,
+    store_func: str,
     simd_cast: str,
+    lanes_value: int,
+    simd_expr: Optional[str],
+    scalar_tail: str,
+) -> str:
+    if simd_expr and load_func and store_func:
+        return f"""
+static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const u64 len)
+{{
+    const u64 width = {lanes_value};
+    u64 rem = len % width;
+    u64 i = 0;
+    for (; (i + width) <= len; i += width) {{
+        {simd_type} va = {load_func}((const {simd_cast}*)(a + i));
+        {simd_type} vr = {simd_expr};
+        {store_func}(({simd_cast}*)(out + i), vr);
+    }}
+
+    while (rem) {{
+{scalar_tail}
+        ++i;
+        --rem;
+    }}
+
+    return out;
+}}
+""".strip()
+    return f"""
+static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const u64 len)
+{{
+    for (u64 i = 0; i < len; ++i) {{
+{scalar_tail}
+    }}
+    return out;
+}}
+""".strip()
+
+
+def emit_slice_shift_body(
+    op: str,
+    type_: str,
+    simd_type: str,
+    load_func: str,
+    store_func: str,
+    simd_cast: str,
+    lanes_value: int,
+    simd_expr: Optional[str],
+    scalar_tail: str,
+) -> str:
+    if simd_expr and load_func and store_func:
+        return f"""
+static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const u32 shift_by, const u64 len)
+{{
+    const u64 width = {lanes_value};
+    u64 rem = len % width;
+    u64 i = 0;
+    for (; (i + width) <= len; i += width) {{
+        {simd_type} va = {load_func}((const {simd_cast}*)(a + i));
+        {simd_type} vr = {simd_expr};
+        {store_func}(({simd_cast}*)(out + i), vr);
+    }}
+
+    while (rem) {{
+{scalar_tail}
+        ++i;
+        --rem;
+    }}
+
+    return out;
+}}
+""".strip()
+    return f"""
+static inline {type_} *stc_simd_{op}_{type_}({type_} * restrict out, const {type_} * restrict a, const u32 shift_by, const u64 len)
+{{
+    for (u64 i = 0; i < len; ++i) {{
+{scalar_tail}
+    }}
+    return out;
+}}
+""".strip()
+
+
+def emit_slice_splat_body(
+    type_: str,
+    simd_type: str,
+    store_func: str,
+    simd_cast: str,
+    lanes_value: int,
+    simd_expr: Optional[str],
+) -> str:
+    if simd_expr and store_func:
+        return f"""
+static inline {type_} *stc_simd_splat_{type_}({type_} * restrict out, const {type_} value, const u64 len)
+{{
+    const u64 width = {lanes_value};
+    u64 rem = len % width;
+    u64 i = 0;
+    const {simd_type} vv = {simd_expr};
+    for (; (i + width) <= len; i += width) {{
+        {store_func}(({simd_cast}*)(out + i), vv);
+    }}
+
+    while (rem) {{
+        out[i] = value;
+        ++i;
+        --rem;
+    }}
+
+    return out;
+}}
+""".strip()
+    return f"""
+static inline {type_} *stc_simd_splat_{type_}({type_} * restrict out, const {type_} value, const u64 len)
+{{
+    for (u64 i = 0; i < len; ++i) {{
+        out[i] = value;
+    }}
+    return out;
+}}
+""".strip()
+
+
+def emit_register_binary_body(op: str, type_: str, simd_type: str, simd_expr: str) -> str:
+    return f"""
+static inline {simd_type} stc_simd_{op}_{type_}(const {simd_type} a, const {simd_type} b)
+{{
+    return {simd_expr};
+}}
+""".strip()
+
+
+def emit_register_unary_body(op: str, type_: str, simd_type: str, simd_expr: str) -> str:
+    return f"""
+static inline {simd_type} stc_simd_{op}_{type_}(const {simd_type} a)
+{{
+    return {simd_expr};
+}}
+""".strip()
+
+
+def emit_register_shift_body(op: str, type_: str, simd_type: str, simd_expr: str) -> str:
+    return f"""
+static inline {simd_type} stc_simd_{op}_{type_}(const {simd_type} a, const u32 shift_by)
+{{
+    return {simd_expr};
+}}
+""".strip()
+
+
+def emit_register_splat_body(type_: str, simd_type: str, simd_expr: str) -> str:
+    return f"""
+static inline {simd_type} stc_simd_splat_{type_}(const {type_} value)
+{{
+    return {simd_expr};
+}}
+""".strip()
+
+
+def emit_register_binary_scalar_fallback(
+    op: str,
+    type_: str,
+    simd_type: str,
+    lanes_macro: str,
+    scalar_stmt: str,
+    compare_f32_bits: Optional[str] = None,
+) -> str:
+    if type_ == "f32" and compare_f32_bits:
+        lane_body = f"""
+        union {{ u32 u; f32 f; }} ur;
+        ur.u = {compare_f32_bits};
+        tr[i] = ur.f;"""
+    elif type_ == "f32":
+        lane_body = f"""
+        union {{ u32 u; f32 f; }} ua, ub, ur;
+        ua.f = ta[i];
+        ub.f = tb[i];
+        ur.u = {scalar_stmt};
+        tr[i] = ur.f;"""
+    else:
+        lane_body = f"""
+        tr[i] = {scalar_stmt};"""
+    return f"""
+static inline {simd_type} stc_simd_{op}_{type_}(const {simd_type} a, const {simd_type} b)
+{{
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_} ta[{lanes_macro}];
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_} tb[{lanes_macro}];
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_} tr[{lanes_macro}];
+
+    stc_simd_store_{type_}(ta, a);
+    stc_simd_store_{type_}(tb, b);
+
+    for (u64 i = 0; i < {lanes_macro}; ++i) {{{lane_body}
+    }}
+
+    return stc_simd_load_{type_}(tr);
+}}
+""".strip()
+
+
+def emit_register_unary_scalar_fallback(
+    op: str,
+    type_: str,
+    simd_type: str,
+    lanes_macro: str,
+    scalar_stmt: str,
+) -> str:
+    if type_ == "f32":
+        lane_body = f"""
+        union {{ u32 u; f32 f; }} ua, ur;
+        ua.f = ta[i];
+        ur.u = {scalar_stmt};
+        tr[i] = ur.f;"""
+    else:
+        lane_body = f"""
+        tr[i] = {scalar_stmt};"""
+    return f"""
+static inline {simd_type} stc_simd_{op}_{type_}(const {simd_type} a)
+{{
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_} ta[{lanes_macro}];
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_} tr[{lanes_macro}];
+
+    stc_simd_store_{type_}(ta, a);
+
+    for (u64 i = 0; i < {lanes_macro}; ++i) {{{lane_body}
+    }}
+
+    return stc_simd_load_{type_}(tr);
+}}
+""".strip()
+
+
+def emit_register_shift_scalar_fallback(
+    op: str,
+    type_: str,
+    simd_type: str,
+    lanes_macro: str,
     scalar_expr: str,
 ) -> str:
     return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len)
+static inline {simd_type} stc_simd_{op}_{type_}(const {simd_type} a, const u32 shift_by)
 {{
-    const u64 width = {simd_lanes};
-    u64 rem = len % width;
-    u64 i = 0;
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_} ta[{lanes_macro}];
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_} tr[{lanes_macro}];
 
-    for (; (i + width) <= len; i += width) {{
-        {simd_type} va = {simd_load_func}((const {simd_cast}*)(a + i));
-        {simd_type} vb = {simd_load_func}((const {simd_cast}*)(b + i));
-        {simd_type} result = {simd_op_func}(va, vb);
-        {simd_store_func}(({simd_cast}*)(a + i), result);
+    stc_simd_store_{type_}(ta, a);
+
+    for (u64 i = 0; i < {lanes_macro}; ++i) {{
+        tr[i] = {scalar_expr};
     }}
 
-    while (rem) {{
-        a[i] = {scalar_expr};
-        ++i;
-        --rem;
+    return stc_simd_load_{type_}(tr);
+}}
+""".strip()
+
+
+def emit_register_splat_scalar_fallback(
+    type_: str,
+    simd_type: str,
+    lanes_macro: str,
+) -> str:
+    return f"""
+static inline {simd_type} stc_simd_splat_{type_}(const {type_} value)
+{{
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_} tr[{lanes_macro}];
+    for (u64 i = 0; i < {lanes_macro}; ++i) {{
+        tr[i] = value;
     }}
+    return stc_simd_load_{type_}(tr);
 }}
 """.strip()
 
@@ -397,7 +421,6 @@ backend_emitteer: Dict[str, Dict[str, Any]] = {
             "i8": "wasm_i8x16_swizzle",
         },
         "shuffle": {
-            # lane-immediate style families also exist in wasm_simd128.h
         },
     },
 
@@ -975,62 +998,13 @@ ops_first_compare_scalar_per_type: Dict[str, List[str]] = {
     "f32": ["cmpeq", "cmpne", "cmplt", "cmpgt", "cmple", "cmpge"],
 }
 
-
-def emit_scalar_binary(op: str, type_: str, symbol: str) -> str:
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len)
-{{
-    for (u64 i = 0; i < len; ++i) {{
-        a[i] = a[i] {symbol} b[i];
-    }}
-}}
-""".strip()
-
-
-def emit_scalar_unary(op: str, type_: str, symbol: str) -> str:
-    if type_ == "f32" and symbol == "~":
-        return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const u64 len)
-{{
-    for (u64 i = 0; i < len; ++i) {{
-        union {{ u32 u; f32 f; }} bits;
-        bits.f = a[i];
-        bits.u = ~bits.u;
-        a[i] = bits.f;
-    }}
-}}
-""".strip()
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const u64 len)
-{{
-    for (u64 i = 0; i < len; ++i) {{
-        a[i] = {symbol}a[i];
-    }}
-}}
-""".strip()
-
-
-def emit_scalar_shift(op: str, type_: str) -> str:
-    expr = emit_shift_scalar_expr(op, type_)
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const u32 shift_by, const u64 len)
-{{
-    for (u64 i = 0; i < len; ++i) {{
-        a[i] = {expr};
-    }}
-}}
-""".strip()
-
-
-def emit_scalar_compare(op: str, type_: str) -> str:
-    return f"""
-static inline void stc_simd_{op}_{type_}({type_} * restrict a, const {type_} * restrict b, const u64 len)
-{{
-    for (u64 i = 0; i < len; ++i) {{
-        a[i] = ({cmp_scalar_expr[op]}) ? ({type_})~0 : ({type_})0;
-    }}
-}}
-""".strip()
+ops_reduce_per_type: Dict[str, List[str]] = {
+    "i8": ["add"],
+    "i16": ["add", "mul"],
+    "i32": ["add", "mul", "min", "max"],
+    "i64": ["add"],
+    "f32": ["add", "mul", "min", "max"],
+}
 
 
 def resolve_typed_call(section: Any, type_: str) -> Optional[str]:
@@ -1130,234 +1104,157 @@ def emit_registered_family_bodies(ctx: FamilyBodyContext) -> List[str]:
 
 def _emit_body_arith(op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
     simd_op = ctx.backend_cfg["Arithmetic"].get(op, {}).get(type_name)
-    if simd_op and ctx.load_func and ctx.store_func:
-        return emit_stc_template_function_body_arith(
-            op=op,
-            type_=type_name,
-            simd_type=ctx.simd_type,
-            simd_store_func=ctx.store_func,
-            simd_load_func=ctx.load_func,
-            simd_op_func=simd_op,
-            simd_op_symbol=ops_arith_symbol_mapping[op],
-            simd_lanes=ctx.lanes,
-            simd_cast=ctx.simd_cast,
-        )
-    return emit_scalar_binary(op, type_name, ops_arith_symbol_mapping[op])
+    return emit_slice_binary_body(
+        op=op,
+        type_=type_name,
+        simd_type=ctx.simd_type,
+        load_func=ctx.load_func,
+        store_func=ctx.store_func,
+        simd_cast=ctx.simd_cast,
+        lanes_value=ctx.lanes,
+        simd_expr=f"{simd_op}(va, vb)" if simd_op else None,
+        scalar_tail=f"        out[i] = a[i] {ops_arith_symbol_mapping[op]} b[i];",
+    )
 
 
 def _emit_body_shift(op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
     simd_op = ctx.backend_cfg.get("Shift", {}).get(op, {}).get(type_name)
-    if simd_op and ctx.load_func and ctx.store_func:
-        return emit_stc_template_function_body_shift(
-            op=op,
-            type_=type_name,
-            simd_type=ctx.simd_type,
-            simd_store_func=ctx.store_func,
-            simd_load_func=ctx.load_func,
-            simd_op_func=simd_op,
-            simd_lanes=ctx.lanes,
-            simd_cast=ctx.simd_cast,
-            scalar_shift_expr=emit_shift_scalar_expr(op, type_name),
-        )
-    return emit_scalar_shift(op, type_name)
+    return emit_slice_shift_body(
+        op=op,
+        type_=type_name,
+        simd_type=ctx.simd_type,
+        load_func=ctx.load_func,
+        store_func=ctx.store_func,
+        simd_cast=ctx.simd_cast,
+        lanes_value=ctx.lanes,
+        simd_expr=f"{simd_op}(va, shift_by)" if simd_op else None,
+        scalar_tail=f"        out[i] = {emit_shift_scalar_expr(op, type_name)};",
+    )
 
 
 def _emit_body_logical_binary(op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
     simd_op = resolve_typed_call(ctx.backend_cfg.get("Logical", {}).get(op), type_name)
-    if simd_op and ctx.load_func and ctx.store_func:
-        return emit_stc_template_function_body_logical_binary(
-            op=op,
-            type_=type_name,
-            simd_type=ctx.simd_type,
-            simd_store_func=ctx.store_func,
-            simd_load_func=ctx.load_func,
-            simd_op_func=simd_op,
-            simd_lanes=ctx.lanes,
-            simd_cast=ctx.simd_cast,
-        )
-    if op == "andnot":
-        return f"""
-static inline void stc_simd_andnot_{type_name}({type_name} * restrict a, const {type_name} * restrict b, const u64 len)
-{{
-    for (u64 i = 0; i < len; ++i) {{
-        a[i] = (~a[i]) & b[i];
-    }}
-}}
-""".strip()
-    return emit_scalar_binary(op, type_name, ops_bit_symbol_mapping[op])
+    if type_name == "f32":
+        scalar_tail = {
+            "and": """        union { u32 u; f32 f; } ua, ub, ur;
+        ua.f = a[i];
+        ub.f = b[i];
+        ur.u = ua.u & ub.u;
+        out[i] = ur.f;""",
+            "or": """        union { u32 u; f32 f; } ua, ub, ur;
+        ua.f = a[i];
+        ub.f = b[i];
+        ur.u = ua.u | ub.u;
+        out[i] = ur.f;""",
+            "xor": """        union { u32 u; f32 f; } ua, ub, ur;
+        ua.f = a[i];
+        ub.f = b[i];
+        ur.u = ua.u ^ ub.u;
+        out[i] = ur.f;""",
+            "andnot": """        union { u32 u; f32 f; } ua, ub, ur;
+        ua.f = a[i];
+        ub.f = b[i];
+        ur.u = (~ua.u) & ub.u;
+        out[i] = ur.f;""",
+        }[op]
+    elif op == "andnot":
+        scalar_tail = "        out[i] = (~a[i]) & b[i];"
+    else:
+        scalar_tail = f"        out[i] = a[i] {ops_bit_symbol_mapping[op]} b[i];"
+    return emit_slice_binary_body(
+        op=op,
+        type_=type_name,
+        simd_type=ctx.simd_type,
+        load_func=ctx.load_func,
+        store_func=ctx.store_func,
+        simd_cast=ctx.simd_cast,
+        lanes_value=ctx.lanes,
+        simd_expr=f"{simd_op}(va, vb)" if simd_op else None,
+        scalar_tail=scalar_tail,
+    )
 
 
 def _emit_body_logical_unary(op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
     simd_op = resolve_typed_call(ctx.backend_cfg.get("Logical", {}).get(op), type_name)
-    if simd_op and ctx.load_func and ctx.store_func:
-        return emit_stc_template_function_body_logical_unary(
-            op=op,
-            type_=type_name,
-            simd_type=ctx.simd_type,
-            simd_store_func=ctx.store_func,
-            simd_load_func=ctx.load_func,
-            simd_op_func=simd_op,
-            simd_lanes=ctx.lanes,
-            simd_cast=ctx.simd_cast,
-            scalar_symbol=ops_bit_symbol_mapping[op],
-        )
-    return emit_scalar_unary(op, type_name, ops_bit_symbol_mapping[op])
+    scalar_tail = """        union { u32 u; f32 f; } ua, ur;
+        ua.f = a[i];
+        ur.u = ~ua.u;
+        out[i] = ur.f;""" if type_name == "f32" else f"        out[i] = {ops_bit_symbol_mapping[op]}a[i];"
+    return emit_slice_unary_body(
+        op=op,
+        type_=type_name,
+        simd_type=ctx.simd_type,
+        load_func=ctx.load_func,
+        store_func=ctx.store_func,
+        simd_cast=ctx.simd_cast,
+        lanes_value=ctx.lanes,
+        simd_expr=f"{simd_op}(va)" if simd_op else None,
+        scalar_tail=scalar_tail,
+    )
 
 
 def _emit_body_compare(op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
-    simd_op = ctx.backend_cfg.get("Compare", {}).get(op, {}).get(type_name)
-    if ctx.load_func and ctx.store_func:
-        if ctx.backend == "AVX2" and type_name == "f32":
-            imm_by_op = {
-                "cmpeq": "_CMP_EQ_OQ",
-                "cmpne": "_CMP_NEQ_OQ",
-                "cmplt": "_CMP_LT_OQ",
-                "cmpgt": "_CMP_GT_OQ",
-                "cmple": "_CMP_LE_OQ",
-                "cmpge": "_CMP_GE_OQ",
-            }
-            return emit_stc_template_function_body_compare_expr(
-                op=op,
-                type_=type_name,
-                simd_type=ctx.simd_type,
-                simd_store_func=ctx.store_func,
-                simd_load_func=ctx.load_func,
-                simd_lanes=ctx.lanes,
-                simd_cast=ctx.simd_cast,
-                scalar_cmp_expr=cmp_scalar_expr[op],
-                simd_result_expr=f"_mm256_cmp_ps(va, vb, {imm_by_op[op]})",
-            )
-
-        if ctx.backend == "SSE42" and type_name == "f32":
-            sse_f32_cmp = {
-                "cmpeq": "_mm_cmpeq_ps",
-                "cmpne": "_mm_cmpneq_ps",
-                "cmplt": "_mm_cmplt_ps",
-                "cmpgt": "_mm_cmpgt_ps",
-                "cmple": "_mm_cmple_ps",
-                "cmpge": "_mm_cmpge_ps",
-            }
-            return emit_stc_template_function_body_compare_expr(
-                op=op,
-                type_=type_name,
-                simd_type=ctx.simd_type,
-                simd_store_func=ctx.store_func,
-                simd_load_func=ctx.load_func,
-                simd_lanes=ctx.lanes,
-                simd_cast=ctx.simd_cast,
-                scalar_cmp_expr=cmp_scalar_expr[op],
-                simd_result_expr=f"{sse_f32_cmp[op]}(va, vb)",
-            )
-
-        if ctx.backend in ("SSE42", "AVX2") and type_name != "f32":
-            eq_fn = ctx.backend_cfg.get("Compare", {}).get("cmpeq", {}).get(type_name)
-            gt_fn = ctx.backend_cfg.get("Compare", {}).get("cmpgt", {}).get(type_name)
-            xor_fn = ctx.backend_cfg.get("Logical", {}).get("xor", {}).get(type_name)
-            set1_fn = ctx.backend_cfg.get("Set", {}).get("set1", {}).get(type_name)
-
-            if op == "cmpeq" and eq_fn:
-                simd_expr = f"{eq_fn}(va, vb)"
-                return emit_stc_template_function_body_compare_expr(
-                    op=op,
-                    type_=type_name,
-                    simd_type=ctx.simd_type,
-                    simd_store_func=ctx.store_func,
-                    simd_load_func=ctx.load_func,
-                    simd_lanes=ctx.lanes,
-                    simd_cast=ctx.simd_cast,
-                    scalar_cmp_expr=cmp_scalar_expr[op],
-                    simd_result_expr=simd_expr,
-                )
-
-            if op == "cmpgt" and gt_fn:
-                simd_expr = f"{gt_fn}(va, vb)"
-                return emit_stc_template_function_body_compare_expr(
-                    op=op,
-                    type_=type_name,
-                    simd_type=ctx.simd_type,
-                    simd_store_func=ctx.store_func,
-                    simd_load_func=ctx.load_func,
-                    simd_lanes=ctx.lanes,
-                    simd_cast=ctx.simd_cast,
-                    scalar_cmp_expr=cmp_scalar_expr[op],
-                    simd_result_expr=simd_expr,
-                )
-
-            if gt_fn and eq_fn and xor_fn and set1_fn:
-                simd_prelude = ""
-                if op == "cmplt":
-                    simd_expr = f"{gt_fn}(vb, va)"
-                elif op == "cmpne":
-                    simd_prelude = f"    const {ctx.simd_type} all_ones = {set1_fn}(-1);"
-                    simd_expr = f"{xor_fn}({eq_fn}(va, vb), all_ones)"
-                elif op == "cmple":
-                    simd_prelude = f"    const {ctx.simd_type} all_ones = {set1_fn}(-1);"
-                    simd_expr = f"{xor_fn}({gt_fn}(va, vb), all_ones)"
-                elif op == "cmpge":
-                    simd_prelude = f"    const {ctx.simd_type} all_ones = {set1_fn}(-1);"
-                    simd_expr = f"{xor_fn}({gt_fn}(vb, va), all_ones)"
-                else:
-                    simd_expr = ""
-                if simd_expr:
-                    return emit_stc_template_function_body_compare_expr(
-                        op=op,
-                        type_=type_name,
-                        simd_type=ctx.simd_type,
-                        simd_store_func=ctx.store_func,
-                        simd_load_func=ctx.load_func,
-                        simd_lanes=ctx.lanes,
-                        simd_cast=ctx.simd_cast,
-                        scalar_cmp_expr=cmp_scalar_expr[op],
-                        simd_result_expr=simd_expr,
-                        simd_prelude=simd_prelude,
-                    )
-
-        if simd_op:
-            return emit_stc_template_function_body_compare(
-                op=op,
-                type_=type_name,
-                simd_type=ctx.simd_type,
-                simd_store_func=ctx.store_func,
-                simd_load_func=ctx.load_func,
-                simd_op_func=simd_op,
-                simd_lanes=ctx.lanes,
-                simd_cast=ctx.simd_cast,
-                scalar_cmp_expr=cmp_scalar_expr[op],
-            )
-
-    return emit_scalar_compare(op, type_name)
+    simd_expr, prelude = _compare_expr_scalar_reducer(op, type_name, ctx, "va", "vb")
+    scalar_tail = f"        out[i] = ({cmp_scalar_expr[op]}) ? ({type_name})~0 : ({type_name})0;"
+    if type_name == "f32":
+        scalar_tail = f"""        union {{ u32 u; f32 f; }} ur;
+        ur.u = ({cmp_scalar_expr[op]}) ? 0xffffffffu : 0u;
+        out[i] = ur.f;"""
+    return emit_slice_binary_body(
+        op=op,
+        type_=type_name,
+        simd_type=ctx.simd_type,
+        load_func=ctx.load_func,
+        store_func=ctx.store_func,
+        simd_cast=ctx.simd_cast,
+        lanes_value=ctx.lanes,
+        simd_expr=simd_expr,
+        scalar_tail=scalar_tail,
+        prelude=prelude,
+    )
 
 
 def _emit_body_splat(_op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
     splat_op = ctx.backend_cfg.get("Set", {}).get("splat", {}).get(type_name)
-    if splat_op and ctx.store_func:
-        return emit_stc_template_function_body_splat(
-            type_=type_name,
-            simd_type=ctx.simd_type,
-            simd_store_func=ctx.store_func,
-            simd_set_func=splat_op,
-            simd_lanes=ctx.lanes,
-            simd_cast=ctx.simd_cast,
-        )
-    return f"""
-static inline void stc_simd_splat_{type_name}({type_name} * restrict a, const {type_name} value, const u64 len)
-{{
-    for (u64 i = 0; i < len; ++i) {{
-        a[i] = value;
-    }}
-}}
-""".strip()
+    return emit_slice_splat_body(
+        type_=type_name,
+        simd_type=ctx.simd_type,
+        store_func=ctx.store_func,
+        simd_cast=ctx.simd_cast,
+        lanes_value=ctx.lanes,
+        simd_expr=f"{splat_op}(value)" if splat_op else None,
+    )
 
 
 def _emit_body_bitmask(_op: str, type_name: str, _ctx: FamilyBodyContext) -> Optional[str]:
+    if type_name == "f32":
+        return f"""
+static inline u64 stc_simd_bitmask_{type_name}(const {type_name} * restrict a, const u64 len)
+{{
+    u64 out_mask = 0;
+    const u64 n = len < 64 ? len : 64;
+    for (u64 i = 0; i < n; ++i) {{
+        union {{ f32 f; u32 u; }} bits;
+        bits.f = a[i];
+        out_mask |= ((u64)((bits.u >> 31) & 1u) << i);
+    }}
+    return out_mask;
+}}
+""".strip()
+    type_bits = type_sizes[type_name] * 8
+    unsigned_type = {
+        "i8": "u8",
+        "i16": "u16",
+        "i32": "u32",
+        "i64": "u64",
+    }[type_name]
     return f"""
 static inline u64 stc_simd_bitmask_{type_name}(const {type_name} * restrict a, const u64 len)
 {{
     u64 out_mask = 0;
-    u64 shift = 0;
-    for (u64 i = 0; i < len; ++i) {{
-        out_mask |= ((u64)(a[i] != 0) << shift);
-        ++shift;
+    const u64 n = len < 64 ? len : 64;
+    for (u64 i = 0; i < n; ++i) {{
+        out_mask |= ((u64)(((({unsigned_type})a[i]) >> ({type_bits} - 1)) & 1u) << i);
     }}
     return out_mask;
 }}
@@ -1365,56 +1262,6 @@ static inline u64 stc_simd_bitmask_{type_name}(const {type_name} * restrict a, c
 
 
 def _emit_body_all_true(_op: str, type_name: str, _ctx: FamilyBodyContext) -> Optional[str]:
-    if _ctx.backend == "WASM" and _ctx.load_func:
-        wasm_all_true_fn = {
-            "i8": "wasm_i8x16_all_true",
-            "i16": "wasm_i16x8_all_true",
-            "i32": "wasm_i32x4_all_true",
-            "i64": "wasm_i64x2_all_true",
-        }.get(type_name)
-
-        if type_name == "f32":
-            return f"""
-static inline bool stc_simd_all_true_{type_name}(const {type_name} * restrict a, const u64 len)
-{{
-    const u64 width = {_ctx.lanes};
-    u64 i = 0;
-    const simd_f32 vz = wasm_f32x4_splat(0.0f);
-
-    for (; (i + width) <= len; i += width) {{
-        simd_f32 va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i));
-        simd_i32 mask = wasm_f32x4_ne(va, vz);
-        if (!wasm_i32x4_all_true(mask)) return false;
-    }}
-
-    for (; i < len; ++i) {{
-        if (!a[i]) return false;
-    }}
-
-    return true;
-}}
-""".strip()
-
-        if wasm_all_true_fn:
-            return f"""
-static inline bool stc_simd_all_true_{type_name}(const {type_name} * restrict a, const u64 len)
-{{
-    const u64 width = {_ctx.lanes};
-    u64 i = 0;
-
-    for (; (i + width) <= len; i += width) {{
-        simd_{type_name} va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i));
-        if (!{wasm_all_true_fn}(va)) return false;
-    }}
-
-    for (; i < len; ++i) {{
-        if (!a[i]) return false;
-    }}
-
-    return true;
-}}
-""".strip()
-
     return f"""
 static inline bool stc_simd_all_true_{type_name}(const {type_name} * restrict a, const u64 len)
 {{
@@ -1427,48 +1274,6 @@ static inline bool stc_simd_all_true_{type_name}(const {type_name} * restrict a,
 
 
 def _emit_body_any_true(_op: str, type_name: str, _ctx: FamilyBodyContext) -> Optional[str]:
-    if _ctx.backend == "WASM" and _ctx.load_func:
-        if type_name == "f32":
-            return f"""
-static inline bool stc_simd_any_true_{type_name}(const {type_name} * restrict a, const u64 len)
-{{
-    const u64 width = {_ctx.lanes};
-    u64 i = 0;
-    const simd_f32 vz = wasm_f32x4_splat(0.0f);
-
-    for (; (i + width) <= len; i += width) {{
-        simd_f32 va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i));
-        simd_i32 mask = wasm_f32x4_ne(va, vz);
-        if (wasm_v128_any_true(mask)) return true;
-    }}
-
-    for (; i < len; ++i) {{
-        if (a[i]) return true;
-    }}
-
-    return false;
-}}
-""".strip()
-
-        return f"""
-static inline bool stc_simd_any_true_{type_name}(const {type_name} * restrict a, const u64 len)
-{{
-    const u64 width = {_ctx.lanes};
-    u64 i = 0;
-
-    for (; (i + width) <= len; i += width) {{
-        simd_{type_name} va = {_ctx.load_func}((const {_ctx.simd_cast}*)(a + i));
-        if (wasm_v128_any_true(va)) return true;
-    }}
-
-    for (; i < len; ++i) {{
-        if (a[i]) return true;
-    }}
-
-    return false;
-}}
-""".strip()
-
     return f"""
 static inline bool stc_simd_any_true_{type_name}(const {type_name} * restrict a, const u64 len)
 {{
@@ -1481,28 +1286,89 @@ static inline bool stc_simd_any_true_{type_name}(const {type_name} * restrict a,
 
 def _emit_body_minmax(op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
     simd_op = ctx.backend_cfg.get("MinMax", {}).get(op, {}).get(type_name)
-    scalar_expr = {
-        "min": "a[i] < b[i] ? a[i] : b[i]",
-        "max": "a[i] > b[i] ? a[i] : b[i]",
+    scalar_tail = {
+        "min": "        out[i] = a[i] < b[i] ? a[i] : b[i];",
+        "max": "        out[i] = a[i] > b[i] ? a[i] : b[i];",
     }[op]
-    if simd_op and ctx.load_func and ctx.store_func:
-        return emit_stc_template_function_body_minmax(
-            op=op,
-            type_=type_name,
-            simd_type=ctx.simd_type,
-            simd_store_func=ctx.store_func,
-            simd_load_func=ctx.load_func,
-            simd_op_func=simd_op,
-            simd_lanes=ctx.lanes,
-            simd_cast=ctx.simd_cast,
-            scalar_expr=scalar_expr,
-        )
-    return f"""
-static inline void stc_simd_{op}_{type_name}({type_name} * restrict a, const {type_name} * restrict b, const u64 len)
+    return emit_slice_binary_body(
+        op=op,
+        type_=type_name,
+        simd_type=ctx.simd_type,
+        load_func=ctx.load_func,
+        store_func=ctx.store_func,
+        simd_cast=ctx.simd_cast,
+        lanes_value=ctx.lanes,
+        simd_expr=f"{simd_op}(va, vb)" if simd_op else None,
+        scalar_tail=scalar_tail,
+    )
+
+
+def _emit_body_reduce(op: str, type_name: str, ctx: FamilyBodyContext) -> Optional[str]:
+    vector_op = None
+    if op in ("add", "mul"):
+        vector_op = ctx.backend_cfg.get("Arithmetic", {}).get(op, {}).get(type_name)
+    else:
+        vector_op = ctx.backend_cfg.get("MinMax", {}).get(op, {}).get(type_name)
+
+    scalar_seed_expr = {
+        "add": f"({type_name})0",
+        "mul": f"({type_name})1",
+        "min": f"({type_name})0",
+        "max": f"({type_name})0",
+    }[op]
+    scalar_fold_expr = {
+        "add": "acc + tmp[lane]",
+        "mul": "acc * tmp[lane]",
+        "min": "acc < tmp[lane] ? acc : tmp[lane]",
+        "max": "acc > tmp[lane] ? acc : tmp[lane]",
+    }[op]
+    start_index = "1" if op in ("min", "max") else "0"
+    init_acc = f"    {type_name} acc = a[0];\n" if op in ("min", "max") else f"    {type_name} acc = {scalar_seed_expr};\n"
+
+    if vector_op and ctx.load_func and ctx.store_func:
+        vector_init = {
+            "add": resolve_typed_call(ctx.backend_cfg.get("Set", {}).get("set1"), type_name) if ctx.backend != "WASM" else ctx.backend_cfg.get("Set", {}).get("splat", {}).get(type_name),
+            "mul": resolve_typed_call(ctx.backend_cfg.get("Set", {}).get("set1"), type_name) if ctx.backend != "WASM" else ctx.backend_cfg.get("Set", {}).get("splat", {}).get(type_name),
+            "min": resolve_typed_call(ctx.backend_cfg.get("Set", {}).get("set1"), type_name) if ctx.backend != "WASM" else ctx.backend_cfg.get("Set", {}).get("splat", {}).get(type_name),
+            "max": resolve_typed_call(ctx.backend_cfg.get("Set", {}).get("set1"), type_name) if ctx.backend != "WASM" else ctx.backend_cfg.get("Set", {}).get("splat", {}).get(type_name),
+        }[op]
+        if vector_init:
+            init_value = "a[0]" if op in ("min", "max") else ("1" if op == "mul" else "0")
+            return f"""
+static inline {type_name} stc_simd_reduce_{op}_{type_name}(const {type_name} * restrict a, const u64 len)
 {{
-    for (u64 i = 0; i < len; ++i) {{
-        a[i] = {scalar_expr};
+    if (!len) return {scalar_seed_expr};
+
+    const u64 width = {ctx.lanes};
+    u64 i = {start_index};
+    __attribute__((aligned(STC_SIMD_ALIGN))) {type_name} tmp[{lane_macro(type_name)}];
+    {ctx.simd_type} vacc = {vector_init}({init_value});
+
+    for (; (i + width) <= len; i += width) {{
+        {ctx.simd_type} va = {ctx.load_func}((const {ctx.simd_cast}*)(a + i));
+        vacc = {vector_op}(vacc, va);
     }}
+
+    {ctx.store_func}(({ctx.simd_cast}*)tmp, vacc);
+{init_acc}    for (u64 lane = 0; lane < {lane_macro(type_name)}; ++lane) {{
+        acc = {scalar_fold_expr};
+    }}
+
+    for (; i < len; ++i) {{
+        acc = {scalar_fold_expr.replace('tmp[lane]', 'a[i]')};
+    }}
+
+    return acc;
+}}
+""".strip()
+
+    scalar_init = f"    {type_name} acc = a[0];\n    for (u64 i = 1; i < len; ++i) {{\n        acc = {scalar_fold_expr.replace('tmp[lane]', 'a[i]')};\n    }}" if op in ("min", "max") else f"    {type_name} acc = {scalar_seed_expr};\n    for (u64 i = 0; i < len; ++i) {{\n        acc = {scalar_fold_expr.replace('tmp[lane]', 'a[i]')};\n    }}"
+    return f"""
+static inline {type_name} stc_simd_reduce_{op}_{type_name}(const {type_name} * restrict a, const u64 len)
+{{
+    if (!len) return {scalar_seed_expr};
+{scalar_init}
+    return acc;
 }}
 """.strip()
 
@@ -1844,6 +1710,13 @@ def _register_builtin_families() -> None:
             ops_per_type=ops_first_compare_scalar_per_type,
             signature_emitter=emit_stc_template_function_signature_first_compare_scalar,
             body_emitter=_emit_body_first_compare_scalar,
+        ),
+        SimdFamilyRegistration(
+            name="reduce",
+            backends=all_backends,
+            ops_per_type=ops_reduce_per_type,
+            signature_emitter=emit_stc_template_function_signature_reduce,
+            body_emitter=_emit_body_reduce,
         ),
     ])
 

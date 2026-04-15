@@ -74,6 +74,8 @@
 #define STC_SIMD_ALIGN 16
 #endif
 
+#define simd_align __attribute__((aligned(STC_SIMD_ALIGN)))
+
 #if defined(__AVX2__) || defined(__SSE4_2__)
 #include <immintrin.h>
 #endif

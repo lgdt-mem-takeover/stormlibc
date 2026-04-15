@@ -95,3 +95,14 @@ u64 stc_random_range(u64 min, u64 max)
 }
 
 
+u64 stc_diceroll(u64 count, u64 sides)
+{
+	u64 idx, pl;
+
+	pl = 0;
+	for (idx = 0; idx < count; idx++){
+		pl += stc_random_range(1, sides);
+	}
+
+	return pl;
+}

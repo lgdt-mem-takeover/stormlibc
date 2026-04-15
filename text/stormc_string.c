@@ -140,30 +140,7 @@ thisfile inline struct stc_string8 make_string(stc_byte *ch)
 }
 
 
-inline bool stc_string8_cmp_simd(const struct stc_string8 a, const struct stc_string8 b)
-{
-
-	if(a.len != b.len) return false;
-
-	u64 i = 0;
-
-	for (;i + 32 <= a.len; i += 32) {
-		simd_u8 a_load = _mm256_loadu_si256((const simd_u8 *)(a.str + i));
-		simd_u8 b_load = _mm256_loadu_si256((const simd_u8 *)(b.str + i));
-		simd_u8 cmp = _mm256_cmpeq_epi8(a_load, b_load);
-
-		int mask = _mm256_movemask_epi8(cmp);
-		if(mask != -1) return false;
-	}
-
-	for(;i < a.len; i++)
-	{
-		if (a.str[i] != b.str[i]) return false;
-	}
-
-	return true;
-}
-
+#if defined(__AVX2__)
 thisfile inline int sstrcpyx(struct stc_string8 * restrict dest, const struct stc_string8 * restrict source)
 {
     u64 begin = 0;
@@ -182,7 +159,7 @@ thisfile inline int sstrcpyx(struct stc_string8 * restrict dest, const struct st
     dest->len = source->len;
     return 0;
 }
-
+#endif
 
 thisfile inline i64 stormc_find_substr(const struct stc_string8 haystack, const struct stc_string8 needle)
 {
@@ -203,6 +180,7 @@ thisfile inline i64 stormc_find_substr(const struct stc_string8 haystack, const 
 		return -1;
 	}
 
+#if defined(__AVX2__)
 	__m256i target = _mm256_setzero_si256();
 	stc_memcpy(&target, needle.str, needle.len);
 
@@ -221,6 +199,9 @@ thisfile inline i64 stormc_find_substr(const struct stc_string8 haystack, const 
 	}
 
 	return -1;
+#else
+	return -1;
+	#endif
 }
 
 
