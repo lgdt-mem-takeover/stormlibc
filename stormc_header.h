@@ -9,7 +9,7 @@
 #define MAX_UINT64 ((u64)-1)
 #define MAX_U(type) ((type)-1)
 
-#define FONT_PATH_DEVAJU_SANS "assets/ttf/DejaVuSans.ttf"
+#define FONT_PATH_DEJAVU_SANS "assets/ttf/DejaVuSans.ttf"
 
 #ifndef INF
 #define INF __builtin_inf()
@@ -32,27 +32,33 @@
 
     	#include <windows.h>
 #else
-	#ifndef _POSIX_C_SOURCE
-		#define _POSIX_C_SOURCE 200112L
-	#endif
-	#include <fcntl.h>
-	#include <unistd.h>
-	#include <arpa/inet.h>
-	#include <netdb.h>
-	#include <pthread.h>
+#define _XOPEN_SOURCE 600
 #endif
+
 #include <assert.h>
 
 #ifdef STORMC_STEAM
 	#ifndef __cplusplus
 		#error "steam api requires c++. compile with a c++ compiler from a .cpp file or disable stormc_steam"
 	#endif
-	#include "/data/site_packages/steamsdk/sdk/public/steam/steam_api.h"
+	#ifndef STORMC_STEAM_API_H
+		#define STORMC_STEAM_API_H "third_party/steam/public/steam/steam_api.h"
+	#endif
+	#include STORMC_STEAM_API_H
 #endif
 #ifdef STORMC_RAYLIB
-	#include "/data/site_packages/raylib/src/raylib.h"
-	#include "/data/site_packages/raylib/src/rlgl.h"
-	#include "/data/site_packages/raylib/src/raymath.h"
+	#ifndef STORMC_RAYLIB_H
+		#define STORMC_RAYLIB_H "third_party/raylib/zig-out/include/raylib.h"
+	#endif
+	#ifndef STORMC_RLGL_H
+		#define STORMC_RLGL_H "third_party/raylib/zig-out/include/rlgl.h"
+	#endif
+	#ifndef STORMC_RAYMATH_H
+		#define STORMC_RAYMATH_H "third_party/raylib/zig-out/include/raymath.h"
+	#endif
+	#include STORMC_RAYLIB_H
+	#include STORMC_RLGL_H
+	#include STORMC_RAYMATH_H
 #endif
 
 
@@ -72,12 +78,6 @@
 #ifdef STORMC_WEBGPU
 	#include "webgpu/wgpu.h"
 #endif
-
-#define defer(__end_func__, ...) \
-	do{\
-		__VA_ARGS__;\
-		__end_func__;\
-	}while(0)
 
 
 #include "base/stormc_base.h"
@@ -126,6 +126,7 @@ struct stc_string8_split{
 struct stc_arena_string8{
 	struct stc_string8	*strings;
 	stc_byte		*mem;
+	u64			checkpoint;
 	u64			offset_mem;
 	u32			ct_strings;
 	u32			current_max_strings;
@@ -293,6 +294,9 @@ static inline f32 minf(f32 a, f32 b);
 #endif
 
 #ifdef STORMC_THREADING
+#define _XOPEN_SOURCE 600
+#define _POSIX_C_SOURCE 200112L
+#include <pthread.h>
 #include "base/stormc_threading.c"
 #endif
 
@@ -350,7 +354,7 @@ thisfile u64 stc_random_range(u64 min, u64 max);
 
 /*@STORMC_STAG START*/
 #ifdef STORMC_STAG
-#include "utils/stag/stormc_argument_parser.h"
+#include "utils/stormc_argument_parser.h"
 #endif
 /*@STORMC_STAG END*/
 

@@ -25,9 +25,6 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-// #include "/data/site_packages/glad/include/glad/glad.h"
-// #include "/data/site_packages/glad/src/glad.c"
-
 #define SGL_GL_IMPL
 #include "sglglad.h"
 
@@ -677,7 +674,7 @@ static struct sgl_ctx sgl = {
 			.ui_max_quads = 4096,
 			.ui_max_vertices = 4096 * 4,
 			.txt_size_max = 48,
-			.txt_font = (u8 *)FONT_PATH_DEVAJU_SANS,
+			.txt_font = (u8 *)FONT_PATH_DEJAVU_SANS,
 		},
 		.textures_generic = {
 			.max_textures_generic = 2048,
@@ -692,7 +689,9 @@ static struct sgl_ctx sgl = {
 
 
 /*@FUNCS SIGNATURES*/
-void sgl_draw_sprite(struct sgl_texture texture, struct sgl_sprite sprite, f32 x, f32 y, f32 w, f32 h, struct color color);
+static void sgl_scissor_begin(f32 x, f32 y, f32 w, f32 h);
+static void sgl_scissor_end(void);
+static void sgl_draw_sprite(struct sgl_texture texture, struct sgl_sprite sprite, f32 x, f32 y, f32 w, f32 h, struct color color);
 static void sgl_draw_texture_region(struct sgl_texture texture, f32 x, f32 y, f32 w, f32 h, f32 u0, f32 v0, f32 u1, f32 v1, struct color color);
 static struct sgl_atlas sgl_make_atlas(struct sgl_texture *textures, u32 count, u32 atlas_w, u32 atlas_h, u32 pad);
 inline void sgl_start_text_input(void);
@@ -956,6 +955,11 @@ inline bool32 sgl_mouse_left_pressed(struct sgl_mouse m)
 	return (m.flags & SGL_MOUSEF_LPRESS) != 0;
 }
 
+inline bool32 sgl_mouse_left_down(struct sgl_mouse m)
+{
+	return (m.flags & SGL_MOUSEF_LDOWN) != 0;
+}
+
 static inline bool32 sgl_mouse_left_released(struct sgl_mouse m)
 {
 	return (m.flags & SGL_MOUSEF_LRELEASE) != 0;
@@ -964,6 +968,13 @@ static inline bool32 sgl_mouse_left_released(struct sgl_mouse m)
 static inline bool32 sgl_mouse_right_pressed(struct sgl_mouse m)
 {
 	return (m.flags & SGL_MOUSEF_RPRESS) != 0;
+}
+
+
+
+inline bool32 sgl_mouse_right_down(struct sgl_mouse m)
+{
+	return (m.flags & SGL_MOUSEF_RDOWN) != 0;
 }
 
 static inline bool32 sgl_mouse_right_released(struct sgl_mouse m)
@@ -1355,7 +1366,9 @@ void sgl_init(int window_width, int window_height, struct stc_string8 window_nam
 		exit(1);
 	}
 
-	 sgl.window = SDL_CreateWindow((const char *)window_name.str, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+	sgl.window = SDL_CreateWindow((const char *)window_name.str, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+	sgl.ww = window_width;
+	sgl.wh = window_height;
 
 	if (!sgl.window) {
 		fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -1860,11 +1873,35 @@ void sgl_begin_draw(void)
 	SDL_GetWindowSizeInPixels(sgl.window, &sgl.ww, &sgl.wh);
 
 	glViewport(0, 0, sgl.ww, sgl.wh);
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
+	glDisable(GL_SCISSOR_TEST);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+void sgl_scissor_begin(f32 x, f32 y, f32 w, f32 h)
+{
+	sgl_dispatch_pipeline(SGL_PIPELINE_UI);
+	sgl_clear_batch(SGL_PIPELINE_UI);
+
+	glEnable(GL_SCISSOR_TEST);
+
+	i32 sx = (i32)x;
+	i32 sy = sgl.wh - (i32)(y + h); /* top-left UI -> bottom-left GL */
+	i32 sw = (i32)w;
+	i32 sh = (i32)h;
+
+	glScissor(sx, sy, sw, sh);
+}
+
+void sgl_scissor_end(void)
+{
+	sgl_dispatch_pipeline(SGL_PIPELINE_UI);
+	sgl_clear_batch(SGL_PIPELINE_UI);
+
+	glDisable(GL_SCISSOR_TEST);
 }
 
 
@@ -2440,7 +2477,6 @@ sgl_draw_texture(
 {
 	sgl_draw_texture_region(texture, x, y, w, h, 0.0f, 0.0f, 1.0f, 1.0f, color);
 }
-
 
 
 

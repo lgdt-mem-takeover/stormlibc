@@ -1,5 +1,5 @@
 
-#include "/data/2026-projs/c/stormlibc/stormc_header.h"
+#include "../../stormc_header.h"
 
 
 int main(int argc, char **argv)

@@ -1,4 +1,3 @@
-// #include "/data/stormlibc/core/stormc_types.h"
 // #include "stc_utils.h"
 
 
@@ -31,10 +30,10 @@
 
 #define INCLUDE_FREETYPE_WINDOWS\
 	set_library_paths(\
-	    STR("-L/data/site_packages/mxe/usr/x86_64-w64-mingw32.static/lib")\
+	    STR("-L../third_party/mxe/usr/x86_64-w64-mingw32.static/lib")\
 	);\
 	set_include_paths(\
-	    STR("data/site_packages/mxe/usr/x86_64-w64-mingw32.static/include/freetype2")\
+	    STR("../third_party/mxe/usr/x86_64-w64-mingw32.static/include/freetype2")\
 	);\
 	set_libraries(\
 	    STR("-lfreetype"),\
@@ -52,35 +51,35 @@
 #define INCLUDE_SDL3_WINDOWS\
 		set_libraries(STR("-lSDL3"), STR("-lSDL3_image"), STR("-lSDL3_ttf"));\
 		set_library_paths(\
-		    STR("-L/data/sdk/SDL3-3.4.2/x86_64-w64-mingw32/lib"),\
-		    STR("-L/data/sdk/SDL3-3.4.2/SDL3_ttf-3.2.2/x86_64-w64-mingw32/lib"),\
-		    STR("-L/data/sdk/SDL3-3.4.2/SDL3_image-3.4.0/x86_64-w64-mingw32/lib")\
+		    STR("-L../third_party/SDL3-3.4.2/x86_64-w64-mingw32/lib"),\
+		    STR("-L../third_party/SDL3-3.4.2/SDL3_ttf-3.2.2/x86_64-w64-mingw32/lib"),\
+		    STR("-L../third_party/SDL3-3.4.2/SDL3_image-3.4.0/x86_64-w64-mingw32/lib")\
 		);\
 		set_include_paths(\
-		    STR("data/sdk/SDL3-3.4.2/x86_64-w64-mingw32/include"),\
-		    STR("data/sdk/SDL3-3.4.2/SDL3_ttf-3.2.2/x86_64-w64-mingw32/include"),\
-		    STR("data/sdk/SDL3-3.4.2/SDL3_image-3.4.0/x86_64-w64-mingw32/include")\
+		    STR("../third_party/SDL3-3.4.2/x86_64-w64-mingw32/include"),\
+		    STR("../third_party/SDL3-3.4.2/SDL3_ttf-3.2.2/x86_64-w64-mingw32/include"),\
+		    STR("../third_party/SDL3-3.4.2/SDL3_image-3.4.0/x86_64-w64-mingw32/include")\
 		);\
 	INCLUDE_FREETYPE_WINDOWS
 
 #define INCLUDE_RAYLIB_LINUX\
 	set_libraries(\
 	    STR("-Wl,-rpath,'$ORIGIN'"),\
-	    STR("-L/data/site_packages/raylib/zig-out/lib/"),\
+	    STR("-L../third_party/raylib/zig-out/lib/"),\
 	    STR("-lraylib -lm -lGL -lpthread -ldl")\
 	    );\
 	set_include_paths(\
-	    STR("/data/site_packages/raylib/zig-out/include")\
+	    STR("../third_party/raylib/zig-out/include")\
 	    )
 
 #define INCLUDE_RAYLIB_WINDOWS\
 	set_libraries(\
 	    STR("-Wl,-rpath,'$ORIGIN'"),\
-	    STR("-L/data/site_packages/raylib/zig-out/lib/"),\
+	    STR("-L../third_party/raylib/zig-out/lib/"),\
 	    STR("-lraylib -lgdi32 -lopengl32 -lwinmm")\
 	    );\
 	set_include_paths(\
-	    STR("/data/site_packages/raylib/zig-out/include")\
+	    STR("../third_party/raylib/zig-out/include")\
 	    )
 
 
@@ -809,7 +808,7 @@ static void stc_codegen(struct stc_string8 codegen_in_file)
 	struct codegen_struct_layout *layout_current = layouts;
 	struct codegen_struct_layout *layout_last = layouts + ct_layouts;
 
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "#include \"/data/2026-projs/c/stormlibc/stormc_header.h\"\n\n\n\n");
+	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "#include \"../stormc_header.h\"\n\n\n\n");
 	while (layout_current != layout_last) {
 		switch ((*layout_current).codegen_type) {
 		case CODEGEN_ARRAY_PRIMITIVE:

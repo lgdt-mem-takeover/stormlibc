@@ -1,5 +1,5 @@
 #pragma once
-#include "/data/2026-projs/c/stormlibc/base/stormc_safeguards.h"
+#include "../base/stormc_safeguards.h"
 
 
 //Macros from <sys/wait.h>
@@ -23,6 +23,5 @@
 # define WIFEXITED(status)	__WIFEXITED (status)
 # define WIFSIGNALED(status)	__WIFSIGNALED (status)
 # define WIFSTOPPED(status)	__WIFSTOPPED (status)
-
 
 

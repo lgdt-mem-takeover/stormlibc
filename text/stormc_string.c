@@ -255,6 +255,22 @@ void stc_memmove(void *destination, const void *src, u64 size)
 }
 
 
+void stc_arena_string8_start(struct stc_arena_string8 *a)
+{
+	a->checkpoint = a->offset_mem;
+}
+
+
+void stc_arena_string8_end(struct stc_arena_string8 *a)
+{
+	a->offset_mem = a->checkpoint;
+}
+
+void stc_arena_string8_reset(struct stc_arena_string8 *a)
+{
+	a->offset_mem = 0;
+}
+
 
 struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a, struct stc_string8 * restrict s, stc_byte delim)
 {
@@ -500,11 +516,12 @@ struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init)
 
 
 	pl.mem = (stc_byte*)stc_os_mem_rsrv(DEFAULT_RESERVATION);
+	stc_os_mem_cmt(pl.mem, commit_size);
 
 
 	pl.strings = (struct stc_string8 *)pl.mem;
 	pl.current_max_strings = string_count_to_init;
-	pl.offset_mem += commit_size;
+	pl.offset_mem = 0;
 
 
 	pl.mem_cmtd = commit_size;

@@ -1,5 +1,5 @@
 #pragma once
-#include "/data/2026-projs/c/stormlibc/stormc_header.h"
+#include "../stormc_header.h"
 
 static inline u32 sla_u32(const u32 arg, stc_byte shift);
 static inline u32 sra_u32(const u32 arg, stc_byte shift);

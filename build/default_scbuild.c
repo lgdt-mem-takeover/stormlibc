@@ -1,4 +1,4 @@
-#include "/data/2026-projs/c/stormlibc/build/scbuild.h"
+#include "../build/scbuild.h"
 
 
 
@@ -30,4 +30,3 @@ int main(int argc, char **argv)
 	build_proj();
 	return 0;
 }
-

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "/data/stormlibc/core/stormc_types.h"
+#include "../core/stormc_types.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <immintrin.h>
@@ -185,4 +185,3 @@ u32 sstrlenx(const char *stc_string8)
     while(stc_string8[++count]);
     return count;
 }
-

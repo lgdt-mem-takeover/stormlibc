@@ -1,5 +1,5 @@
 #define STORMC_ALLOCATOR
-#include "/data/2026-projs/c/stormlibc/stormc_header.h"
+#include "../../stormc_header.h"
 
 #define ALIGN_SIMD __attribute__((aligned(STC_SIMD_ALIGN)))
 #define ARRAY_LEN(x) ((u64)(sizeof(x) / sizeof((x)[0])))
