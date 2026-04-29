@@ -274,6 +274,46 @@ static int file_exists(const char *path)
 	return access(path, F_OK) == 0;
 }
 
+static void exec_init_clangd(void)
+{
+	if (file_exists(".clangd"))
+		return;
+
+	int fd = try_syscall(open, (".clangd", O_CREAT | O_WRONLY | O_TRUNC, 0644), {
+		perror("open");
+		exit(1);
+	});
+
+	char clangd[PATH_MAX + 512];
+	int len = snprintf(
+		clangd,
+		sizeof(clangd),
+		"CompileFlags:\n"
+		"  Add:\n"
+		"    - -I%s\n"
+		"    - '-DSTORMC_ROOT=\"%s\"'\n"
+		"    - -mavx2\n"
+		"    - -std=c99\n",
+		stormc_root,
+		stormc_root
+	);
+
+	try_syscall(write, (fd, clangd, len), {
+		perror("write");
+		exit(1);
+	});
+
+	try_syscall(close, (fd), {
+		perror("close");
+		exit(1);
+	});
+
+	try(printf, ("[INIT] Successfully created .clangd\n"), {
+		perror("printf");
+		exit(1);
+	});
+}
+
 static void exec_ctags(struct stag_string extra)
 {
 	char cmd[512] = { 0};
@@ -318,6 +358,8 @@ static void exec_init(void)
 	if (!file_exists("src")) {
 		mkdir("src", 0755);
 	}
+
+	exec_init_clangd();
 
 	if (!file_exists("src/main.c")) {
 		int main_fd = try_syscall(open, ("src/main.c", O_CREAT | O_WRONLY | O_TRUNC, 0644), {
