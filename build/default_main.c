@@ -1,5 +1,5 @@
 
-#include "../../stormc_header.h"
+#include "stormc_header.h"
 
 
 int main(int argc, char **argv)

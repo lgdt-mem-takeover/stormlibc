@@ -1,4 +1,4 @@
-#include "../build/scbuild.h"
+#include "build/scbuild.h"
 
 
 

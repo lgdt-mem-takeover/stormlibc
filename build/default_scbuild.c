@@ -1,4 +1,4 @@
-#include "../build/scbuild.h"
+#include "build/scbuild.h"
 
 
 
@@ -23,7 +23,8 @@ int main(int argc, char **argv)
 
 	proj.compiler = compiler;
 	set_sources(STR("src/main.c"));
-	set_flags(STD_C99, OPTIM_1, WALL, WPEDANTIC, ALLSAN);
+	set_include_paths(STR(STORMC_ROOT));
+	set_flags(STD_C99, MARCH_AVX2, OPTIM_1, WALL, WPEDANTIC, ALLSAN);
 	set_out_file(STR("src/main"));
 
 	bool linux_build = (compiler != C_MINGW64) && (compiler != C_MINGW32);

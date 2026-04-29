@@ -15,6 +15,7 @@
 #include <elf.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <limits.h>
 
 
 #define STORMC_ERROR_FMT(_err_msg, _err_str) fprintf(stderr, _err_msg, (int)_err_str.len, _err_str.str)
@@ -71,6 +72,8 @@ struct stormc_config_payload {
 	u64				ct_projects;
 	bool64				config_is_set;
 	struct stormc_config_meta	projects[MAX_PROJECTS];
+	u64				stormc_root_len;
+	char				stormc_root[1024];
 };
 
 struct stormc_project_mapper {
@@ -82,6 +85,123 @@ struct stormc_project_mapper {
 
 
 static struct stormc_project_mapper *stc_proj_mapper = NULL;
+static char stormc_root[PATH_MAX] = { 0 };
+
+static void stormc_save_config(void);
+
+static int stormc_is_root_dir(const char *path)
+{
+	char header_path[PATH_MAX];
+	char scbuild_path[PATH_MAX];
+
+	snprintf(header_path, sizeof(header_path), "%s/stormc_header.h", path);
+	snprintf(scbuild_path, sizeof(scbuild_path), "%s/build/scbuild.h", path);
+
+	return access(header_path, F_OK) == 0 && access(scbuild_path, F_OK) == 0;
+}
+
+static int stormc_find_root_upward(const char *start_dir)
+{
+	char current[PATH_MAX];
+	if (!realpath(start_dir, current))
+		return 0;
+
+	for (;;) {
+		if (stormc_is_root_dir(current)) {
+			snprintf(stormc_root, sizeof(stormc_root), "%s", current);
+			return 1;
+		}
+
+		char parent_buf[PATH_MAX];
+		snprintf(parent_buf, sizeof(parent_buf), "%s", current);
+		char *parent = dirname(parent_buf);
+
+		if (strcmp(parent, current) == 0)
+			break;
+
+		snprintf(current, sizeof(current), "%s", parent);
+	}
+
+	return 0;
+}
+
+static void stormc_store_root_in_config(void)
+{
+	u64 len = strlen(stormc_root);
+	if (len >= sizeof(stc_proj_mapper->payload.stormc_root)) {
+		fprintf(stderr, "stormc root path too long: %s\n", stormc_root);
+		exit(1);
+	}
+
+	stc_memset(stc_proj_mapper->payload.stormc_root, 0, sizeof(stc_proj_mapper->payload.stormc_root));
+	stc_memcpy(stc_proj_mapper->payload.stormc_root, stormc_root, len);
+	stc_proj_mapper->payload.stormc_root_len = len;
+	stc_proj_mapper->payload.config_is_set = true;
+	stormc_save_config();
+}
+
+static int stormc_try_set_root(const char *path)
+{
+	char resolved[PATH_MAX];
+	if (!path || !path[0] || !realpath(path, resolved))
+		return 0;
+	if (!stormc_is_root_dir(resolved))
+		return 0;
+
+	snprintf(stormc_root, sizeof(stormc_root), "%s", resolved);
+	stormc_store_root_in_config();
+	return 1;
+}
+
+static void stormc_set_root(const char *argv0)
+{
+	if (stormc_try_set_root(getenv("STORMC_ROOT")))
+		return;
+
+	if (stc_proj_mapper->payload.stormc_root_len > 0) {
+		char saved_root[1024];
+		snprintf(
+			saved_root,
+			sizeof(saved_root),
+			"%.*s",
+			(int)stc_proj_mapper->payload.stormc_root_len,
+			stc_proj_mapper->payload.stormc_root
+		);
+		if (stormc_try_set_root(saved_root))
+			return;
+	}
+
+	char cwd[PATH_MAX];
+	if (getcwd(cwd, sizeof(cwd)) && stormc_find_root_upward(cwd)) {
+		stormc_store_root_in_config();
+		return;
+	}
+
+	char exe_path[PATH_MAX] = { 0 };
+	ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+
+	if (len > 0) {
+		exe_path[len] = '\0';
+	} else if (argv0 && realpath(argv0, exe_path)) {
+		/* realpath filled exe_path */
+	} else {
+		fprintf(stderr, "Could not resolve stormc executable path\n");
+		exit(1);
+	}
+
+	char dir_path[PATH_MAX];
+	snprintf(dir_path, sizeof(dir_path), "%s", exe_path);
+
+	char *bin_dir = dirname(dir_path);
+	if (stormc_find_root_upward(bin_dir)) {
+		stormc_store_root_in_config();
+		return;
+	}
+
+	fprintf(stderr, "Could not find stormlibc root.\n");
+	fprintf(stderr, "Run stormc once from inside the stormlibc checkout, or set STORMC_ROOT=/path/to/stormlibc.\n");
+	exit(1);
+}
 
 
 
@@ -229,7 +349,16 @@ static void exec_init(void)
 
 static void exec_run(void)
 {
-	int ret = system("gcc -mavx2 scbuild.c -o scbuild && ./scbuild run");
+	char cmd[PATH_MAX * 2];
+	snprintf(
+		cmd,
+		sizeof(cmd),
+		"gcc -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild run",
+		stormc_root,
+		stormc_root
+	);
+
+	int ret = system(cmd);
 	if (ret == -1) {
 		perror("system");
 	}
@@ -245,13 +374,31 @@ static void exec_build(struct stag_string target)
 	}
 
 	if (stag_strcmp(target, STAG_STR("run"))) {
-		ret = system("gcc -mavx2 scbuild.c -o scbuild && ./scbuild build run");
+		char cmd[PATH_MAX * 2];
+		snprintf(
+			cmd,
+			sizeof(cmd),
+			"gcc -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild build run",
+			stormc_root,
+			stormc_root
+		);
+		ret = system(cmd);
 	} else if (stag_strcmp(target, STAG_STR("asm"))) {
-		ret = system("gcc -mavx2 scbuild.c -o scbuild && ./scbuild build asm");
+		char cmd[PATH_MAX * 2];
+		snprintf(
+			cmd,
+			sizeof(cmd),
+			"gcc -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild build asm",
+			stormc_root,
+			stormc_root
+		);
+		ret = system(cmd);
 	} else {
-		char cmd[512];
+		char cmd[PATH_MAX * 2];
 		snprintf(cmd, sizeof(cmd),
-			 "gcc -mavx2 scbuild.c -o scbuild && ./scbuild %.*s",
+			 "gcc -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild %.*s",
+			 stormc_root,
+			 stormc_root,
 			 (int)target.len, target.str);
 		ret = system(cmd);
 	}
@@ -485,10 +632,14 @@ void stormc_check_system(void)
 	}
 	char path[1024] = { 0};
 	snprintf(path, sizeof(path), "%s/.config/stormc/config.stc", home);
+	char config_parent[1024] = { 0};
+	snprintf(config_parent, sizeof(config_parent), "%s/.config", home);
 	char dir[1024] = { 0};
 	snprintf(dir, sizeof(dir), "%s/.config/stormc", home);
-	mkdir(dir, 0755);
 
+	if (!file_exists(config_parent)) {
+		mkdir(config_parent, 0755);
+	}
 	if (!file_exists(dir)) {
 		mkdir(dir, 0755);
 	}
@@ -508,7 +659,8 @@ void stormc_check_system(void)
 		perror("fopen");
 		return;
 	} else {
-		if (fread(&stc_proj_mapper->payload, sizeof(stc_proj_mapper->payload), 1, f) == -1) {
+		fread(&stc_proj_mapper->payload, 1, sizeof(stc_proj_mapper->payload), f);
+		if (ferror(f)) {
 			perror("fread");
 		}
 		if (fclose(f) != 0) {
@@ -1025,6 +1177,7 @@ void stormc_init_stacks(void)
 int main(int argc, char **argv)
 {
 	stormc_check_system();
+	stormc_set_root(argv[0]);
 	stag_run(argc, argv);
 	stormc_init_stacks();
 	register_stormc_callbacks();
