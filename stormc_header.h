@@ -294,8 +294,6 @@ static inline f32 minf(f32 a, f32 b);
 #endif
 
 #ifdef STORMC_THREADING
-#define _XOPEN_SOURCE 600
-#define _POSIX_C_SOURCE 200112L
 #include <pthread.h>
 #include "base/stormc_threading.c"
 #endif

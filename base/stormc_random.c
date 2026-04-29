@@ -4,16 +4,31 @@
 
 #if defined(__x86_64__) || defined(__i386__)
 #include <immintrin.h>
+#if defined(__GNUC__) || defined(__clang__)
+#include <cpuid.h>
+#ifndef bit_RDRND
+#define bit_RDRND (1u << 30)
+#endif
+#ifndef bit_RDSEED
+#define bit_RDSEED (1u << 18)
+#endif
+#endif
 #define STC_X86 1
 #else
 #define STC_X86 0
+#endif
+
+#if defined(__x86_64__)
+#define STC_X86_64 1
+#else
+#define STC_X86_64 0
 #endif
 
 global_persist u64 state = 0;
 
 
 
-#if STC_X86 && (defined(__GNUC__) || defined(__clang__))
+#if STC_X86_64 && (defined(__GNUC__) || defined(__clang__))
 __attribute__((target("rdseed")))
 static int stc_try_rdseed64(u64 *out)
 {
@@ -35,18 +50,36 @@ static int stc_try_rdrand64(u64 *out)
 	}
 	return 0;
 }
+
+static int stc_cpu_supports_rdseed(void)
+{
+	unsigned int eax, ebx, ecx, edx;
+	if (__get_cpuid_max(0, NULL) < 7)
+		return 0;
+	if (!__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx))
+		return 0;
+	return (ebx & bit_RDSEED) != 0;
+}
+
+static int stc_cpu_supports_rdrand(void)
+{
+	unsigned int eax, ebx, ecx, edx;
+	if (!__get_cpuid(1, &eax, &ebx, &ecx, &edx))
+		return 0;
+	return (ecx & bit_RDRND) != 0;
+}
 #endif
 
 static int stc_get_hw_seed64(u64 *out)
 {
-#if STC_X86 && (defined(__GNUC__) || defined(__clang__))
-	if (__builtin_cpu_supports("rdseed")) {
+#if STC_X86_64 && (defined(__GNUC__) || defined(__clang__))
+	if (stc_cpu_supports_rdseed()) {
 		for (int i = 0; i < 32; ++i)
 			if (stc_try_rdseed64(out))
 				return 1;
 	}
 
-	if (__builtin_cpu_supports("rdrnd")) {
+	if (stc_cpu_supports_rdrand()) {
 		for (int i = 0; i < 16; ++i)
 			if (stc_try_rdrand64(out))
 				return 1;
