@@ -1,20 +1,28 @@
 #!/bin/sh
 set -eu
 
-cd "build"
+  cd build
 
-clang -march=native main.c -O3 -o main
-./main -rbld
+  if ! command -v clang >/dev/null 2>&1; then
+      echo "clang not found" >&2
+      exit 1
+  fi
 
-case ":$PATH:" in
-	*":$HOME/.local/bin:"*) ;;
-	*)
-		printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.profile"
-		export PATH="$HOME/.local/bin:$PATH"
-		echo 'Added ~/.local/bin to ~/.profile'
-		;;
-esac
+  clang -mavx2 main.c -O3 -o main
+  ./main -rbld
 
-echo "stormc installed at $HOME/.local/bin/stormc"
-echo "Current shell can use it now if this script was sourced; otherwise open a new shell or run:"
-echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+  path_line='export PATH="$HOME/.local/bin:$PATH"'
+
+  touch "$HOME/.bashrc"
+  if ! grep -qxF "$path_line" "$HOME/.bashrc"; then
+      printf '\n# stormc\n%s\n' "$path_line" >> "$HOME/.bashrc"
+  fi
+
+  touch "$HOME/.profile"
+  if ! grep -qxF "$path_line" "$HOME/.profile"; then
+      printf '\n# stormc\n%s\n' "$path_line" >> "$HOME/.profile"
+  fi
+
+  echo "stormc installed at $HOME/.local/bin/stormc"
+  echo "For this terminal, run:"
+  echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
