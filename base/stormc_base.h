@@ -5,6 +5,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "stormc_error_table.h"
+
+#define stc_try(stc_func, ...)\
+	({\
+		int ret = stc_func(__VA_ARGS__);\
+		if (ret != STC_ERR_OK) {\
+			stc_println_err("{cstring}", stc_err_table_literal[ret]);\
+		}\
+		ret;\
+	})
+
 
 #define STC_ANSI_RESET   "\x1b[0m"
 #define STC_ANSI_DIM     "\x1b[2m"
@@ -225,7 +236,7 @@ struct stc_fd {
 
 struct stc_file {
 	struct stc_fd	fd;
-	u32		file_size;
+	u64		file_size;
 };
 
 

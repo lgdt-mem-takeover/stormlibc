@@ -1,5 +1,23 @@
 #pragma once
 
+#ifdef _WIN32
+
+#define STC_PERF_FLAG(id) (0ull)
+
+void stc_perf_init(void) {}
+void stc_perf_start(void) {}
+void stc_perf_end(void) {}
+void stc_perf_add_all(void) {}
+void stc_perf_close(void) {}
+void stc_perf_add_flags(u64 flags) { (void)flags; }
+void stc_perf_print(u64 flags)
+{
+	(void)flags;
+	stc_println_err("stormc perf counters are unsupported on windows");
+}
+
+#else
+
 #include <linux/perf_event.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
@@ -351,3 +369,5 @@ void stc_perf_add_flags(u64 flags)
 		}
 	}
 }
+
+#endif

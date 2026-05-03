@@ -1,18 +1,19 @@
 #include "stormc_base.h"
+#include "stormc_error_table.h"
 
-
-thisfile i64		 stc_io_read(struct stc_file *f, u8 *buffer, u64 size);
-thisfile i64		 stc_io_write(struct stc_file *f, u8 *buffer, u64 size);
-thisfile struct stc_file stc_io_open_r(const char *path);
-thisfile struct stc_file stc_io_open_rw(const char *path);
-thisfile struct stc_file stc_io_open_w(const char *path);
-thisfile struct stc_file stc_io_open_w_new(const char *path);
-thisfile struct stc_file stc_io_open_w_append(const char *path);
-thisfile u64		 stc_io_get_file_size(const char *path);
+thisfile enum stc_err_code		stc_io_read(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
+thisfile enum stc_err_code 		stc_io_write(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
+thisfile enum stc_err_code 		stc_io_open_r(const char *path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_rw(const char *path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w(const char *path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w_new(const char *path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w_append(const char *path, struct stc_file *out);
+thisfile enum stc_err_code  		stc_io_get_file_size(const char *path, u64 *size_out);
+thisfile enum stc_err_code		stc_io_file_to_string8(struct stc_file *f, struct stc_string8 *out, u64 *size_out);
 
 
 #ifdef _WIN32
-i64 stc_read(struct stc_file *f, void *ptr, u64 size)
+thisfile inline i64 stc_read(struct stc_file *f, void *ptr, u64 size)
 {
 	DWORD bytes_read = 0;
 	DWORD to_read = (size > 0xffffffffu) ? 0xffffffffu : (DWORD)size;
@@ -24,7 +25,7 @@ i64 stc_read(struct stc_file *f, void *ptr, u64 size)
 	return (i64)bytes_read;
 }
 
-i64 stc_write(struct stc_file *f, void *ptr, u64 size)
+thisfile inline i64 stc_write(struct stc_file *f, void *ptr, u64 size)
 {
 	DWORD bytes_written = 0;
 	DWORD to_write = (size > 0xffffffffu) ? 0xffffffffu : (DWORD)size;
@@ -36,77 +37,109 @@ i64 stc_write(struct stc_file *f, void *ptr, u64 size)
 	return (i64)bytes_written;
 }
 
-u64 stc_io_get_file_size(const char *path)
+enum stc_err_code stc_io_get_file_size(const char *path, u64 *size_out)
 {
+	if (size_out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
 	WIN32_FILE_ATTRIBUTE_DATA data = {0};
 
 	if (!GetFileAttributesExA(path, GetFileExInfoStandard, &data)) {
-		return 0;
+		*size_out = 0;
+		return STC_ERR_FILE_STAT_FAILED;
 	}
 
 	LARGE_INTEGER size = {0};
 	size.LowPart = data.nFileSizeLow;
 	size.HighPart = data.nFileSizeHigh;
 
-	return (u64)size.QuadPart;
+	*size_out = (u64)size.QuadPart;
+	return STC_ERR_OK;
 }
 
-struct stc_file stc_io_open_r(const char *path)
+enum stc_err_code stc_io_open_r(const char *path, struct stc_file *out)
 {
-	struct stc_file pl = {0};
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
 
-	pl.fd.fd = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+	*out = (struct stc_file){0};
+	out->fd.fd = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL,
 			       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	pl.file_size = stc_io_get_file_size(path);
+	if (out->fd.fd == INVALID_HANDLE_VALUE) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
 
-	return pl;
+	return stc_io_get_file_size(path, &out->file_size);
 }
 
-struct stc_file stc_io_open_rw(const char *path)
+enum stc_err_code stc_io_open_rw(const char *path, struct stc_file *out)
 {
-	struct stc_file pl = {0};
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
 
-	pl.fd.fd = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL,
+	*out = (struct stc_file){0};
+	out->fd.fd = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL,
 			       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	pl.file_size = stc_io_get_file_size(path);
+	if (out->fd.fd == INVALID_HANDLE_VALUE) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
 
-	return pl;
+	return stc_io_get_file_size(path, &out->file_size);
 }
 
-struct stc_file stc_io_open_w(const char *path)
+enum stc_err_code stc_io_open_w(const char *path, struct stc_file *out)
 {
-	struct stc_file pl = {0};
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
 
-	pl.fd.fd = CreateFileA(path, GENERIC_WRITE, 0, NULL,
+	*out = (struct stc_file){0};
+	out->fd.fd = CreateFileA(path, GENERIC_WRITE, 0, NULL,
 			       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	pl.file_size = stc_io_get_file_size(path);
+	if (out->fd.fd == INVALID_HANDLE_VALUE) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
 
-	return pl;
+	return stc_io_get_file_size(path, &out->file_size);
 }
 
-struct stc_file stc_io_open_w_new(const char *path)
+enum stc_err_code stc_io_open_w_new(const char *path, struct stc_file *out)
 {
-	struct stc_file pl = {0};
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
 
-	pl.fd.fd = CreateFileA(path, GENERIC_WRITE, 0, NULL,
+	*out = (struct stc_file){0};
+	out->fd.fd = CreateFileA(path, GENERIC_WRITE, 0, NULL,
 			       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	pl.file_size = 0;
+	if (out->fd.fd == INVALID_HANDLE_VALUE) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
 
-	return pl;
+	out->file_size = 0;
+	return STC_ERR_OK;
 }
 
-struct stc_file stc_io_open_w_append(const char *path)
+enum stc_err_code stc_io_open_w_append(const char *path, struct stc_file *out)
 {
-	struct stc_file pl = {0};
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
 
-	pl.fd.fd = CreateFileA(path, FILE_APPEND_DATA, FILE_SHARE_READ, NULL,
+	*out = (struct stc_file){0};
+	out->fd.fd = CreateFileA(path, FILE_APPEND_DATA, FILE_SHARE_READ, NULL,
 			       OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	pl.file_size = stc_io_get_file_size(path);
+	if (out->fd.fd == INVALID_HANDLE_VALUE) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
 
-	return pl;
+	return stc_io_get_file_size(path, &out->file_size);
 }
 
-int stc_close(struct stc_file *f)
+thisfile inline int stc_close(struct stc_file *f)
 {
 	return CloseHandle(f->fd.fd) ? 0 : -1;
 }
@@ -115,42 +148,111 @@ int stc_close(struct stc_file *f)
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-i64 stc_write(struct stc_file *f, void *ptr, u64 len)
+thisfile inline i64 stc_write(struct stc_file *f, void *ptr, u64 len)
 {
 	return write(f->fd.fd, ptr, len);
 }
 
-i64 stc_read(struct stc_file *f, void *ptr, u64 len)
+thisfile inline i64 stc_read(struct stc_file *f, void *ptr, u64 len)
 {
 	return read(f->fd.fd, ptr, len);
 }
 
 
-u64 stc_io_get_file_size(const char *path)
+thisfile inline enum stc_err_code stc_io_get_file_size(const char *path, u64 *size_out)
 {
+	if (size_out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
 	struct stat st = {};
-	stat(path, &st);
-	return st.st_size;
+	if (stat(path, &st) != 0) {
+		*size_out = 0;
+		return STC_ERR_FILE_STAT_FAILED;
+	}
+
+	*size_out = st.st_size;
+	return STC_ERR_OK;
 }
 
-struct stc_file stc_io_open_r(const char *path)
+enum stc_err_code stc_io_open_r(const char *path, struct stc_file *out)
 {
-	struct stc_file pl = {};
-	pl.fd.fd = open(path, O_RDONLY);
-	pl.file_size = stc_io_get_file_size(path);
-	return pl;
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
+	*out = (struct stc_file){0};
+	out->fd.fd = open(path, O_RDONLY);
+	if (out->fd.fd < 0) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
+
+	return stc_io_get_file_size(path, &out->file_size);
 }
 
-struct stc_file stc_io_open_rw(const char *path)
+enum stc_err_code stc_io_open_rw(const char *path, struct stc_file *out)
 {
-	struct stc_file pl = {};
-	pl.fd.fd = open(path, O_RDWR, 0644);
-	pl.file_size = stc_io_get_file_size(path);
-	return pl;
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
+	*out = (struct stc_file){0};
+	out->fd.fd = open(path, O_RDWR, 0644);
+	if (out->fd.fd < 0) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
+
+	return stc_io_get_file_size(path, &out->file_size);
+}
+
+enum stc_err_code stc_io_open_w(const char *path, struct stc_file *out)
+{
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
+	*out = (struct stc_file){0};
+	out->fd.fd = open(path, O_WRONLY);
+	if (out->fd.fd < 0) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
+
+	return stc_io_get_file_size(path, &out->file_size);
+}
+
+enum stc_err_code stc_io_open_w_new(const char *path, struct stc_file *out)
+{
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
+	*out = (struct stc_file){0};
+	out->fd.fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (out->fd.fd < 0) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
+
+	out->file_size = 0;
+	return STC_ERR_OK;
+}
+
+enum stc_err_code stc_io_open_w_append(const char *path, struct stc_file *out)
+{
+	if (out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
+	*out = (struct stc_file){0};
+	out->fd.fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+	if (out->fd.fd < 0) {
+		return STC_ERR_FILE_OPEN_FAILED;
+	}
+
+	return stc_io_get_file_size(path, &out->file_size);
 }
 
 
-int stc_close(struct stc_file *f)
+thisfile inline int stc_close(struct stc_file *f)
 {
 	return close(f->fd.fd);
 }
@@ -158,21 +260,86 @@ int stc_close(struct stc_file *f)
 
 
 
-i64 stc_io_read(struct stc_file *f, u8 *buffer, u64 size)
+thisfile inline enum stc_err_code stc_io_read(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out)
 {
-	return stc_read(f, buffer, size);
+	if (size_out) {
+		*size_out = 0;
+	}
+	if (f == NULL || buffer == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
+	i64 ret = stc_read(f, buffer, size);
+	if (ret < 0) {
+		return STC_ERR_FILE_READ_FAILED;
+	}
+
+	if (size_out) {
+		*size_out = (u64)ret;
+	}
+	return STC_ERR_OK;
 }
 
 
-i64 stc_io_write(struct stc_file *f, u8 *buffer, u64 size)
+thisfile inline enum stc_err_code stc_io_write(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out)
 {
-	return stc_write(f, buffer, size);
+	if (size_out) {
+		*size_out = 0;
+	}
+	if (f == NULL || buffer == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
+	i64 ret = stc_write(f, buffer, size);
+	if (ret < 0) {
+		return STC_ERR_FILE_WRITE_FAILED;
+	}
+
+	if (size_out) {
+		*size_out = (u64)ret;
+	}
+	return STC_ERR_OK;
 }
 
 
 
 
-int stc_io_close(struct stc_file *f)
+thisfile inline enum stc_err_code stc_io_close(struct stc_file *f)
 {
-	return stc_close(f);
+	if (f == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+
+	if (stc_close(f) != 0) {
+		return STC_ERR_FILE_CLOSE_FAILED;
+	}
+
+	return STC_ERR_OK;
+}
+
+
+thisfile inline enum stc_err_code stc_io_file_to_string8(struct stc_file *f, struct stc_string8 *out, u64 *size_out)
+{
+	if (size_out) {
+		*size_out = 0;
+	}
+	if (f == NULL || out == NULL) {
+		return STC_ERR_INVALID_ARGUMENT;
+	}
+	if (out->str == NULL) {
+		return STC_ERR_FILE_COPY_TO_STRING8_FAILED;
+	}
+
+	u64 bytes_read = 0;
+	enum stc_err_code err = stc_io_read(f, out->str, f->file_size, &bytes_read);
+	if (err != STC_ERR_OK) {
+		out->len = 0;
+		return err;
+	}
+
+	out->len = bytes_read;
+	if (size_out) {
+		*size_out = bytes_read;
+	}
+	return STC_ERR_OK;
 }

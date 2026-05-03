@@ -1,8 +1,14 @@
 #pragma once
 
+#include "stormc_error_table.h"
 #include "stormc_math.c"
 #include "stormc_base.h"
 #include "../stormc_header.h"
+
+#ifndef STC_GLOBAL_STACK_DEFAULT_RSRV
+#define STC_GLOBAL_STACK_DEFAULT_RSRV GIGABYTE(1)
+#endif
+
 
 struct free_list {
 	struct ilt64	ilt;
@@ -26,12 +32,12 @@ static struct stc_stack		*stc_stack_gen(u64 rsrv);
 static void			*stc_os_mem_rsrv(u64 size);
 static void			*stc_os_mem_cmt(void *addrs, u64 size);
 static void			*_stc_stack_push(struct stc_stack *stack, u64 alignment, u64 alloc_size);
-static void			stc_stack_pop(struct stc_stack *stack, u64 size);
-static void			stc_stack_start(struct stc_stack *s);
-static void			stc_stack_end(struct stc_stack *s);
-static void			stc_stack_free(struct stc_stack *stack, void* mem_addrs, u64 len);
+static enum stc_err_code	stc_stack_pop(struct stc_stack *stack, u64 size);
+static enum stc_err_code	stc_stack_start(struct stc_stack *s);
+static enum stc_err_code	stc_stack_end(struct stc_stack *s);
+static enum stc_err_code	stc_stack_free(struct stc_stack *stack, void* mem_addrs, u64 len);
 static void			*stc_os_alloc_default(u64 size);
-static void			stc_os_mem_free(void *mem, u64 size);
+static enum stc_err_code	stc_os_mem_free(void *mem, u64 size);
 
 
 #define stc_rsrv(size)\
@@ -79,13 +85,13 @@ struct stc_stack *stc_stack_gen(u64 rsrv)
 	if (stc_os_mem_cmt(block, STACK_HEADER_SIZE) == NULL) {
 		printf("Failed block header size\n");
 		perror("mprotect");
-		exit(1);
+		stc_exit(1);
 	}
 	rsrv = ((u64)block + rsrv) - (u64)stack_ptr_start;
 	if (stc_os_mem_cmt(stack_ptr_start, PAGESIZE) == NULL) {
 		printf("Failed at stack ptr start\n");
 		perror("mprotect");
-		exit(1);
+		stc_exit(1);
 	}
 
 	struct stc_stack *pl = (struct stc_stack *)block;
@@ -145,7 +151,7 @@ void *_stc_stack_push(struct stc_stack *s, u64 alignment, u64 total_size)
 		assert((s->mem_committed % 4096) == 0);
 		if (stc_os_mem_cmt((stc_byte*)s->base + s->mem_committed, delta_commit) == NULL) {
 			perror("mprotect");
-			exit(1);
+			stc_exit(1);
 		}
 		assert((s->mem_committed % 4096) == 0);
 
@@ -158,37 +164,90 @@ void *_stc_stack_push(struct stc_stack *s, u64 alignment, u64 total_size)
 }
 
 
-void stc_stack_free(struct stc_stack *s, void* mem_addrs, u64 size)
+enum stc_err_code stc_stack_free(struct stc_stack *s, void* mem_addrs, u64 size)
 {
 	u64 next_index = ilt64_gen_idx(&s->free_list.ilt);
 	if (unlikely(next_index == ILT64_NIL_IDX)) {
 		printf("free_list ILT is full\nAborting\n");
-		exit(1);
+		stc_exit(1);
 	}
 	s->free_list.ptr[next_index] = (u64)mem_addrs;
 	s->free_list.size[next_index] = size;
 	s->free_list.used_count++;
 }
 
-void stc_stack_pop(struct stc_stack *stack, u64 size)
+enum stc_err_code stc_stack_pop(struct stc_stack *stack, u64 size)
 {
 	bool cond = stack->base_offset >= size;
-	// if (unlikely(!cond)) {
-	// 	fprintf(stdout, "Tried to pop %lu bytes, but offset is %lu\n", size, stack->base_offset);
-	// }
+	if (unlikely(!cond)) {
+		return STC_ERR_STACK_BASE_OFFSET_GREATER_THAN_SIZE;
+	}
 	u64 count_checked = SELECT(cond, stack->base_offset - size, stack->base_offset);
 	stack->base_offset = count_checked;
+
+	return STC_ERR_OK;
 }
 
 
-void stack_begin(struct stc_stack *s)
+enum stc_err_code stack_begin(struct stc_stack *s)
 {
 	s->checkpoint_offset = s->base_offset;
+	return STC_ERR_OK;
 }
 
 
-void stack_end(struct stc_stack *s)
+enum stc_err_code stack_end(struct stc_stack *s)
 {
 	s->base_offset = s->checkpoint_offset;
+	return STC_ERR_OK;
 }
 
+
+static stc_threadlocal struct stc_stack *stc_tls_stack;
+
+void stc_global_stack_init(u64 reserve)
+{
+	if (stc_tls_stack == NULL) {
+		stc_tls_stack = stc_stack_gen(reserve);
+	}
+}
+
+void *stc_global_alloc_raw(u64 alignment, u64 size)
+{
+	if (stc_tls_stack == NULL) {
+		stc_global_stack_init(GIGABYTE(1));
+	}
+
+	return _stc_stack_push(stc_tls_stack, alignment, size);
+}
+
+#define stc_global_alloc(type, count) \
+	((type *)stc_global_alloc_raw(ALIGNOF(type), sizeof(type) * (count)))
+
+
+enum stc_err_code stc_global_stack_start(void)
+{
+	if (stc_tls_stack == NULL) {
+		return STC_ERR_GLOBAL_ALLOCATOR_UNINITED;
+	}
+	stc_stack_start(stc_tls_stack);
+	return STC_ERR_OK;
+}
+
+enum stc_err_code stc_global_stack_end(void)
+{
+	if (stc_tls_stack == NULL) {
+		return STC_ERR_GLOBAL_ALLOCATOR_UNINITED;
+	}
+	stc_stack_end(stc_tls_stack);
+	return STC_ERR_OK;
+}
+
+enum stc_err_code stc_global_stack_reset(void)
+{
+	if (stc_tls_stack == NULL) {
+		return STC_ERR_GLOBAL_ALLOCATOR_UNINITED;
+	}
+	stc_tls_stack->base_offset = 0;
+	return STC_ERR_OK;
+}

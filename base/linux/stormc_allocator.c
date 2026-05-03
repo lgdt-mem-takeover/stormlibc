@@ -3,7 +3,6 @@
 #include "../../stormc_header.h"
 #include <unistd.h>
 #include <sys/mman.h>
-#include <stdio.h>
 
 
 void *stc_os_alloc_default(u64 size)
@@ -29,9 +28,10 @@ void *stc_os_mem_cmt(void* addrs, u64 size)
 
 }
 
-void stc_os_mem_free(void *mem, u64 size)
+enum stc_err_code stc_os_mem_free(void *mem, u64 size)
 {
 	if (munmap(mem, size) != 0) {
-		perror("munmap\n");
+		return STC_ERR_OS_UNMAP_FAILED;
 	}
+	return STC_ERR_OK;
 }

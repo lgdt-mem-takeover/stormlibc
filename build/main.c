@@ -924,12 +924,35 @@ void *exec_rebuild_self(struct stag_cmd_call *call)
 
 	if (system("clang -mavx2 main.c -O3 -o main") != 0) {
 		perror("system");
+		exit(1);
 	}
 	const char *home = getenv("HOME");
 	if (!home) {
 		fprintf(stderr, "HOME not set\n");
 		exit(1);
 	}
+
+	char local_dir[1024] = {0};
+	snprintf(local_dir, sizeof(local_dir), "%s/.local", home);
+
+	char local_bin_dir[1024] = {0};
+	snprintf(local_bin_dir, sizeof(local_bin_dir), "%s/.local/bin", home);
+
+	if (!file_exists(local_dir)) {
+		if (mkdir(local_dir, 0755) == -1) {
+			perror("mkdir ~/.local");
+			exit(1);
+		}
+	}
+
+	if (!file_exists(local_bin_dir)) {
+		if (mkdir(local_bin_dir, 0755) == -1) {
+			perror("mkdir ~/.local/bin");
+			exit(1);
+		}
+	}
+
+
 	char stormc_path[1024] = { 0};
 	snprintf(stormc_path, sizeof(stormc_path), "%s/.local/bin/stormc", home);
 	char stormc_temp_path[1024] = { 0};
