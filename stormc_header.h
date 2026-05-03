@@ -94,12 +94,6 @@ static const u32 MANTISSAF32 = 0x7FFFFF;
 #define STRING8_NULL (struct stc_string8){.str = NULL, .len = 0}
 
 
-struct stc_strbldr{
-	stc_byte	*ptr;
-	u64		off;
-	u64		cmt;
-	u64		rsrv;
-};
 
 
 struct stc_string8 {
@@ -315,6 +309,12 @@ static inline f32 minf(f32 a, f32 b);
 /*@TEXT END*/
 
 
+
+/*@PROFILE START*/
+#ifdef STORMC_PROFILE
+#include "base/stormc_profile.c"
+#endif
+/*@PROFILE END*/
 
 /*@HASH START*/
 #ifdef STORMC_HASHFUNC

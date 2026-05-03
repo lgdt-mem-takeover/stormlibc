@@ -10,6 +10,17 @@
 #define sstrlenx  stc_len_c_string
 #define stc_c_string_len stc_len_c_string
 
+struct stc_strbldr{
+	stc_byte	*ptr;
+	u64		off;
+	u64		cmt;
+	u64		rsrv;
+};
+
+
+static stc_threadlocal struct stc_strbldr _strbldr_print = {};
+
+
 /*@func decls new*/
 thisfile inline bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b);
 thisfile inline bool stc_string8_cmp_simd(const struct stc_string8 a, const struct stc_string8 b);
@@ -31,7 +42,107 @@ thisfile u64 stc_utoa(u64 n, stc_byte *s);
 thisfile struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init);
 thisfile void check_alloc(struct stc_strbldr *b, u64 new_size);
 thisfile void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args);
+thisfile void stc_strbldr_append(struct stc_strbldr *b, stc_byte *s, ...);
+thisfile void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end);
+thisfile void stc_print_init(void);
+thisfile void stc_print_os_stderr(void);
+thisfile void stc_print_os_stdout(void);
+thisfile void stc_print(const char *fmt, ...);
+thisfile void stc_println(const char *fmt, ...);
+thisfile void stc_print_err(const char *fmt, ...);
 
+
+
+void stc_print_init(void)
+{
+	_strbldr_print = stc_strbldr_emit(MEGABYTE(64), PAGESIZE);
+}
+
+
+
+
+void stc_print_os_stderr(void)
+{
+#ifdef _WIN32
+	HANDLE stc_stderr = GetStdHandle(STD_ERROR_HANDLE);
+	DWORD written = 0;
+	WriteFile(stc_stderr, _strbldr_print.ptr, (DWORD)_strbldr_print.off, &written, NULL);
+#else
+	write(2, _strbldr_print.ptr, _strbldr_print.off);
+#endif
+
+	_strbldr_print.off = 0;
+}
+
+void stc_print_os_stdout(void)
+{
+#ifdef _WIN32
+	HANDLE stc_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	DWORD written = 0;
+	WriteFile(stc_stdout, _strbldr_print.ptr, _strbldr_print.off, &written, NULL);
+#else
+	write(1, _strbldr_print.ptr, _strbldr_print.off);
+#endif
+	_strbldr_print.off = 0;
+}
+
+
+
+void stc_print_err(const char *fmt, ...)
+{
+	if (unlikely(_strbldr_print.rsrv == 0)) {
+		stc_print_init();
+	}
+
+	va_list vargs;
+	va_start(vargs, fmt);
+	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);\
+	va_end(vargs);
+	stc_print_os_stderr();
+}
+
+void stc_println_err(const char *fmt, ...)
+{
+	if (unlikely(_strbldr_print.rsrv == 0)) {
+		stc_print_init();
+	}
+
+	va_list vargs;
+	va_start(vargs, fmt);
+	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);\
+	va_end(vargs);
+	stc_strbldr_append(&_strbldr_print, "\n");
+	stc_print_os_stderr();
+}
+
+void stc_print(const char *fmt, ...)
+{
+
+	if (unlikely(_strbldr_print.rsrv == 0)) {
+		stc_print_init();
+	}
+
+	va_list vargs;
+	va_start(vargs, fmt);
+	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);\
+	va_end(vargs);
+	stc_print_os_stdout();
+}
+
+void stc_println(const char *fmt, ...)
+{
+	if (unlikely(_strbldr_print.rsrv == 0)) {
+		stc_print_init();
+	}
+
+	va_list va_args;
+	va_start(va_args, fmt);
+	stc_strbldr_add_v(&_strbldr_print, fmt, va_args);\
+	va_end(va_args);
+
+	stc_strbldr_append(&_strbldr_print, "\n");
+	stc_print_os_stdout();
+}
 
 thisfile bool32
 stc_c_string_cmp (
@@ -587,39 +698,37 @@ thisfile inline u64 stc_utohex(u64 n, stc_byte *s)
 
 thisfile inline u64 stc_ftoa(f64 n, stc_byte *s)
 {
-	stc_byte * start = s;
-	bool neg = (n < 0);
-	if (neg) {
+	stc_byte *start = s;
+
+	if (n < 0) {
+		*s++ = '-';
 		n = -n;
 	}
 
-	i64 dec = (i64)((n - (i64)n) * 1e5 + 0.5);
+	const i64 scale = 100000;
 
-	do{
-		(*s) = (dec % 10) + '0';
-		dec /= 10;
-		++s;
-	}while(dec);
+	i64 whole = (i64)n;
+	i64 frac = (i64)((n - (f64)whole) * (f64)scale + 0.5);
 
-	(*s) = '.';
-	++s;
+	/* rounding can push 0.999999 to 1.00000 */
+	if (frac >= scale) {
+		whole += 1;
+		frac -= scale;
+	}
 
+	s += stc_utoa((u64)whole, s);
 
-	dec = (i64)n;
-	do{
-		(*s) = (dec % 10) + '0';
-		dec /= 10;
-		++s;
-	}while(dec);
+	*s++ = '.';
 
-	if (neg) {
-		(*s) = '-';
-		++s;
+	/* exactly 5 fractional digits, including leading zeroes */
+	i64 div = scale / 10;
+	while (div > 0) {
+		*s++ = (stc_byte)('0' + ((frac / div) % 10));
+		div /= 10;
 	}
 
 	*s = '\0';
-	stc_c_string_reverse(start, s - start);
-	return s - start;
+	return (u64)(s - start);
 }
 
 
@@ -695,7 +804,7 @@ struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init)
 	pl.ptr = (stc_byte*)stc_os_mem_rsrv(sz_rsrv);
 
 	if (stc_os_mem_cmt(pl.ptr, sz_init) == NULL) {
-		exit(1);
+		stc_exit(1);
 	}
 
 	pl.rsrv = sz_rsrv;
@@ -712,7 +821,7 @@ void check_alloc(struct stc_strbldr *b, u64 new_size)
 		u64 delta_aligned = STC_ALIGN_UP(new_size - b->cmt, PAGESIZE);
 		if (stc_os_mem_cmt((b->ptr + b->cmt), delta_aligned) == NULL) {
 			perror("mprotect");
-			exit(1);
+			stc_exit(1);
 		}
 		b->cmt += delta_aligned;
 	}
@@ -737,7 +846,7 @@ void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end)
 		end = b->off;
 	}
 	int len = end - start;
-	printf("%.*s\n", len, ptr_s);
+	stc_println("{string}", (struct stc_string8){(stc_byte *)ptr_s, len});
 }
 
 void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args)
@@ -790,8 +899,8 @@ loop:
 	STRBLDR_TYPE_LIST(X)
 #undef X
 	if (current_type == SB_T_NIL) {
-		fprintf(stderr, "Unknown type\n");
-		exit(1);
+		stc_println_err("Unknown type");
+		stc_exit(1);
 	}
 
 	stc_unreachable;
@@ -813,8 +922,8 @@ parse_binary:
 	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
 	b->off += len_buff_digits;
 	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
-		exit(1);
+		stc_println_err("Expected bracket '}' for formatting");
+		stc_exit(1);
 	}
 	goto advance;
 
@@ -886,8 +995,8 @@ parse_stack_pretty:
 	b->ptr[b->off++] = '\n';
 
 	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
-		exit(1);
+		stc_println_err("Expected closing bracket '}' for formatting");
+		stc_exit(1);
 	}
 
 	goto advance;
@@ -920,8 +1029,8 @@ parse_signed:
 	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
 	b->off += len_buff_digits;
 	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
-		exit(1);
+		stc_println_err("Expected closing bracket '}' for formatting");
+		stc_exit(1);
 	}
 	goto advance;
 
@@ -952,8 +1061,8 @@ parse_unsigned:
 	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
 	b->off += len_buff_digits;
 	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
-		exit(1);
+		stc_println_err("Expected closing bracket '}' for formatting");
+		stc_exit(1);
 	}
 	goto advance;
 
@@ -975,8 +1084,8 @@ parse_float:
 	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
 	b->off += len_buff_digits;
 	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
-		exit(1);
+		stc_println_err("Expected closing bracket '}' for formatting");
+		stc_exit(1);
 	}
 	goto advance;
 
@@ -1004,8 +1113,8 @@ parse_string_common:
 	stc_memcpy(b->ptr + b->off, cur_cstr, len_cur_cstr);
 	b->off += len_cur_cstr;
 	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected '}' for string formatting\n");
-		exit(1);
+		stc_println_err("Expected '}' for string formatting");
+		stc_exit(1);
 	}
 	goto advance;
 
@@ -1028,8 +1137,8 @@ parse_hex_pointer:
 	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
 	b->off += len_buff_digits;
 	if (unlikely(*start != '}')) {
-		fprintf(stderr, "Expected closing bracket '}' for formatting\n");
-		exit(1);
+		stc_println_err("Expected closing bracket '}' for formatting");
+		stc_exit(1);
 	}
 	goto advance;
 fin:

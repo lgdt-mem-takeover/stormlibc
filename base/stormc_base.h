@@ -5,6 +5,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
+
+#define STC_ANSI_RESET   "\x1b[0m"
+#define STC_ANSI_DIM     "\x1b[2m"
+#define STC_ANSI_BOLD    "\x1b[1m"
+#define STC_ANSI_GREEN   "\x1b[32m"
+#define STC_ANSI_YELLOW  "\x1b[33m"
+#define STC_ANSI_RED     "\x1b[31m"
+#define STC_ANSI_CYAN    "\x1b[36m"
+
+
+#if defined(__GNUC__) || defined(__clang__)
+#define stc_threadlocal __thread
+#elif defined(_MSC_VER)
+#define stc_threadlocal __declspec(thread)
+#else
+#define stc_threadlocal _Thread_local
+#endif
+
 #ifndef PAGESIZE
 #define PAGESIZE 4096
 #endif
@@ -129,7 +147,11 @@ typedef  int64_t   		i64;
 typedef  double			f64;
 typedef  float			f32;
 
+
+
+#ifdef STC_SIMD
 #include "stc_simd_codegen.h"
+#endif
 
 
 
@@ -184,3 +206,43 @@ struct stormc_buildinfo {
 };
 
 
+
+
+enum stc_std_file {
+	STC_STDIN,
+	STC_STDOUT,
+	STC_STDERR,
+};
+
+
+struct stc_fd {
+#ifdef _WIN32
+	HANDLE	fd;
+#else
+	int fd;
+#endif
+};
+
+struct stc_file {
+	struct stc_fd	fd;
+	u32		file_size;
+};
+
+
+
+thisfile void stc_exit(u32 code) __attribute__((noreturn));
+
+thisfile void stc_exit(u32 code)
+{
+#ifdef _WIN32
+	ExitProcess((UINT)code);
+#else
+	__asm__ volatile (
+	    "syscall"
+	    :
+	    : "a"(60), "D"((u64)code)
+	    : "rcx", "r11", "memory"
+	    );
+#endif
+	stc_unreachable;
+}
