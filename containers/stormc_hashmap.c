@@ -1,8 +1,5 @@
 #pragma once
-#include "../core/stormc_types.h"
-#include "../math/stormc_math.h"
-#include "../core/stormc_allocator.h"
-#include "stormc_hash.h"
+#include "../stormc_header.h"
 
 #define NO_FREE_SLOT (1lu << 63)
 #define KEY_NOT_FOUND (1lu << 62)
@@ -54,10 +51,10 @@ typedef enum{
 		TYPE_VALUE *old_values = hmap->value;							\
 													\
 		StormC_HashMap_State *new_state =							\
-		(StormC_HashMap_State *)STORMC_ALLOC(sizeof(*new_state) * new_cap);			\
-		TYPE_KEY *new_keys = (TYPE_KEY *)STORMC_ALLOC(sizeof(*new_keys) * new_cap);		\
+		(StormC_HashMap_State *)stc_alloc(sizeof(*new_state) * new_cap);			\
+		TYPE_KEY *new_keys = (TYPE_KEY *)stc_alloc(sizeof(*new_keys) * new_cap);		\
 		TYPE_VALUE *new_values =								\
-		(TYPE_VALUE *)STORMC_ALLOC(sizeof(*new_values) * new_cap);				\
+		(TYPE_VALUE *)stc_alloc(sizeof(*new_values) * new_cap);				\
 		hmap->state = new_state;								\
 		hmap->key = new_keys;									\
 		hmap->value = new_values;								\
@@ -68,9 +65,9 @@ typedef enum{
 			stormc_##NAME##_add_entry(hmap, old_keys[idx], old_values[idx]);		\
 			}										\
 		}											\
-		stormc_free(old_state);									\
-		stormc_free(old_keys);									\
-		stormc_free(old_values);								\
+		stc_free(old_state, sizeof(*old_state) * old_cap);					\
+		stc_free(old_keys, sizeof(*old_keys) * old_cap);						\
+		stc_free(old_values, sizeof(*old_values) * old_cap);					\
 	}												\
 													\
 	thisfile void stormc_##NAME##_add_entry(NAME *hmap, TYPE_KEY key, TYPE_VALUE value)		\
@@ -120,12 +117,12 @@ typedef enum{
 		bool size_is_pow2 = is_pow2(starting_size);						\
 		u64 nextpow2 = next_pow2(starting_size);						\
 		starting_size = SELECT(size_is_pow2, starting_size, nextpow2);				\
-		NAME *pl = (NAME *)STORMC_ALLOC(sizeof(NAME));						\
+		NAME *pl = (NAME *)stc_alloc(sizeof(NAME));						\
 		pl->state =										\
-		(StormC_HashMap_State*)STORMC_ALLOC(							\
+		(StormC_HashMap_State*)stc_alloc(							\
 		sizeof(StormC_HashMap_State) * starting_size);						\
-		pl->key = (TYPE_KEY*)STORMC_ALLOC(sizeof(TYPE_KEY) * starting_size);			\
-		pl->value = (TYPE_VALUE*)STORMC_ALLOC(sizeof(TYPE_VALUE) * starting_size);		\
+		pl->key = (TYPE_KEY*)stc_alloc(sizeof(TYPE_KEY) * starting_size);			\
+		pl->value = (TYPE_VALUE*)stc_alloc(sizeof(TYPE_VALUE) * starting_size);		\
 		pl->capacity = starting_size;								\
 		pl->ct_elems = 0;									\
 		return pl;										\

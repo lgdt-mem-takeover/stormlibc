@@ -1,148 +1,14 @@
 #pragma once
-#include "../base/stormc_allocator.c"
 #include <stddef.h>
 
-#define stc_string8_sized(s) ((int)((s).len)), ((s).str)
-#define stc_print_string(__string) printf("%.*s\n", (int)__string.len, __string.str)
-
-/* compatibility aliases */
-#define sstrcmpx  stc_string8_cmp
-#define sstrlenx  stc_len_c_string
-#define stc_c_string_len stc_len_c_string
-
-struct stc_strbldr{
-	stc_byte	*ptr;
-	u64		off;
-	u64		cmt;
-	u64		rsrv;
-};
+#ifndef _WIN32
+	#include <unistd.h>
+#endif
 
 
 static stc_threadlocal struct stc_strbldr _strbldr_print = {};
 
 
-/*@func decls new*/
-thisfile inline bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b);
-thisfile inline bool stc_string8_cmp_simd(const struct stc_string8 a, const struct stc_string8 b);
-thisfile struct stc_string8 *stc_arena_string8_push(struct stc_arena_string8 *a, u64 count);
-thisfile struct stc_string8 stc_arena_string8_push_copy(struct stc_arena_string8 *a, struct stc_string8 s);
-thisfile void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacity, const struct stc_string8 * restrict b);
-thisfile void stc_memcpy(void * restrict destination, const void * restrict source, u64 size);
-thisfile void stc_memset(void * restrict destination, u64 value, u64 size);
-thisfile void stc_memmove(void *destination, const void *src, u64 size);
-thisfile int stc_memcmp(const void * restrict destination, const void * restrict src, u64 size);
-thisfile struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a, struct stc_string8 * restrict s, stc_byte delim);
-thisfile u64 stc_c_string_len(stc_byte *c_string);
-thisfile struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init);
-thisfile void stc_string8_to_upper(struct stc_string8 *s);
-thisfile void stc_c_string_reverse (stc_byte *s, u64 len);
-thisfile bool32 stc_c_string_cmp (const stc_byte * restrict a, const u64 alen, const stc_byte * restrict b, const u64 blen);
-thisfile u64 stc_itoa(i64 n, stc_byte *s);
-thisfile u64 stc_utoa(u64 n, stc_byte *s);
-thisfile struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init);
-thisfile void check_alloc(struct stc_strbldr *b, u64 new_size);
-thisfile void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args);
-thisfile void stc_strbldr_append(struct stc_strbldr *b, stc_byte *s, ...);
-thisfile void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end);
-thisfile void stc_print_init(void);
-thisfile void stc_print_os_stderr(void);
-thisfile void stc_print_os_stdout(void);
-thisfile void stc_print(const char *fmt, ...);
-thisfile void stc_println(const char *fmt, ...);
-thisfile void stc_print_err(const char *fmt, ...);
-
-
-
-void stc_print_init(void)
-{
-	_strbldr_print = stc_strbldr_emit(MEGABYTE(64), PAGESIZE);
-}
-
-
-
-
-void stc_print_os_stderr(void)
-{
-#ifdef _WIN32
-	HANDLE stc_stderr = GetStdHandle(STD_ERROR_HANDLE);
-	DWORD written = 0;
-	WriteFile(stc_stderr, _strbldr_print.ptr, (DWORD)_strbldr_print.off, &written, NULL);
-#else
-	write(2, _strbldr_print.ptr, _strbldr_print.off);
-#endif
-
-	_strbldr_print.off = 0;
-}
-
-void stc_print_os_stdout(void)
-{
-#ifdef _WIN32
-	HANDLE stc_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
-	DWORD written = 0;
-	WriteFile(stc_stdout, _strbldr_print.ptr, _strbldr_print.off, &written, NULL);
-#else
-	write(1, _strbldr_print.ptr, _strbldr_print.off);
-#endif
-	_strbldr_print.off = 0;
-}
-
-
-
-void stc_print_err(const char *fmt, ...)
-{
-	if (unlikely(_strbldr_print.rsrv == 0)) {
-		stc_print_init();
-	}
-
-	va_list vargs;
-	va_start(vargs, fmt);
-	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);\
-	va_end(vargs);
-	stc_print_os_stderr();
-}
-
-void stc_println_err(const char *fmt, ...)
-{
-	if (unlikely(_strbldr_print.rsrv == 0)) {
-		stc_print_init();
-	}
-
-	va_list vargs;
-	va_start(vargs, fmt);
-	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);\
-	va_end(vargs);
-	stc_strbldr_append(&_strbldr_print, "\n");
-	stc_print_os_stderr();
-}
-
-void stc_print(const char *fmt, ...)
-{
-
-	if (unlikely(_strbldr_print.rsrv == 0)) {
-		stc_print_init();
-	}
-
-	va_list vargs;
-	va_start(vargs, fmt);
-	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);\
-	va_end(vargs);
-	stc_print_os_stdout();
-}
-
-void stc_println(const char *fmt, ...)
-{
-	if (unlikely(_strbldr_print.rsrv == 0)) {
-		stc_print_init();
-	}
-
-	va_list va_args;
-	va_start(va_args, fmt);
-	stc_strbldr_add_v(&_strbldr_print, fmt, va_args);\
-	va_end(va_args);
-
-	stc_strbldr_append(&_strbldr_print, "\n");
-	stc_print_os_stdout();
-}
 
 thisfile bool32
 stc_c_string_cmp (
@@ -195,17 +61,24 @@ enum strbldr_types {
 #undef X
 
 
-#define X(index, name, ...) [index] = STR8LIT(#name),
 static struct stc_string8 strbldr_types_lit[] = {
+#ifdef __cplusplus
+	STRING8_NULL,
+#define X(index, name, ...) STR8LIT(#name),
 	STRBLDR_TYPE_LIST(X)
-};
 #undef X
+#else
+#define X(index, name, ...) [index] = STR8LIT(#name),
+	STRBLDR_TYPE_LIST(X)
+#undef X
+#endif
+};
 
 
 
 
 
-void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacity, const struct stc_string8 * restrict b)
+static void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacity, const struct stc_string8 * restrict b)
 {
 	const u64 remaining = (a_capacity >= a->len) ? a_capacity - a->len : 0;
 	if (unlikely(remaining < b->len)) {
@@ -218,7 +91,7 @@ void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacity, cons
 }
 
 
-u64 stc_string8_len(const stc_byte *stc_string8)
+static u64 stc_string8_len(const stc_byte *stc_string8)
 {
 	if(stc_string8[0] == '\0') return 0;
 	u64 count = 0;
@@ -233,7 +106,7 @@ thisfile int stc_memcmp(const void * restrict destination, const void * restrict
 
 thisfile inline struct stc_string8 make_string(stc_byte *ch)
 {
-	struct stc_string8 null_stub = {.str = NULL, .len = 0};
+	struct stc_string8 null_stub = STRING8_NULL;
 	if (ch[0] == '\0')
 		return null_stub;
 
@@ -247,7 +120,7 @@ thisfile inline struct stc_string8 make_string(stc_byte *ch)
 	}
 	buf[len] = '\0';
 
-	return (struct stc_string8){.str = buf, .len = len};
+	return STC_STRUCT_LIT(stc_string8, buf, len);
 }
 
 
@@ -317,7 +190,7 @@ thisfile inline i64 stormc_find_substr(const struct stc_string8 haystack, const 
 
 
 
-void stc_memcpy(void * restrict destination, const void * restrict source, u64 size)
+static void stc_memcpy(void * restrict destination, const void * restrict source, u64 size)
 {
 	stc_byte *dest_start = (stc_byte*)destination;
 	const stc_byte *start = (const stc_byte *)source;
@@ -330,7 +203,7 @@ void stc_memcpy(void * restrict destination, const void * restrict source, u64 s
 	}
 }
 
-void stc_memset(void * restrict destination, u64 value, u64 size)
+static void stc_memset(void * restrict destination, u64 value, u64 size)
 {
 	stc_byte *dest_start = (stc_byte*)destination;
 	stc_byte *dest_end = dest_start + size;
@@ -343,7 +216,7 @@ void stc_memset(void * restrict destination, u64 value, u64 size)
 
 
 
-void stc_memmove(void *destination, const void *src, u64 size)
+static void stc_memmove(void *destination, const void *src, u64 size)
 {
 	stc_byte *dest_start = (stc_byte*)destination;
 	const stc_byte *src_start = (const stc_byte*)src;
@@ -366,24 +239,24 @@ void stc_memmove(void *destination, const void *src, u64 size)
 }
 
 
-void stc_arena_string8_start(struct stc_arena_string8 *a)
+static void stc_arena_string8_start(struct stc_arena_string8 *a)
 {
 	a->checkpoint = a->offset_mem;
 }
 
 
-void stc_arena_string8_end(struct stc_arena_string8 *a)
+static void stc_arena_string8_end(struct stc_arena_string8 *a)
 {
 	a->offset_mem = a->checkpoint;
 }
 
-void stc_arena_string8_reset(struct stc_arena_string8 *a)
+static void stc_arena_string8_reset(struct stc_arena_string8 *a)
 {
 	a->offset_mem = 0;
 }
 
 
-struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a, struct stc_string8 * restrict s, stc_byte delim)
+static struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a, struct stc_string8 * restrict s, stc_byte delim)
 {
 	struct stc_string8_split pl = {0};
 
@@ -413,7 +286,7 @@ struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a
 }
 
 
-u64 stc_len_c_string(stc_byte *c_string)
+static u64 stc_len_c_string(stc_byte *c_string)
 {
 	u64 len = 0;
 	if (c_string == NULL)
@@ -604,7 +477,7 @@ thisfile f64 stc_string8_to_float(struct stc_string8 *string)
 	return is_negative ? -pl : pl;
 }
 
-bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b)
+static inline bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b)
 {
 	if (a.len != b.len)
 		return false;
@@ -620,7 +493,7 @@ bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b)
 
 
 
-struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init)
+static struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init)
 {
 	struct stc_arena_string8 pl = {0};
 	u64 commit_size =  STC_ALIGN_UP((sizeof(struct stc_string8) * string_count_to_init), PAGESIZE);
@@ -641,7 +514,7 @@ struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init)
 	return pl;
 }
 
-struct stc_string8 *stc_arena_string8_push(struct stc_arena_string8 *a, u64 count)
+static struct stc_string8 *stc_arena_string8_push(struct stc_arena_string8 *a, u64 count)
 {
 	stc_byte *current_ptr = a->mem + a->offset_mem;
 	u64 next_offset = a->offset_mem + (sizeof(struct stc_string8) * count);
@@ -657,7 +530,7 @@ struct stc_string8 *stc_arena_string8_push(struct stc_arena_string8 *a, u64 coun
 }
 
 
-void stc_string8_to_upper(struct stc_string8 *s)
+static void stc_string8_to_upper(struct stc_string8 *s)
 {
 	for (u64 i = 0; i < s->len; ++i) {
 		if (stc_is_alpha_lower(s->str[i])) {
@@ -666,7 +539,7 @@ void stc_string8_to_upper(struct stc_string8 *s)
 	}
 }
 
-inline void stc_c_string_reverse (stc_byte *s, u64 len)
+static inline void stc_c_string_reverse (stc_byte *s, u64 len)
 {
 	--len;
 	stc_byte *end = s + len;
@@ -732,7 +605,7 @@ thisfile inline u64 stc_ftoa(f64 n, stc_byte *s)
 }
 
 
-u64 stc_itoa(i64 n, stc_byte *s)
+static u64 stc_itoa(i64 n, stc_byte *s)
 {
 	stc_byte *start = s;
 	i64 sign;
@@ -755,7 +628,7 @@ u64 stc_itoa(i64 n, stc_byte *s)
 	return s - start;
 }
 
-u64 stc_utobin(u64 n, stc_byte *s)
+static u64 stc_utobin(u64 n, stc_byte *s)
 {
 	stc_byte *start = s;
 	bool started = false;
@@ -778,7 +651,7 @@ u64 stc_utobin(u64 n, stc_byte *s)
 	return (u64)(s - start);
 }
 
-u64 stc_utoa(u64 n, stc_byte *s)
+static u64 stc_utoa(u64 n, stc_byte *s)
 {
 	stc_byte *start = s;
 
@@ -795,7 +668,7 @@ u64 stc_utoa(u64 n, stc_byte *s)
 
 
 
-struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init)
+static struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init)
 {
 	struct stc_strbldr pl = {0};
 
@@ -815,7 +688,7 @@ struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init)
 }
 
 
-void check_alloc(struct stc_strbldr *b, u64 new_size)
+static void check_alloc(struct stc_strbldr *b, u64 new_size)
 {
 	if (new_size > b->cmt) {
 		u64 delta_aligned = STC_ALIGN_UP(new_size - b->cmt, PAGESIZE);
@@ -828,7 +701,7 @@ void check_alloc(struct stc_strbldr *b, u64 new_size)
 }
 
 
-void stc_strbldr_append(struct stc_strbldr *b, stc_byte *s, ...)
+static void stc_strbldr_append(struct stc_strbldr *b, const stc_byte *s, ...)
 {
 	va_list args;
 	va_start(args, s);
@@ -836,7 +709,7 @@ void stc_strbldr_append(struct stc_strbldr *b, stc_byte *s, ...)
 	va_end(args);
 }
 
-void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end)
+static void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end)
 {
 	if ((end < start && end != -1) || (start < 0))
 		return;
@@ -845,11 +718,11 @@ void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end)
 	if (end == -1) {
 		end = b->off;
 	}
-	int len = end - start;
-	stc_println("{string}", (struct stc_string8){(stc_byte *)ptr_s, len});
+	u64 len = end - start;
+	stc_println("{string}", STC_STRUCT_LIT(stc_string8, (stc_byte *)ptr_s, len));
 }
 
-void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args)
+static void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args)
 {
 	u32 len = stc_string8_len((stc_byte*)s);
 	u64 new_size = b->off + len;
@@ -857,10 +730,6 @@ void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restric
 	enum strbldr_types current_type = SB_T_NIL;
 
 
-	const struct stc_string8 stack_cur_baseoff_txt = STR8LIT("[Stack base offset: ");
-	const struct stc_string8 stack_cur_mem_rsrv = STR8LIT("Stack reserved memory: ");
-	const struct stc_string8 stack_cur_mem_cmt = STR8LIT("Stack comitted memory: ");
-	const struct stc_string8 stack_cur_base_pointer = STR8LIT("Stack base pointer address: ");
 	const stc_byte *start = s;
 	const stc_byte *end = s + len;
 	const stc_byte *cur_cstr = NULL;
@@ -872,6 +741,7 @@ void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restric
 	double cur_float = 0.;
 	stc_byte buff_digits[512] = {0};
 	u64 len_buff_digits = 0;
+	u64 rem = 0;
 
 	check_alloc(b, new_size);
 
@@ -885,7 +755,7 @@ loop:
 		goto loop;
 	}
 	++start;
-	u64 rem = (u64)(end - start);
+	rem = (u64)(end - start);
 
 #define X(_id, _type, _label)                                                   \
     if (rem >= strbldr_types_lit[_id].len &&                                    \
@@ -1145,3 +1015,87 @@ fin:
 	return;
 }
 
+static void stc_print_init(void)
+{
+	_strbldr_print = stc_strbldr_emit(MEGABYTE(64), PAGESIZE);
+}
+
+static void stc_print_os_stderr(void)
+{
+#ifdef _WIN32
+	HANDLE stc_stderr = GetStdHandle(STD_ERROR_HANDLE);
+	DWORD written = 0;
+	WriteFile(stc_stderr, _strbldr_print.ptr, (DWORD)_strbldr_print.off, &written, NULL);
+#else
+	write(2, _strbldr_print.ptr, _strbldr_print.off);
+#endif
+
+	_strbldr_print.off = 0;
+}
+
+static void stc_print_os_stdout(void)
+{
+#ifdef _WIN32
+	HANDLE stc_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	DWORD written = 0;
+	WriteFile(stc_stdout, _strbldr_print.ptr, (DWORD)_strbldr_print.off, &written, NULL);
+#else
+	write(1, _strbldr_print.ptr, _strbldr_print.off);
+#endif
+	_strbldr_print.off = 0;
+}
+
+static void stc_print_err(const char *fmt, ...)
+{
+	if (unlikely(_strbldr_print.rsrv == 0)) {
+		stc_print_init();
+	}
+
+	va_list vargs;
+	va_start(vargs, fmt);
+	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);
+	va_end(vargs);
+	stc_print_os_stderr();
+}
+
+static void stc_println_err(const char *fmt, ...)
+{
+	if (unlikely(_strbldr_print.rsrv == 0)) {
+		stc_print_init();
+	}
+
+	va_list vargs;
+	va_start(vargs, fmt);
+	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);
+	va_end(vargs);
+	stc_strbldr_append(&_strbldr_print, "\n");
+	stc_print_os_stderr();
+}
+
+static void stc_print(const char *fmt, ...)
+{
+	if (unlikely(_strbldr_print.rsrv == 0)) {
+		stc_print_init();
+	}
+
+	va_list vargs;
+	va_start(vargs, fmt);
+	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);
+	va_end(vargs);
+	stc_print_os_stdout();
+}
+
+static void stc_println(const char *fmt, ...)
+{
+	if (unlikely(_strbldr_print.rsrv == 0)) {
+		stc_print_init();
+	}
+
+	va_list va_args;
+	va_start(va_args, fmt);
+	stc_strbldr_add_v(&_strbldr_print, fmt, va_args);
+	va_end(va_args);
+
+	stc_strbldr_append(&_strbldr_print, "\n");
+	stc_print_os_stdout();
+}

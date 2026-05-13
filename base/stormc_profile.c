@@ -4,13 +4,13 @@
 
 #define STC_PERF_FLAG(id) (0ull)
 
-void stc_perf_init(void) {}
-void stc_perf_start(void) {}
-void stc_perf_end(void) {}
-void stc_perf_add_all(void) {}
-void stc_perf_close(void) {}
-void stc_perf_add_flags(u64 flags) { (void)flags; }
-void stc_perf_print(u64 flags)
+static void stc_perf_init(void) {}
+static void stc_perf_start(void) {}
+static void stc_perf_end(void) {}
+static void stc_perf_add_all(void) {}
+static void stc_perf_close(void) {}
+static void stc_perf_add_flags(u64 flags) { (void)flags; }
+static void stc_perf_print(u64 flags)
 {
 	(void)flags;
 	stc_println_err("stormc perf counters are unsupported on windows");
@@ -24,6 +24,7 @@ void stc_perf_print(u64 flags)
 #include <unistd.h>
 #include <stdint.h>
 
+extern long syscall(long number, ...);
 
 enum stc_perf_type {
 	STC_PERF_CPU_CYCLES,
@@ -47,23 +48,23 @@ enum stc_perf_type {
 };
 
 static const char *stc_perf_table_literal[] = {
-	[STC_PERF_CPU_CYCLES] = "cpu cycles",
-	[STC_PERF_INSTRUCTIONS] = "instructions",
-	[STC_PERF_CACHE_REFS] = "cache refs",
-	[STC_PERF_CACHE_MISSES] = "cache misses",
-	[STC_PERF_BRANCH_INSTRUCTIONS] = "branch instructions",
-	[STC_PERF_BRANCH_MISSES] = "branch misses",
-	[STC_PERF_BUS_CYCLES] = "bus cycles",
-	[STC_PERF_REF_CPU_CYCLES] = "ref cpu cycles",
-	[STC_PERF_CYCLES_FRONTEND] = "cycles frontend",
-	[STC_PERF_CYCLES_BACKEND] = "cycles backend",
-	[STC_PERF_CPU_CLOCK] = "cpu clock",
-	[STC_PERF_TASK_CLOCK] = "task clock",
-	[STC_PERF_PAGE_FAULTS] = "page faults",
-	[STC_PERF_CONTEXT_SWITCHES] = "context switches",
-	[STC_PERF_CPU_MIGRATIONS] = "cpu migrations",
-	[STC_PERF_PAGE_FAULTS_MIN] = "page faults min",
-	[STC_PERF_PAGE_FAULTS_MAJ] = "page faults maj",
+	"cpu cycles",
+	"instructions",
+	"cache refs",
+	"cache misses",
+	"branch instructions",
+	"branch misses",
+	"bus cycles",
+	"ref cpu cycles",
+	"cycles frontend",
+	"cycles backend",
+	"cpu clock",
+	"task clock",
+	"page faults",
+	"context switches",
+	"cpu migrations",
+	"page faults min",
+	"page faults maj",
 };
 
 struct stc_perf_counters {
@@ -79,23 +80,23 @@ struct stc_perf_event_desc {
 };
 
 static const struct stc_perf_event_desc stc_perf_linux_events[STC_PERF_COUNT] = {
-	[STC_PERF_CPU_CYCLES] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES},
-	[STC_PERF_INSTRUCTIONS] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
-	[STC_PERF_CACHE_REFS] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
-	[STC_PERF_CACHE_MISSES] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
-	[STC_PERF_BRANCH_INSTRUCTIONS] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
-	[STC_PERF_BRANCH_MISSES] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
-	[STC_PERF_BUS_CYCLES] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
-	[STC_PERF_REF_CPU_CYCLES] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU_CYCLES},
-	[STC_PERF_CYCLES_FRONTEND] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_STALLED_CYCLES_FRONTEND},
-	[STC_PERF_CYCLES_BACKEND] = {PERF_TYPE_HARDWARE, PERF_COUNT_HW_STALLED_CYCLES_BACKEND},
-	[STC_PERF_CPU_CLOCK] = {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK},
-	[STC_PERF_TASK_CLOCK] = {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK},
-	[STC_PERF_PAGE_FAULTS] = {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
-	[STC_PERF_CONTEXT_SWITCHES] = {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES},
-	[STC_PERF_CPU_MIGRATIONS] = {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_MIGRATIONS},
-	[STC_PERF_PAGE_FAULTS_MIN] = {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MIN},
-	[STC_PERF_PAGE_FAULTS_MAJ] = {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MAJ},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU_CYCLES},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_STALLED_CYCLES_FRONTEND},
+	{PERF_TYPE_HARDWARE, PERF_COUNT_HW_STALLED_CYCLES_BACKEND},
+	{PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK},
+	{PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK},
+	{PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
+	{PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES},
+	{PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_MIGRATIONS},
+	{PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MIN},
+	{PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MAJ},
 };
 
 
@@ -110,7 +111,7 @@ perf_event_open(struct perf_event_attr *attr, pid_t pid, int cpu, int group_fd, 
 static struct stc_perf_counters stc_perf = {};
 
 
-void stc_perf_init(void)
+static void stc_perf_init(void)
 {
 	stc_perf.group_fd = -1;
 	for (u64 i = 0; i < STC_PERF_COUNT; ++i) {
@@ -119,7 +120,7 @@ void stc_perf_init(void)
 	}
 }
 
-void stc_perf_start(void)
+static void stc_perf_start(void)
 {
 	if (stc_perf.group_fd == -1) return;
 
@@ -129,7 +130,7 @@ void stc_perf_start(void)
 }
 
 
-void stc_perf_end(void)
+static void stc_perf_end(void)
 {
 	if (stc_perf.group_fd == -1) return;
 
@@ -142,7 +143,7 @@ void stc_perf_end(void)
 }
 
 
-void stc_perf_add(enum stc_perf_type id)
+static void stc_perf_add(enum stc_perf_type id)
 {
 	if (id >= STC_PERF_COUNT) return;
 	if (stc_perf.fds[id] != -1) return;
@@ -170,15 +171,15 @@ void stc_perf_add(enum stc_perf_type id)
 }
 
 
-void stc_perf_add_all(void)
+static void stc_perf_add_all(void)
 {
 	for (u64 i = 0; i < STC_PERF_COUNT; ++i) {
-		stc_perf_add(i);
+		stc_perf_add((enum stc_perf_type)i);
 	}
 }
 
 
-void stc_perf_close(void)
+static void stc_perf_close(void)
 {
 	for (int i = 0; i < STC_PERF_COUNT; ++i) {
 		if (stc_perf.fds[i] != -1) {
@@ -191,14 +192,14 @@ void stc_perf_close(void)
 	stc_perf.ct_fds = 0;
 }
 
-void stc_perf_print_counter(const char *label, u64 value)
+static void stc_perf_print_counter(const char *label, u64 value)
 {
 	stc_println("  {cstring}{cstring}{cstring}: {u64}",
 		    STC_ANSI_CYAN, label, STC_ANSI_RESET, value);
 }
 
 
-void stc_perf_print(u64 flags)
+static void stc_perf_print(u64 flags)
 {
 #define HAS(id) (flags & STC_PERF_FLAG(id))
 
@@ -361,7 +362,7 @@ void stc_perf_print(u64 flags)
 }
 
 
-void stc_perf_add_flags(u64 flags)
+static void stc_perf_add_flags(u64 flags)
 {
 	for (u64 i = 0; i < STC_PERF_COUNT; ++i) {
 		if (flags & STC_PERF_FLAG(i)) {
@@ -371,3 +372,88 @@ void stc_perf_add_flags(u64 flags)
 }
 
 #endif
+
+
+
+#ifdef _WIN32
+
+#include <intrin.h>
+#include <windows.h>
+
+static u64 get_os_timer_freq(void)
+{
+	LARGE_INTEGER Freq;
+	QueryPerformanceFrequency(&Freq);
+	return Freq.QuadPart;
+}
+
+static u64 read_os_timer(void)
+{
+	LARGE_INTEGER Value;
+	QueryPerformanceCounter(&Value);
+	return Value.QuadPart;
+}
+
+#else
+
+#include <x86intrin.h>
+#include <time.h>
+
+
+static u64 get_os_timer_freq(void)
+{
+	return 1000000000llu;
+}
+
+static u64 read_os_timer(void)
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	return get_os_timer_freq() * (u64)ts.tv_sec + (u64)ts.tv_nsec;
+}
+
+#endif
+
+static inline u64 read_cpu_timer(void)
+{
+	return __rdtsc();
+}
+
+
+struct stc_perf_wclock {
+	u64	os_freq;
+	u64	os_start;
+	u64	cpu_start;
+	u64	cpu_end;
+	u64	os_end;
+};
+
+static void stc_perf_wclock_start(struct stc_perf_wclock *w)
+{
+	w->os_freq = get_os_timer_freq();
+	u64 wait = read_os_timer();
+	while ((read_os_timer() - wait) < w->os_freq);
+
+
+	w->os_start = read_os_timer();
+	w->cpu_start = read_cpu_timer();
+}
+
+
+static void stc_perf_wclock_end(struct stc_perf_wclock *w)
+{
+	w->cpu_end = read_cpu_timer();
+	w->os_end = read_os_timer();
+}
+
+static f64 stc_perf_wclock_report_ms(struct stc_perf_wclock *w)
+{
+	u64 os_elapsed = w->os_end - w->os_start;
+	return ((f64)os_elapsed / (f64)w->os_freq) * 1000.f;
+}
+
+static u64 stc_perf_wclock_report_cpu_cycles(struct stc_perf_wclock *w)
+{
+	return w->cpu_end - w->cpu_start;
+}

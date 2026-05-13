@@ -18,6 +18,8 @@
 #include <limits.h>
 
 
+#define STAG_ARG_REST '\1'
+
 #define STORMC_ERROR_FMT(_err_msg, _err_str) fprintf(stderr, _err_msg, (int)_err_str.len, _err_str.str)
 #define STORMC_ERROR(_err_msg) fprintf(stderr, _err_msg)
 
@@ -25,7 +27,7 @@
 	ENTRY(CTAGS,			"--ctags",		"-ct",		"run ctags",				"", true, ' ')\
 	ENTRY(INIT,  			"init",    		"-i",  		"init project",				"", false, 0)\
 	ENTRY(RUN,   			"run",     		"-r",  		"run build script",			"", false, 0)\
-	ENTRY(BUILD, 			"build",   		"-b",  		"build target",				"", true, ' ')\
+	ENTRY(BUILD, 			"build",   		"-b",  		"build target",				"", true, STAG_ARG_REST)\
 	ENTRY(EMBED, 			"embed",   		"-e",  		"embed file into c source",		"", true, ' ')\
 	ENTRY(ASM,   			"asm",     		"-asm",		"dump asm",				"", true, ' ')\
 	ENTRY(UF,    			"uf",      		"-uf", 		"disassemble function with gdb",	"", true, ' ')\

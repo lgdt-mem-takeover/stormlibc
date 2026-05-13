@@ -1,15 +1,6 @@
 #include "stormc_base.h"
 #include "stormc_error_table.h"
 
-thisfile enum stc_err_code		stc_io_read(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
-thisfile enum stc_err_code 		stc_io_write(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
-thisfile enum stc_err_code 		stc_io_open_r(const char *path, struct stc_file *out);
-thisfile enum stc_err_code 		stc_io_open_rw(const char *path, struct stc_file *out);
-thisfile enum stc_err_code 		stc_io_open_w(const char *path, struct stc_file *out);
-thisfile enum stc_err_code 		stc_io_open_w_new(const char *path, struct stc_file *out);
-thisfile enum stc_err_code 		stc_io_open_w_append(const char *path, struct stc_file *out);
-thisfile enum stc_err_code  		stc_io_get_file_size(const char *path, u64 *size_out);
-thisfile enum stc_err_code		stc_io_file_to_string8(struct stc_file *f, struct stc_string8 *out, u64 *size_out);
 
 
 #ifdef _WIN32
@@ -37,7 +28,7 @@ thisfile inline i64 stc_write(struct stc_file *f, void *ptr, u64 size)
 	return (i64)bytes_written;
 }
 
-enum stc_err_code stc_io_get_file_size(const char *path, u64 *size_out)
+static enum stc_err_code stc_io_get_file_size(const char *path, u64 *size_out)
 {
 	if (size_out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
@@ -58,13 +49,13 @@ enum stc_err_code stc_io_get_file_size(const char *path, u64 *size_out)
 	return STC_ERR_OK;
 }
 
-enum stc_err_code stc_io_open_r(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_r(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL,
 			       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (out->fd.fd == INVALID_HANDLE_VALUE) {
@@ -74,13 +65,13 @@ enum stc_err_code stc_io_open_r(const char *path, struct stc_file *out)
 	return stc_io_get_file_size(path, &out->file_size);
 }
 
-enum stc_err_code stc_io_open_rw(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_rw(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL,
 			       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (out->fd.fd == INVALID_HANDLE_VALUE) {
@@ -90,13 +81,13 @@ enum stc_err_code stc_io_open_rw(const char *path, struct stc_file *out)
 	return stc_io_get_file_size(path, &out->file_size);
 }
 
-enum stc_err_code stc_io_open_w(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_w(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = CreateFileA(path, GENERIC_WRITE, 0, NULL,
 			       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (out->fd.fd == INVALID_HANDLE_VALUE) {
@@ -106,13 +97,13 @@ enum stc_err_code stc_io_open_w(const char *path, struct stc_file *out)
 	return stc_io_get_file_size(path, &out->file_size);
 }
 
-enum stc_err_code stc_io_open_w_new(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_w_new(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = CreateFileA(path, GENERIC_WRITE, 0, NULL,
 			       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (out->fd.fd == INVALID_HANDLE_VALUE) {
@@ -123,13 +114,13 @@ enum stc_err_code stc_io_open_w_new(const char *path, struct stc_file *out)
 	return STC_ERR_OK;
 }
 
-enum stc_err_code stc_io_open_w_append(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_w_append(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = CreateFileA(path, FILE_APPEND_DATA, FILE_SHARE_READ, NULL,
 			       OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (out->fd.fd == INVALID_HANDLE_VALUE) {
@@ -175,13 +166,13 @@ thisfile inline enum stc_err_code stc_io_get_file_size(const char *path, u64 *si
 	return STC_ERR_OK;
 }
 
-enum stc_err_code stc_io_open_r(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_r(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = open(path, O_RDONLY);
 	if (out->fd.fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
@@ -190,13 +181,13 @@ enum stc_err_code stc_io_open_r(const char *path, struct stc_file *out)
 	return stc_io_get_file_size(path, &out->file_size);
 }
 
-enum stc_err_code stc_io_open_rw(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_rw(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = open(path, O_RDWR, 0644);
 	if (out->fd.fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
@@ -205,13 +196,13 @@ enum stc_err_code stc_io_open_rw(const char *path, struct stc_file *out)
 	return stc_io_get_file_size(path, &out->file_size);
 }
 
-enum stc_err_code stc_io_open_w(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_w(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = open(path, O_WRONLY);
 	if (out->fd.fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
@@ -220,13 +211,13 @@ enum stc_err_code stc_io_open_w(const char *path, struct stc_file *out)
 	return stc_io_get_file_size(path, &out->file_size);
 }
 
-enum stc_err_code stc_io_open_w_new(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_w_new(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (out->fd.fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
@@ -236,13 +227,13 @@ enum stc_err_code stc_io_open_w_new(const char *path, struct stc_file *out)
 	return STC_ERR_OK;
 }
 
-enum stc_err_code stc_io_open_w_append(const char *path, struct stc_file *out)
+static enum stc_err_code stc_io_open_w_append(const char *path, struct stc_file *out)
 {
 	if (out == NULL) {
 		return STC_ERR_INVALID_ARGUMENT;
 	}
 
-	*out = (struct stc_file){0};
+	*out = STC_STRUCT_ZERO(stc_file);
 	out->fd.fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
 	if (out->fd.fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
@@ -300,10 +291,6 @@ thisfile inline enum stc_err_code stc_io_write(struct stc_file *f, stc_byte *buf
 	}
 	return STC_ERR_OK;
 }
-
-
-
-
 thisfile inline enum stc_err_code stc_io_close(struct stc_file *f)
 {
 	if (f == NULL) {

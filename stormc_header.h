@@ -9,7 +9,13 @@
 #define MAX_UINT64 ((u64)-1)
 #define MAX_U(type) ((type)-1)
 
-#define FONT_PATH_DEJAVU_SANS "assets/ttf/DejaVuSans.ttf"
+#ifndef STORMC_ROOT
+	#define STORMC_ROOT "."
+#endif
+
+#ifndef FONT_PATH_DEJAVU_SANS
+	#define FONT_PATH_DEJAVU_SANS STORMC_ROOT "/assets/ttf/DejaVuSans.ttf"
+#endif
 
 #ifndef INF
 #define INF __builtin_inf()
@@ -32,7 +38,9 @@
 
     	#include <windows.h>
 #else
-#define _XOPEN_SOURCE 600
+	#ifndef _XOPEN_SOURCE
+		#define _XOPEN_SOURCE 600
+	#endif
 #endif
 
 #include <assert.h>
@@ -63,6 +71,10 @@
 
 
 
+#ifdef STORMC_GFX
+	#define STORMC_SDL3
+#endif
+
 #ifdef STORMC_SDL3
 	#include <SDL3/SDL.h>
 	#include <SDL3_image/SDL_image.h>
@@ -75,32 +87,99 @@
 #endif
 
 #define STC_ARRCOUNT(x) (sizeof(x) / sizeof(*(x)))
+#ifdef __cplusplus
+#define STC_STATIC_ASSERT static_assert
+#else
+#define STC_STATIC_ASSERT _Static_assert
+#endif
 #ifdef STORMC_WEBGPU
 	#include "webgpu/wgpu.h"
 #endif
 
 
-#include "base/stormc_base.h"
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdint.h>
+typedef  uint8_t		u8;
+typedef  uint16_t  		u16;
+typedef  uint32_t  		u32;
+typedef  uint64_t  		u64;
 
-static const u32 SIGNF32 = 0x80000000;
-static const u32 EXPONENTF32 = 0x7F800000;
-static const u32 MANTISSAF32 = 0x7FFFFF;
+typedef  int8_t    		i8;
+typedef  int16_t   		i16;
+typedef  int32_t   		i32;
+typedef  int64_t   		i64;
+typedef  double			f64;
+typedef  float			f32;
 
-#define defer_loop(start, end) for(int _i_ = ((start), 0); _i_ == 0; (_i_ += 1, (end)))
-
-#define SELECT(cond, when_true, when_false) ((when_true) * (cond) | (when_false) * !(cond))
-#define STRING8_NULL (struct stc_string8){.str = NULL, .len = 0}
+#include "base/stormc_base.h"
 
 
+#ifdef STC_SIMD
+#include "stc_simd_codegen.h"
+#endif
 
+
+
+#ifndef bool16
+	typedef u16 bool16;
+#endif
+#ifndef bool32
+	typedef u32 bool32;
+#endif
+#ifndef bool64
+	typedef u64 bool64;
+#endif
+
+typedef u8	uflags_8;
+typedef u16	uflags_16;
+typedef u32 	uflags_32;
+typedef u64 	uflags_64;
+
+typedef i8	iflags_8;
+typedef i16	iflags_16;
+typedef i32 	iflags_32;
+typedef i64 	iflags_64;
+
+struct mat4 {
+	f32 v[16];
+};
+
+struct rect{
+	f32 x, y, w, h;
+};
+
+struct vec2 {
+	f32 x, y;
+};
+
+struct vec2i {
+	i32 x, y;
+};
+
+struct vec2u {
+	i32 x, y;
+};
+
+struct vec2lu {
+	i32 x, y;
+};
+
+struct vec3 {
+	f32 x, y, z;
+};
+
+struct vec3i {
+	i32 x, y, z;
+};
+
+struct stc_stack;
 
 struct stc_string8 {
 	stc_byte *str;
 	u64 len;
 };
-
 
 struct stc_string16{
 	u64 len;
@@ -128,6 +207,249 @@ struct stc_arena_string8{
 	u64			mem_rsrvd;
 };
 
+struct stc_strbldr{
+	stc_byte	*ptr;
+	u64		off;
+	u64		cmt;
+	u64		rsrv;
+};
+
+#ifdef __cplusplus
+	#define STC_STRUCT_ZERO(name) name{}
+	#define STC_STRUCT_LIT(name, ...) name{__VA_ARGS__}
+#else
+	#define STC_STRUCT_ZERO(name) (struct name){0}
+	#define STC_STRUCT_LIT(name, ...) (struct name){__VA_ARGS__}
+#endif
+
+
+static void			stc_alloc_logged(struct stc_stack  *stack, u64 size, const stc_byte* file, int line);
+static struct stc_stack		*stc_stack_gen(u64 rsrv);
+static void			*stc_os_mem_rsrv(u64 size);
+static void			*stc_os_mem_cmt(void *addrs, u64 size);
+static void			*_stc_stack_push(struct stc_stack *stack, u64 alignment, u64 alloc_size);
+static enum stc_err_code	stc_stack_pop(struct stc_stack *stack, u64 size);
+static enum stc_err_code	stc_stack_start(struct stc_stack *s);
+static enum stc_err_code	stc_stack_end(struct stc_stack *s);
+static enum stc_err_code	stc_stack_free(struct stc_stack *stack, void* mem_addrs, u64 len);
+static void			*stc_os_alloc_default(u64 size);
+static enum stc_err_code	stc_os_mem_free(void *mem, u64 size);
+
+
+
+
+
+#define stc_rsrv(size)\
+	stc_os_mem_rsrv(size)
+
+#define stc_commit(addrs, size)\
+	stc_os_mem_cmt(addrs, size)
+
+#define stc_alloc(size)\
+	stc_os_alloc_default(size)
+
+#define stc_free(ptr, size)\
+	stc_os_mem_free(ptr, size);
+
+
+
+#define STACK_HEADER_SIZE sizeof(struct stc_stack)
+
+#define stc_stack_start(stack)\
+	stack->checkpoint_offset = stack->base_offset
+
+#define stc_stack_end(stack)\
+	stack->base_offset = stack->checkpoint_offset
+
+#define stc_stack_push(__stack, __type, __count)\
+	_stc_stack_push((__stack), ALIGNOF(__type), (sizeof(__type) * (__count)))
+
+#define stc_stack_push_simd(__stack, __type, __count) \
+	_stc_stack_push((__stack), STC_SIMD_ALIGN, sizeof(__type) * (__count))
+
+static const u32 SIGNF32 = 0x80000000;
+static const u32 EXPONENTF32 = 0x7F800000;
+static const u32 MANTISSAF32 = 0x7FFFFF;
+
+/*@FUNCS_MATH SIGNATURES*/
+static f32 stc_min_f32(f32 a, f32 b);
+static f32 stc_max_f32(f32 a, f32 b);
+static f32 stc_clamp_f32(f32 x, f32 min, f32 max);
+static f32 stc_lerp_f32(f32 a, f32 b, f32 t);
+static f32 stc_inv_lerp_f32(f32 a, f32 b, f32 v);
+static f32 stc_remap_f32(f32 in_min, f32 in_max, f32 out_min, f32 out_max, f32 v);
+static f32 stc_abs_f32(f32 x);
+static f32 stc_sign_f32(f32 x);
+static f32 stc_sqrt_f32(f32 x);
+static f32 stc_rsqrt_f32(f32 x);
+static f32 stc_floor_f32(f32 x);
+static f32 stc_ceil_f32(f32 x);
+static f32 stc_round_f32(f32 x);
+static f32 stc_mod_f32(f32 x, f32 y);
+static f32 stc_fract_f32(f32 x);
+static f32 stc_sin(f32 x);
+static f32 stc_cos(f32 x);
+static f32 stc_tan(f32 x);
+static f32 stc_asin(f32 x);
+static f32 stc_acos(f32 x);
+static f32 stc_atan(f32 x);
+static f32 stc_atan2(f32 y, f32 x);
+static f32 stc_pow(f32 base, f32 exp);
+static f32 stc_exp(f32 x);
+static f32 stc_log(f32 x);
+static f32 stc_log2(f32 x);
+static f32 stc_log10(f32 x);
+static struct vec2 stc_vec2(f32 x, f32 y);
+static struct vec2 stc_add2(struct vec2 a, struct vec2 b);
+static struct vec2 stc_sub2(struct vec2 a, struct vec2 b);
+static struct vec2 stc_mul2(struct vec2 a, struct vec2 b);
+static struct vec2 stc_scale2(struct vec2 v, f32 s);
+static f32  stc_dot2(struct vec2 a, struct vec2 b);
+static f32  stc_len2(struct vec2 v);
+static f32  stc_len2_sq(struct vec2 v);
+static struct vec2 stc_norm2(struct vec2 v);
+static struct vec2 stc_lerp2(struct vec2 a, struct vec2 b, f32 t);
+static struct vec3 stc_vec3(f32 x, f32 y, f32 z);
+static struct vec3 stc_add3(struct vec3 a, struct vec3 b);
+static struct vec3 stc_sub3(struct vec3 a, struct vec3 b);
+static struct vec3 stc_mul3(struct vec3 a, struct vec3 b);
+static struct vec3 stc_scale3(struct vec3 v, f32 s);
+static f32  stc_dot3(struct vec3 a, struct vec3 b);
+static struct vec3 stc_cross3(struct vec3 a, struct vec3 b);
+static f32  stc_len3(struct vec3 v);
+static struct vec3 stc_norm3(struct vec3 v);
+static struct vec3 stc_lerp3(struct vec3 a, struct vec3 b, f32 t);
+static struct vec4 stc_add4(struct vec4 a, struct vec4 b);
+static struct vec4 stc_scale4(struct vec4 v, f32 s);
+static struct vec4 stc_lerp4(struct vec4 a, struct vec4 b, f32 t);
+
+static struct mat4 stc_mat4_identity(void);
+static struct mat4 stc_mat4_mul(struct mat4 a, struct mat4 b);
+static struct mat4 stc_mat4_translate(struct vec3 t);
+static struct mat4 stc_mat4_scale(struct vec3 s);
+static struct mat4 stc_mat4_rotate_z(f32 angle);
+static struct mat4 stc_mat4_ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f);
+static f32 stc_smoothstep(f32 edge0, f32 edge1, f32 x);
+static f32 stc_step(f32 edge, f32 x);
+static f32 stc_deg_to_rad(f32 deg);
+static f32 stc_rad_to_deg(f32 rad);
+
+static inline bool f32_is_nan(f32 f)
+{
+	union {u32 u; f32 f;} x;
+	x.f = f;
+	return ((x.u & EXPONENTF32) == EXPONENTF32) && ((x.u & MANTISSAF32) != 0);
+}
+
+static inline bool is_prime(u64 n)
+{
+	if (n < 2) return false;
+	if ((n & 1) == 0) return n == 2;
+	for (u64 i = 3; i * i <= n; i += 2) {
+		if (n % i == 0) return false;
+	}
+	return true;
+}
+
+static inline u64 next_prime(u64 n)
+{
+	if (n <= 2) return 2;
+	if ((n & 1) == 0) n++;
+	while (!is_prime(n)) n += 2;
+	return n;
+}
+
+static inline bool is_pow2(u64 n)
+{
+	return (n != 0) && (n & (n - 1)) == 0;
+}
+
+static inline u64 next_pow2(u64 n)
+{
+	n--;
+	n |= n >> 1;
+	n |= n >> 2;
+	n |= n >> 4;
+	n |= n >> 8;
+	n |= n >> 16;
+	n |= n >> 32;
+	n++;
+	return n;
+}
+
+static inline f32 minf(f32 a, f32 b)
+{
+	return (a < b) ? a : b;
+}
+
+static inline f32 maxf(f32 a, f32 b)
+{
+	return (a > b) ? a : b;
+}
+
+#define defer_loop(start, end) for(int _i_ = ((start), 0); _i_ == 0; (_i_ += 1, (end)))
+
+#define SELECT(cond, when_true, when_false) ((when_true) * (cond) | (when_false) * !(cond))
+#ifdef __cplusplus
+#define STRING8_NULL stc_string8{NULL, 0}
+#else
+#define STRING8_NULL (struct stc_string8){.str = NULL, .len = 0}
+#endif
+
+
+#define stc_string8_sized(s) ((int)((s).len)), ((s).str)
+#define stc_print_string(__string) printf("%.*s\n", (int)__string.len, __string.str)
+
+/* compatibility aliases */
+#define sstrcmpx  stc_string8_cmp
+#define sstrlenx  stc_len_c_string
+#define stc_c_string_len stc_len_c_string
+/*@func decls new*/
+thisfile inline bool stc_string8_cmp(const struct stc_string8 a, const struct stc_string8 b);
+thisfile inline bool stc_string8_cmp_simd(const struct stc_string8 a, const struct stc_string8 b);
+thisfile struct stc_string8 *stc_arena_string8_push(struct stc_arena_string8 *a, u64 count);
+thisfile struct stc_string8 stc_arena_string8_push_copy(struct stc_arena_string8 *a, struct stc_string8 s);
+thisfile void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacity, const struct stc_string8 * restrict b);
+thisfile void stc_memcpy(void * restrict destination, const void * restrict source, u64 size);
+thisfile void stc_memset(void * restrict destination, u64 value, u64 size);
+thisfile void stc_memmove(void *destination, const void *src, u64 size);
+thisfile int stc_memcmp(const void * restrict destination, const void * restrict src, u64 size);
+thisfile struct stc_string8_split stc_string8_split(struct stc_arena_string8 * restrict a, struct stc_string8 * restrict s, stc_byte delim);
+thisfile u64 stc_c_string_len(stc_byte *c_string);
+thisfile struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init);
+thisfile void stc_string8_to_upper(struct stc_string8 *s);
+thisfile void stc_c_string_reverse (stc_byte *s, u64 len);
+thisfile bool32 stc_c_string_cmp (const stc_byte * restrict a, const u64 alen, const stc_byte * restrict b, const u64 blen);
+thisfile u64 stc_itoa(i64 n, stc_byte *s);
+thisfile u64 stc_utoa(u64 n, stc_byte *s);
+thisfile struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init);
+thisfile void check_alloc(struct stc_strbldr *b, u64 new_size);
+thisfile void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args);
+thisfile void stc_strbldr_append(struct stc_strbldr *b, const stc_byte *s, ...);
+thisfile void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end);
+
+thisfile enum stc_err_code		stc_io_read(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
+thisfile enum stc_err_code 		stc_io_write(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
+thisfile enum stc_err_code 		stc_io_open_r(const char *path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_rw(const char *path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w(const char *path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w_new(const char *path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w_append(const char *path, struct stc_file *out);
+thisfile enum stc_err_code  		stc_io_get_file_size(const char *path, u64 *size_out);
+thisfile enum stc_err_code		stc_io_file_to_string8(struct stc_file *f, struct stc_string8 *out, u64 *size_out);
+thisfile void stc_print_init(void);
+thisfile void stc_print_os_stderr(void);
+thisfile void stc_print_os_stdout(void);
+thisfile void stc_print(const char *fmt, ...);
+thisfile void stc_println(const char *fmt, ...);
+thisfile void stc_print_err(const char *fmt, ...);
+thisfile void stc_println_err(const char *fmt, ...);
+
+thisfile u64 stc_diceroll(u64 count, u64 sides);
+thisfile u64 stc_random_xorshift(void);
+thisfile u64 stc_random(void);
+thisfile u64 stc_random_range(u64 min, u64 max);
+
 struct hash_params{
 	const void *data;
 	u64	len;
@@ -151,7 +473,7 @@ struct hash_params{
 #define ILT_UINT_MAX(width) ILT_CAT3(UINT, width, _MAX)
 
 #define STC_MAKE_ILT(width)                                                      \
-	_Static_assert(                                                              \
+	STC_STATIC_ASSERT(                                                           \
 		(width) == 16 || (width) == 32 || (width) == 64,                        \
 		"STC_MAKE_ILT(width): width must be one of 16, 32, 64"                  \
 	);                                                                           \
@@ -248,8 +570,25 @@ struct hash_params{
 STC_MAKE_ILT(64)
 
 
+struct free_list {
+	struct ilt64	ilt;
+	u64		*ptr;
+	u64		*size;
+	u64		used_count;
+};
 
-u32 stc_maxu32(u32 a, u32 b)
+//@STACK STC RUNTIME
+struct stc_stack {
+	struct free_list	free_list;
+	u64			mem_rsrv;
+	u64			mem_committed;
+	u64			base_offset;
+	u64			checkpoint_offset;
+	stc_byte		*base;
+};
+
+
+static inline u32 stc_maxu32(u32 a, u32 b)
 {
 	return (a > b) ? a : b;
 }
@@ -259,102 +598,20 @@ u32 stc_maxu32(u32 a, u32 b)
 #define DEFAULT_RESERVATION (1llu << 33)
 #endif
 
+#ifdef __cplusplus
+#define STR8LIT(s) stc_string8{(stc_byte*)s, sizeof(s) - 1}
+#define STR_RUNTIME(s) stc_string8{(stc_byte*)s, sstrlenx(s)}
+#else
 #define STR8LIT(s) (struct stc_string8){.str = (stc_byte*)s, .len = sizeof(s) - 1}
-#define STR(X) STR8LIT(X)
 #define STR_RUNTIME(s) (struct stc_string8){.str = (stc_byte*)s, .len = sstrlenx(s)}
+#endif
+#define STR(X) STR8LIT(X)
 
 
 #define STC_ALIGN_UP(x, align) (((x) + ((align)-1)) & ~((align)-1))
 #define STC_ALIGN_DOWN(x, align) ((x) & ~((align)-1))
 
 
-/*@CORE START*/
-#ifdef STORMC_ALLOCATOR
-#include "base/stormc_allocator.c"
-#endif
-
-static inline bool is_prime(u64 n);
-static inline u64 next_prime(u64 n);
-static inline bool is_pow2(u64 n);
-static inline u64 next_pow2(u64 n);
-static inline bool f32_is_nan(f32 n);
-static inline f32 minf(f32 a, f32 b);
-#ifdef STORMC_MATH
-#include "base/stormc_math.c"
-#endif
-
-#ifdef STORMC_IO
-#include "base/stormc_io.c"
-#endif
-
-#ifdef STORMC_THREADING
-#include <pthread.h>
-#include "base/stormc_threading.c"
-#endif
-
-#ifdef STORMC_ASYNC
-#include "base/stormc_async.c"
-#endif
-
-#ifdef STORMC_SOCKETS
-#include "base/stormc_sockets.c"
-#endif
-
-/*CORE END*/
-
-/*@TEXT START*/
-#ifdef STORMC_STRING
-#include "text/stormc_string.c"
-#endif
-/*@TEXT END*/
-
-
-
-/*@PROFILE START*/
-#ifdef STORMC_PROFILE
-#include "base/stormc_profile.c"
-#endif
-/*@PROFILE END*/
-
-/*@HASH START*/
-#ifdef STORMC_HASHFUNC
-#include "containers/stormc_hash.c"
-#endif
-#ifdef STORMC_HASHMAP
-#include "containers/stormc_hashmap.c"
-#endif
-/*@HASH END*/
-
-/*@STORMC_GFX START*/
-#ifdef STORMC_GFX
-#define STORMC_SDL3
-#include "stormc_gfx/stc_gfx.h"
-#endif
-/*@STORMC_GFX END*/
-
-thisfile u64 stc_diceroll(u64 count, u64 sides);
-thisfile u64 stc_random_xorshift(void);
-thisfile u64 stc_random(void);
-thisfile u64 stc_random_range(u64 min, u64 max);
-/*@STORMC RANDOM START*/
-#ifdef STORMC_RANDOM
-#include "base/stormc_random.c"
-#endif
-/*@STORMC RANDOM END*/
-
-
-/*@STORMC_SGL START*/
-#ifdef STORMC_SGL
-#include "base/stormc_sgl.c"
-#endif
-/*@STORMC SGL END*/
-
-
-/*@STORMC_STAG START*/
-#ifdef STORMC_STAG
-#include "utils/stormc_argument_parser.h"
-#endif
-/*@STORMC_STAG END*/
 
 
 #ifdef STORMC_ALGORITHMS
@@ -528,5 +785,143 @@ thisfile u64 stc_random_range(u64 min, u64 max);
 
 #endif
 
+/* Feature dependency normalization. Keep implementation includes ordered below. */
+#ifdef STORMC_STRING
+	#ifndef STORMC_ALLOCATOR
+		#define STORMC_ALLOCATOR
+	#endif
+#endif
+
+#ifdef STORMC_PROFILE
+	#ifndef STORMC_STRING
+		#define STORMC_STRING
+	#endif
+	#ifndef STORMC_ALLOCATOR
+		#define STORMC_ALLOCATOR
+	#endif
+#endif
+
+#ifdef STORMC_THREADING
+	#ifndef STORMC_ALLOCATOR
+		#define STORMC_ALLOCATOR
+	#endif
+	#ifndef STORMC_STRING
+		#define STORMC_STRING
+	#endif
+#endif
+
+#ifdef STORMC_SGL
+	#ifndef STORMC_ALLOCATOR
+		#define STORMC_ALLOCATOR
+	#endif
+	#ifndef STORMC_STRING
+		#define STORMC_STRING
+	#endif
+	#ifndef STORMC_MATH
+		#define STORMC_MATH
+	#endif
+	#ifndef STORMC_HASHFUNC
+		#define STORMC_HASHFUNC
+	#endif
+#endif
+
+#ifdef STORMC_GFX
+	#ifndef STORMC_ALLOCATOR
+		#define STORMC_ALLOCATOR
+	#endif
+#endif
+
+#ifdef STORMC_HASHMAP
+	#ifndef STORMC_ALLOCATOR
+		#define STORMC_ALLOCATOR
+	#endif
+	#ifndef STORMC_HASHFUNC
+		#define STORMC_HASHFUNC
+	#endif
+#endif
+
+/*@CORE START*/
+#ifdef STORMC_ALLOCATOR
+#ifdef _WIN32
+	#include "base/windows/stormc_allocator.c"
+#else
+	#include "base/linux/stormc_allocator.c"
+#endif
+#include "base/stormc_allocator.c"
+#endif
+
+#ifdef STORMC_MATH
+#include "base/stormc_math.c"
+#endif
+
+#ifdef STORMC_IO
+#include "base/stormc_io.c"
+#endif
+
+#ifdef STORMC_THREADING
+#ifndef _WIN32
+	#include <pthread.h>
+#endif
+#include "base/stormc_threading.c"
+#endif
+
+#ifdef STORMC_ASYNC
+#include "base/stormc_async.c"
+#endif
+
+#ifdef STORMC_SOCKETS
+#include "base/stormc_sockets.c"
+#endif
+
+/*CORE END*/
+
+/*@TEXT START*/
+#ifdef STORMC_STRING
+#include "text/stormc_string.c"
+#endif
+/*@TEXT END*/
+
+
+
+/*@PROFILE START*/
+#ifdef STORMC_PROFILE
+#include "base/stormc_profile.c"
+#endif
+/*@PROFILE END*/
+
+/*@HASH START*/
+#ifdef STORMC_HASHFUNC
+#include "containers/stormc_hash.c"
+#endif
+#ifdef STORMC_HASHMAP
+#include "containers/stormc_hashmap.c"
+#endif
+/*@HASH END*/
+
+/*@STORMC_GFX START*/
+#ifdef STORMC_GFX
+#include "stormc_gfx/stc_gfx.h"
+#endif
+/*@STORMC_GFX END*/
+
+/*@STORMC RANDOM START*/
+#ifdef STORMC_RANDOM
+#include "base/stormc_random.c"
+#endif
+/*@STORMC RANDOM END*/
+
+
+/*@STORMC_SGL START*/
+#ifdef STORMC_SGL
+#include "base/stormc_sgl.c"
+#endif
+/*@STORMC SGL END*/
+
+
+/*@STORMC_STAG START*/
+#ifdef STORMC_STAG
+#include "utils/stormc_argument_parser.h"
+#endif
+/*@STORMC_STAG END*/
 
 #pragma GCC diagnostic pop

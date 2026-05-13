@@ -1,13 +1,9 @@
 #pragma once
 #include "../stormc_header.h"
-#include "../text/stormc_string.c"
-#include "../base/stormc_allocator.c"
-#include "stormc_math.c"
 
 #ifdef _WIN32
 	#define stc_thread HANDLE
 	#define stc_barrier SYNCHRONIZATION_BARRIER
-	#define stc_thread_local __thread
 	#define STC_T_FUN(name, param) DWORD WINAPI name(LPVOID param)
 	#define STC_T_ATTR void *
 	#define STC_T_PARAMS LPVOID
@@ -15,7 +11,6 @@
 	typedef LPTHREAD_START_ROUTINE stc_thread_proc;
 
 #else
-	#define stc_thread_local _Thread_local
 	#define STC_T_FUN(name, param) void* name(void *param)
 	#define STC_T_ATTR void *
 	#define STC_T_PARAMS void *
@@ -50,8 +45,8 @@ struct stc_threading_ctx{
 	u64		accumulator[THREADING_MAX_THREADS_PER_GROUPS];
 	u64		ct_active_threads;
 };
-static stc_thread_local u64 __stc_lane_id;
-static stc_thread_local u64 __stc_group_id;
+static stc_threadlocal u64 __stc_lane_id;
+static stc_threadlocal u64 __stc_group_id;
 
 
 
@@ -111,7 +106,7 @@ static STC_T_FUN(STC_ENTRY_POINT, param);
 
 
 
-void stc_threading_init_func_ret(stc_threading_group_t group_id, u64 threads_count, u64 reservation_size, u64 initial_size_func_ret_array)
+static void stc_threading_init_func_ret(stc_threading_group_t group_id, u64 threads_count, u64 reservation_size, u64 initial_size_func_ret_array)
 {
 
 	if (!is_pow2(initial_size_func_ret_array)) {
@@ -144,14 +139,14 @@ void stc_threading_init_func_ret(stc_threading_group_t group_id, u64 threads_cou
 
 
 
-void stc_init_thread_groups(stc_threading_group_t groups_count)
+static void stc_init_thread_groups(stc_threading_group_t groups_count)
 {
 	__stc_thread_ctx_group_count = groups_count;
 }
 
 
 
-void stc_threading_system_begin(void)
+static void stc_threading_system_begin(void)
 {
 	stc_init_thread_groups(__stc_thread_init.groups_count);
 	for (u64 idx_group = 0; idx_group < __stc_thread_init.groups_count; ++idx_group) {
@@ -170,7 +165,7 @@ void stc_threading_system_begin(void)
 }
 
 
-void stc_threading_system_end(void)
+static void stc_threading_system_end(void)
 {
 	for (u64 idx_group = 0; idx_group < __stc_thread_init.groups_count; ++idx_group) {
 		u64 threads_count = __stc_thread_init.threads[idx_group];
@@ -183,7 +178,7 @@ void stc_threading_system_end(void)
 }
 
 
-void stc_threading_append_ensure_capacity(u64 group_id, u64 thread_id, void *data, u64 size)
+static void stc_threading_append_ensure_capacity(u64 group_id, u64 thread_id, void *data, u64 size)
 {
 	u64 *current_size = &__stc_thread_ctx[group_id].off_bytes_func_ret[thread_id];
 	if (size > *current_size) {
@@ -195,18 +190,18 @@ void stc_threading_append_ensure_capacity(u64 group_id, u64 thread_id, void *dat
 	stc_memcpy(__stc_thread_ctx[group_id].func_ret[thread_id], data, size);
 }
 
-void stc_threading_setup_thread_identity(void *param)
+static void stc_threading_setup_thread_identity(void *param)
 {
 	__stc_lane_id = (u64)(u64)param & LANEID_MASK;
 	__stc_group_id = (u64)(u64)param >> 32;
 }
 
-stc_threading_group_t stc_threading_create_new_group(void)
+static stc_threading_group_t stc_threading_create_new_group(void)
 {
 	return __stc_thread_init.groups_count++;
 }
 
-void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u64 commit, u64 rsrv, u32 number_of_threads)
+static void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u64 commit, u64 rsrv, u32 number_of_threads)
 {
 	if (!is_pow2(commit))
 		commit = next_pow2(commit);
@@ -221,7 +216,7 @@ void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u64 com
 
 
 
-void stc_threading_prepare_parallel(u64 array_len)
+static void stc_threading_prepare_parallel(u64 array_len)
 {
 	u64 values_for_work = array_len / __stc_thread_ctx[stc_group_id()].ct_active_threads;
 	u64 rem_work = array_len % __stc_thread_ctx[stc_group_id()].ct_active_threads;
@@ -236,7 +231,7 @@ void stc_threading_prepare_parallel(u64 array_len)
 }
 
 
-u64 stc_parallel_start(void)
+static u64 stc_parallel_start(void)
 {
 
 	return __stc_thread_ctx[stc_group_id()].parallel_work_start[stc_lane_id()];
@@ -244,14 +239,14 @@ u64 stc_parallel_start(void)
 
 
 
-u64 stc_parallel_end(void)
+static u64 stc_parallel_end(void)
 {
 
 	return __stc_thread_ctx[stc_group_id()].parallel_work_end[stc_lane_id()];
 }
 
 
-u64 stc_sum_lanes_return_value_u64(u64 group_id)
+static u64 stc_sum_lanes_return_value_u64(u64 group_id)
 {
 	u64 accum = 0;
 	for (u64 i = 0; i < stc_total_lanes_in_group(group_id); ++i) {
@@ -261,23 +256,23 @@ u64 stc_sum_lanes_return_value_u64(u64 group_id)
 	return accum;
 }
 
-void stc_threading_write_return(u64 group_id, u64 lane_id, void *v, u64 size)
+static void stc_threading_write_return(u64 group_id, u64 lane_id, void *v, u64 size)
 {
 	stc_memcpy(__stc_thread_ctx[group_id].func_ret[lane_id], v, size);
 }
 
-void *stc_threading_read_return(u64 group_id, u64 lane_id)
+static void *stc_threading_read_return(u64 group_id, u64 lane_id)
 {
 	return stc_lane_return_value(group_id, lane_id);
 }
 
 
-void stc_threading_lane_accumulator(u64 group_id, u64 lane_id)
+static void stc_threading_lane_accumulator(u64 group_id, u64 lane_id)
 {
 	__stc_thread_ctx[group_id].accumulator[lane_id]++;
 }
 
-u64 stc_threading_sum_group_accumulator(u64 group_index)
+static u64 stc_threading_sum_group_accumulator(u64 group_index)
 {
 	u64 accum = 0;
 
@@ -288,7 +283,7 @@ u64 stc_threading_sum_group_accumulator(u64 group_index)
 	return accum;
 }
 
-void stc_threading_group_reset_accumulator(u64 group_index)
+static void stc_threading_group_reset_accumulator(u64 group_index)
 {
 	for (u64 thread_index = 0; thread_index < __stc_thread_ctx->ct_active_threads; ++thread_index) {
 		__stc_thread_ctx[group_index].accumulator[thread_index] = 0;
@@ -296,7 +291,7 @@ void stc_threading_group_reset_accumulator(u64 group_index)
 
 }
 
-void stc_threading_lane_reset_accumulator(u64 group_index, u64 lane_idx)
+static void stc_threading_lane_reset_accumulator(u64 group_index, u64 lane_idx)
 {
 	__stc_thread_ctx[group_index].accumulator[lane_idx] = 0;
 

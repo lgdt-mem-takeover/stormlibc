@@ -34,6 +34,10 @@ typedef stag_u64	stag_bool64;
 #define STAG_ARRCOUNT(x) ((sizeof((x))) / (sizeof((*x))))
 // #define STAG_REMOVE_PREFIX
 
+#ifndef STAG_ARG_REST
+#define STAG_ARG_REST '\1'
+#endif
+
 #ifdef STAG_STRIP_PREFIX
 #define string (struct stag_string)
 #define ctx (struct stag_ctx)
@@ -639,7 +643,15 @@ void stag_parse(void)
 		if (stag_ctx.user_data[cmd].takes_args) {
 			char delim = stag_ctx.user_data[cmd].arg_delimiter;
 
-			if (delim == ' ') {
+			if (delim == STAG_ARG_REST) {
+				stag_u64 first_arg = idx + 1;
+				if (first_arg < input_len) {
+					idx = input_len;
+				} else {
+					fprintf(stderr, "[Error] End of stream\n");
+					exit(1);
+				}
+			} else if (delim == ' ') {
 				stag_u64 first_arg = idx + 1;
 				if (first_arg < input_len) {
 					idx += 2;
@@ -686,7 +698,19 @@ void stag_parse(void)
 		if (stag_ctx.user_data[cmd].takes_args) {
 			char delim = stag_ctx.user_data[cmd].arg_delimiter;
 
-			if (delim == ' ') {
+			if (delim == STAG_ARG_REST) {
+				stag_u64 first_arg = idx + 1;
+				if (first_arg < input_len) {
+					cmd_current.args = stag_join_space_args(input, first_arg, input_len);
+					idx = input_len;
+				} else {
+					fprintf(stderr,
+						"[Error] End of stream after: %s\n",
+						stag_ctx.user_data[cmd].cmd_name.str
+					);
+					exit(1);
+				}
+			} else if (delim == ' ') {
 				stag_u64 first_arg = idx + 1;
 				if (first_arg < input_len) {
 					cmd_current.args = input[first_arg];

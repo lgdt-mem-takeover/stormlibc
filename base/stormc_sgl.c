@@ -11,10 +11,6 @@
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_surface.h>
 #include "stormc_base.h"
-#include "stormc_allocator.c"
-#include "../text/stormc_string.c"
-#include "stormc_math.c"
-#include "../containers/stormc_hash.c"
 #include <math.h>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winitializer-overrides"
@@ -1326,6 +1322,61 @@ void *sgl_add_vertex_ui(struct vertex_ui v)
 
 
 
+static const char *sgl_default_font_candidates[] = {
+	FONT_PATH_DEJAVU_SANS,
+	"assets/ttf/DejaVuSans.ttf",
+	"assets/fonts/ttf/DejaVuSans.ttf",
+	"../assets/ttf/DejaVuSans.ttf",
+	"../assets/fonts/ttf/DejaVuSans.ttf",
+};
+
+bool32 sgl_try_load_font(const char *path)
+{
+	if (path == NULL) {
+		return false;
+	}
+
+	if (FT_New_Face(sgl.cfg_init_time.ui.ft_lib, path, 0, &sgl.cfg_init_time.ui.ft_face) == 0) {
+		sgl.cfg_init_time.ui.txt_font = (u8 *)path;
+		return true;
+	}
+
+	return false;
+}
+
+bool32 sgl_try_load_font_from_stormlibc_assets(void)
+{
+	static char path[4096];
+	const char *source_path = __FILE__;
+	const char *suffix = "../assets/ttf/DejaVuSans.ttf";
+	u64 source_dir_len = 0;
+	u64 suffix_len = 0;
+
+	for (u64 i = 0; source_path[i] != 0; ++i) {
+		if (source_path[i] == '/' || source_path[i] == '\\') {
+			source_dir_len = i + 1;
+		}
+	}
+
+	if (source_dir_len == 0) {
+		return false;
+	}
+
+	while (suffix[suffix_len] != 0) {
+		++suffix_len;
+	}
+
+	if (source_dir_len + suffix_len + 1 > STC_ARRCOUNT(path)) {
+		return false;
+	}
+
+	stc_memcpy(path, source_path, source_dir_len);
+	stc_memcpy(path + source_dir_len, suffix, suffix_len);
+	path[source_dir_len + suffix_len] = 0;
+
+	return sgl_try_load_font(path);
+}
+
 void sgl_init_freetype(void)
 {
 	if (FT_Init_FreeType(&sgl.cfg_init_time.ui.ft_lib))
@@ -1334,11 +1385,27 @@ void sgl_init_freetype(void)
 		exit(1);
 	}
 
-	if (FT_New_Face(sgl.cfg_init_time.ui.ft_lib, (const char *)sgl.cfg_init_time.ui.txt_font, 0, &sgl.cfg_init_time.ui.ft_face))
-	{
-		fprintf(stderr,  "Failed to load font\n");
+	if (!sgl_try_load_font((const char *)sgl.cfg_init_time.ui.txt_font)) {
+		for (u64 i = 0; i < STC_ARRCOUNT(sgl_default_font_candidates); ++i) {
+			if (sgl_try_load_font(sgl_default_font_candidates[i])) {
+				goto font_loaded;
+			}
+		}
+
+		if (sgl_try_load_font_from_stormlibc_assets()) {
+			goto font_loaded;
+		}
+
+		fprintf(stderr, "Failed to load font. Tried:\n");
+		fprintf(stderr, "  %s\n", (const char *)sgl.cfg_init_time.ui.txt_font);
+		for (u64 i = 0; i < STC_ARRCOUNT(sgl_default_font_candidates); ++i) {
+			fprintf(stderr, "  %s\n", sgl_default_font_candidates[i]);
+		}
+		fprintf(stderr, "  <stormlibc source dir>/../assets/ttf/DejaVuSans.ttf\n");
 		exit(1);
 	}
+
+font_loaded:
 	FT_Set_Pixel_Sizes(sgl.cfg_init_time.ui.ft_face, 0, sgl.cfg_init_time.ui.txt_size_max);
 }
 
@@ -2477,7 +2544,3 @@ sgl_draw_texture(
 {
 	sgl_draw_texture_region(texture, x, y, w, h, 0.0f, 0.0f, 1.0f, 1.0f, color);
 }
-
-
-
-

@@ -5,18 +5,18 @@
 #include <sys/mman.h>
 
 
-void *stc_os_alloc_default(u64 size)
+static void *stc_os_alloc_default(u64 size)
 {
 	return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1 , 0);
 
 }
 
-void *stc_os_mem_rsrv(u64 size)
+static void *stc_os_mem_rsrv(u64 size)
 {
 	return mmap(NULL, size, PROT_NONE, MAP_ANON | MAP_PRIVATE, -1 , 0);
 }
 
-void *stc_os_mem_cmt(void* addrs, u64 size)
+static void *stc_os_mem_cmt(void* addrs, u64 size)
 {
 	size = STC_ALIGN_UP(size, PAGESIZE);
 	int res = mprotect(addrs, size, PROT_READ | PROT_WRITE);
@@ -28,7 +28,7 @@ void *stc_os_mem_cmt(void* addrs, u64 size)
 
 }
 
-enum stc_err_code stc_os_mem_free(void *mem, u64 size)
+static enum stc_err_code stc_os_mem_free(void *mem, u64 size)
 {
 	if (munmap(mem, size) != 0) {
 		return STC_ERR_OS_UNMAP_FAILED;

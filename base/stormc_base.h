@@ -1,20 +1,28 @@
 #pragma once
 
 
-#include <stdio.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include "stormc_error_table.h"
 
-#define stc_try(stc_func, ...)\
-	({\
-		int ret = stc_func(__VA_ARGS__);\
-		if (ret != STC_ERR_OK) {\
-			stc_println_err("{cstring}", stc_err_table_literal[ret]);\
-		}\
-		ret;\
-	})
+#ifdef __cplusplus
+	#define stc_try(stc_func, ...)\
+		([&]() {\
+			enum stc_err_code ret = stc_func(__VA_ARGS__);\
+			if (ret != STC_ERR_OK) {\
+				stc_println_err("{cstring}", stc_err_table_literal[ret]);\
+			}\
+			return ret;\
+		}())
+#else
+	#define stc_try(__call, __err, ...)\
+		({\
+			enum stc_err_code __err = (__call);\
+			if (__err != STC_ERR_OK) {\
+				__VA_ARGS__\
+			}\
+			__err;\
+		})
+#endif
 
 
 #define STC_ANSI_RESET   "\x1b[0m"
@@ -38,10 +46,16 @@
 #define PAGESIZE 4096
 #endif
 
-#define asm __asm__
-#define volatile __volatile__
-#define inline __inline__
-#define restrict __restrict__
+#ifndef __cplusplus
+	#define asm __asm__
+	#define volatile __volatile__
+	#define inline __inline__
+	#define restrict __restrict__
+#else
+	#ifndef restrict
+		#define restrict __restrict__
+	#endif
+#endif
 
 #define thisfile static
 #define global_persist static
@@ -146,45 +160,6 @@ typedef __m128i simd_u8;
 
 
 
-typedef  uint8_t		u8;
-typedef  uint16_t  		u16;
-typedef  uint32_t  		u32;
-typedef  uint64_t  		u64;
-
-typedef  int8_t    		i8;
-typedef  int16_t   		i16;
-typedef  int32_t   		i32;
-typedef  int64_t   		i64;
-typedef  double			f64;
-typedef  float			f32;
-
-
-
-#ifdef STC_SIMD
-#include "stc_simd_codegen.h"
-#endif
-
-
-
-#ifndef bool16
-	typedef u16 bool16;
-#endif
-#ifndef bool32
-	typedef u32 bool32;
-#endif
-#ifndef bool64
-	typedef u64 bool64;
-#endif
-
-typedef u8	uflags_8;
-typedef u16	uflags_16;
-typedef u32 	uflags_32;
-typedef u64 	uflags_64;
-
-typedef i8	iflags_8;
-typedef i16	iflags_16;
-typedef i32 	iflags_32;
-typedef i64 	iflags_64;
 
 
 // #define STR(name) (struct stormc_string){.str = name, .len = sizeof(name) - 1}
