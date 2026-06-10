@@ -149,33 +149,25 @@ thisfile inline int sstrcpyx(struct stc_string8 * restrict dest, const struct st
 
 thisfile inline i64 stormc_find_substr(const struct stc_string8 haystack, const struct stc_string8 needle)
 {
-
 	u64 i;
-	if (needle.len == 0 || haystack.len < needle.len) return false;
+	if (needle.len == 0) return 0;
+	if (haystack.len < needle.len) return -1;
 
-	if (haystack.len < 32) {
-		for (i = 0; i <= (haystack.len - needle.len); i++) {
-			u64 j = 0;
-
-			while (j < needle.len && haystack.str[i + j] == needle.str[j])
-				j++;
-
-			if (j == needle.len)
-				return i;
-		}
-		return -1;
+	if (haystack.len < 32 || needle.len > 32) {
+		goto scalar_search;
 	}
 
 #if defined(__AVX2__)
 	__m256i target = _mm256_setzero_si256();
 	stc_memcpy(&target, needle.str, needle.len);
+	u32 needle_mask = (needle.len == 32) ? ~0u : ((1u << needle.len) - 1u);
 
 	for (i = 0; i <= haystack.len - 32; i++) {
 		__m256i chunk = _mm256_loadu_si256((const __m256i*)(haystack.str + i));
 		__m256i cmp = _mm256_cmpeq_epi8(chunk, target);
 		u32 mask = _mm256_movemask_epi8(cmp);
 
-		if ((mask & ((1 << needle.len) - 1)) == ((1 << needle.len) - 1)) {
+		if ((mask & needle_mask) == needle_mask) {
 			if (stc_memcmp(haystack.str + i, needle.str, needle.len) == 0) return i;
 		}
 	}
@@ -185,9 +177,20 @@ thisfile inline i64 stormc_find_substr(const struct stc_string8 haystack, const 
 	}
 
 	return -1;
-#else
-	return -1;
-	#endif
+#endif
+
+scalar_search:
+	{
+		for (i = 0; i <= (haystack.len - needle.len); i++) {
+			u64 j = 0;
+
+			for (; j < needle.len && haystack.str[i + j] == needle.str[j]; ++j) {}
+
+			if (j == needle.len)
+				return i;
+		}
+		return -1;
+	}
 }
 
 
