@@ -927,14 +927,12 @@ stag_bool32 stag_strcmp(struct stag_string a, struct stag_string b)
 	if (a.len != b.len)
 		return false;
 
-	char *start = a.str;
-	while (*a.str == *b.str && ((a.str - start) < a.len)) {
-		a.str++;
-		b.str++;
+	for (stag_u64 i = 0; i < a.len; ++i) {
+		if (a.str[i] != b.str[i])
+			return false;
 	}
 
-
-	return !((a.str - start) - a.len);
+	return true;
 }
 
 
