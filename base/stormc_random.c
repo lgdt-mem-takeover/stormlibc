@@ -120,17 +120,28 @@ u64 stc_random_xorshift(void)
 
 u64 stc_random_range(u64 min, u64 max)
 {
-	u64 pl;
+	u64 span, value;
 
-	pl = min + (stc_random_xorshift() % (max - min + 1));
+	if (max <= min) {
+		return min;
+	}
+	if (min == 0 && max == MAX_UINT64) {
+		return stc_random_xorshift();
+	}
 
-	return pl;
+	span = max - min + 1;
+	value = stc_random_xorshift();
+	return min + (value % span);
 }
 
 
 u64 stc_diceroll(u64 count, u64 sides)
 {
 	u64 idx, pl;
+
+	if (sides == 0) {
+		return 0;
+	}
 
 	pl = 0;
 	for (idx = 0; idx < count; idx++){
