@@ -36,9 +36,8 @@ int main(int argc, char **argv)
 	}
 	build_proj();
 
-	if (argv[2][0] == 'r' && argv[2][1] == 'u' && argv[2][2] == 'n' ) {
+	if (IS_RUN_AFTER_BUILD(argc, argv)) {
 		system("src/./main");
 	}
 	return 0;
 }
-
