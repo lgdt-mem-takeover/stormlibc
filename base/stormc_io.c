@@ -4,11 +4,12 @@
 #endif
 #include "stormc_error_table.h"
 
-
 static stc_threadlocal struct stc_strbldr _strbldr_print = {};
 
 
 #ifdef _WIN32
+#include "stormc_io_default.c"
+
 thisfile inline i64 stc_read(struct stc_file *f, void *ptr, u64 size)
 {
 	DWORD bytes_read = 0;
@@ -55,26 +56,6 @@ thisfile enum stc_err_code stc_io_get_file_size(struct stc_file *f, u64 *size_ou
 	return STC_ERR_OK;
 }
 
-thisfile HANDLE stc_open_len(struct stc_string8 path, DWORD desired_access, DWORD share_mode, DWORD creation_disposition, DWORD flags)
-{
-	if (path.str == NULL) {
-		return INVALID_HANDLE_VALUE;
-	}
-
-	char *path_z = stc_alloc(path.len + 1);
-	if (path_z == NULL) {
-		return INVALID_HANDLE_VALUE;
-	}
-
-	stc_memcpy(path_z, path.str, path.len);
-	path_z[path.len] = 0;
-
-	HANDLE result = CreateFileA(path_z, desired_access, share_mode, NULL,
-				    creation_disposition, flags, NULL);
-	stc_free(path_z, path.len + 1);
-	return result;
-}
-
 thisfile enum stc_err_code stc_io_open_r(struct stc_string8 path, struct stc_file *out)
 {
 	if (out == NULL) {
@@ -82,7 +63,7 @@ thisfile enum stc_err_code stc_io_open_r(struct stc_string8 path, struct stc_fil
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
+	out->fd = stc_open(path, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
 	if (out->fd == INVALID_HANDLE_VALUE) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -102,7 +83,7 @@ thisfile enum stc_err_code stc_io_open_rw(struct stc_string8 path, struct stc_fi
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
+	out->fd = stc_open(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
 	if (out->fd == INVALID_HANDLE_VALUE) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -122,7 +103,7 @@ thisfile enum stc_err_code stc_io_open_w(struct stc_string8 path, struct stc_fil
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, GENERIC_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
+	out->fd = stc_open(path, GENERIC_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
 	if (out->fd == INVALID_HANDLE_VALUE) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -142,7 +123,7 @@ thisfile enum stc_err_code stc_io_open_w_new(struct stc_string8 path, struct stc
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, GENERIC_WRITE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL);
+	out->fd = stc_open(path, GENERIC_WRITE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL);
 	if (out->fd == INVALID_HANDLE_VALUE) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -158,7 +139,7 @@ thisfile enum stc_err_code stc_io_open_w_append(struct stc_string8 path, struct 
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, FILE_APPEND_DATA, FILE_SHARE_READ, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL);
+	out->fd = stc_open(path, FILE_APPEND_DATA, FILE_SHARE_READ, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL);
 	if (out->fd == INVALID_HANDLE_VALUE) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -175,28 +156,16 @@ thisfile enum stc_err_code stc_io_open_w_append(struct stc_string8 path, struct 
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <linux/openat2.h>
-#include <sys/syscall.h>
-
-#ifndef AT_FDCWD
-#define AT_FDCWD -100
-#endif
 
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 02000000
 #endif
 
-#ifndef __NR_storm_openat_len
-#define __NR_storm_openat_len 1000
+#ifdef STORMC_SYSCALLS
+#include "stormc_io_stormc_syscalls.c"
+#else
+#include "stormc_io_default.c"
 #endif
-
-extern long syscall(long number, ...);
-
-static long storm_openat_len(int dfd, const char *path, size_t path_len,
-			     const struct open_how *how, size_t how_size)
-{
-	return syscall(__NR_storm_openat_len, dfd, path, path_len, how, how_size);
-}
 
 thisfile inline i64 stc_write(struct stc_file *f, void *ptr, u64 len)
 {
@@ -234,20 +203,6 @@ thisfile inline enum stc_err_code stc_io_get_file_size(struct stc_file *fin, u64
 	return STC_ERR_OK;
 }
 
-thisfile int stc_open_len(struct stc_string8 path, u64 flags, u64 mode)
-{
-	if (path.str == NULL) {
-		return -1;
-	}
-
-	struct open_how how = {
-		.flags = flags,
-		.mode = mode,
-	};
-
-	return (int)storm_openat_len(AT_FDCWD, path.str, path.len, &how, sizeof(how));
-}
-
 thisfile enum stc_err_code stc_io_open_r(struct stc_string8 path, struct stc_file *out)
 {
 	if (out == NULL) {
@@ -255,7 +210,7 @@ thisfile enum stc_err_code stc_io_open_r(struct stc_string8 path, struct stc_fil
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, O_RDONLY | O_CLOEXEC, 0);
+	out->fd = stc_open(path, O_RDONLY | O_CLOEXEC, 0);
 	if (out->fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -275,7 +230,7 @@ thisfile enum stc_err_code stc_io_open_rw(struct stc_string8 path, struct stc_fi
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, O_RDWR | O_CLOEXEC, 0);
+	out->fd = stc_open(path, O_RDWR | O_CLOEXEC, 0);
 	if (out->fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -295,7 +250,7 @@ thisfile enum stc_err_code stc_io_open_w(struct stc_string8 path, struct stc_fil
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, O_WRONLY | O_CLOEXEC, 0);
+	out->fd = stc_open(path, O_WRONLY | O_CLOEXEC, 0);
 	if (out->fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -315,7 +270,7 @@ thisfile enum stc_err_code stc_io_open_w_new(struct stc_string8 path, struct stc
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+	out->fd = stc_open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 	if (out->fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}
@@ -331,7 +286,7 @@ thisfile enum stc_err_code stc_io_open_w_append(struct stc_string8 path, struct 
 	}
 
 	*out = STC_STRUCT_ZERO(stc_file);
-	out->fd = stc_open_len(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+	out->fd = stc_open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
 	if (out->fd < 0) {
 		return STC_ERR_FILE_OPEN_FAILED;
 	}

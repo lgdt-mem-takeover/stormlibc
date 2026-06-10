@@ -480,6 +480,12 @@ thisfile void stc_strbldr_append(struct stc_strbldr *b, const stc_byte *s, ...);
 thisfile void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end);
 thisfile void stc_strbldr_reset(struct stc_strbldr *b);
 
+#ifdef _WIN32
+thisfile HANDLE stc_open(struct stc_string8 path, DWORD desired_access, DWORD share_mode, DWORD creation_disposition, DWORD flags);
+#else
+thisfile int stc_open(struct stc_string8 path, u64 flags, u64 mode);
+#endif
+#define stc_open_len stc_open
 thisfile enum stc_err_code		stc_io_read(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
 thisfile enum stc_err_code 		stc_io_write(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
 thisfile enum stc_err_code 		stc_io_open_r(struct stc_string8 path, struct stc_file *out);
