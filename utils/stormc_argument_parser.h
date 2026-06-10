@@ -492,6 +492,7 @@ stag_f64 stag_string_to_float(struct stag_string *string)
 {
 
 	stag_f64 pl = 0.0f;
+	if (string == NULL || string->str == NULL || string->len == 0) return pl;
 
 	stag_bool32 is_negative = string->str[0] == '-';
 	char *start;
@@ -503,10 +504,10 @@ stag_f64 stag_string_to_float(struct stag_string *string)
 
 	char *end = (char*)(string->str + string->len);
 
-	for (; (*start) != '.' && start != end; ++start) {
+	for (; start != end && (*start) != '.'; ++start) {
 		pl = (pl * 10) + ((*start) ^ '0');
 	}
-	++start; /*eat dot '.' */
+	if (start != end) ++start; /*eat dot '.' */
 
 	stag_f64 divisor = 10.0f;
 	for (; start != end; ++start) {
