@@ -2302,10 +2302,21 @@ sgl_input_process_event(void)
 	case SDL_EVENT_DROP_FILE:
 	{
 		char *path = (char *)sgl.events.drop.data;
+		if (path == NULL) {
+			break;
+		}
+
 		u64 path_len = sstrlenx((const  u8*)path);
 		if (sgl.sgl_input.files_drop_count < SGL_MAX_DROPS) {
-			stc_memcpy(sgl.sgl_input.files_dropped_paths[sgl.sgl_input.files_drop_count], path, path_len);
-			sgl.sgl_input.files_dropped_paths[sgl.sgl_input.files_drop_count][path_len] = '\0';
+			u32 drop_idx = sgl.sgl_input.files_drop_count;
+			u64 path_cap = sizeof(sgl.sgl_input.files_dropped_paths[drop_idx]);
+			if (path_len >= path_cap) {
+				fprintf(stderr, "Dropped file path exceeds %llu bytes\n", (unsigned long long)(path_cap - 1));
+				break;
+			}
+
+			stc_memcpy(sgl.sgl_input.files_dropped_paths[drop_idx], path, path_len);
+			sgl.sgl_input.files_dropped_paths[drop_idx][path_len] = '\0';
 			sgl.sgl_input.files_drop_count++;
 			printf("Dropped %s\n", sgl.sgl_input.files_dropped_paths[0]);
 		}
