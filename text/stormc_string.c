@@ -265,9 +265,13 @@ static struct stc_string8_split stc_string8_split(struct stc_arena_string8 * res
 {
 	struct stc_string8_split pl = {0};
 
+	if (a == NULL || s == NULL || s->str == NULL || s->len == MAX_UINT64) {
+		return pl;
+	}
+
 	stc_byte *start = s->str;
 	stc_byte *end = s->str + s->len;
-	pl.strings = stc_arena_string8_push(a, s->len);
+	pl.strings = stc_arena_string8_push(a, s->len + 1);
 
 	u64 len = 0;
 	pl.strings[pl.ct_strings].str = start;
