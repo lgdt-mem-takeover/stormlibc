@@ -345,10 +345,16 @@ thisfile bool32 stc_is_symbol(stc_byte c)
 }
 
 
+static bool32 stc_string8_empty(struct stc_string8 *string)
+{
+	return string == NULL || string->str == NULL || string->len == 0;
+}
+
 
 thisfile stc_byte stc_string8_to_u8(struct stc_string8 *string)
 {
 	stc_byte pl = 0;
+	if (stc_string8_empty(string)) return pl;
 	for (stc_byte *start = string->str, *end = string->str + string->len; start!= end; ++start) {
 		if (!stc_is_digit(*start)) continue;
 		pl = (pl * 10) + ((*start) ^ '0');
@@ -360,6 +366,7 @@ thisfile stc_byte stc_string8_to_u8(struct stc_string8 *string)
 thisfile u16 stc_string8_to_u16(struct stc_string8 *string)
 {
 	u16 pl = 0;
+	if (stc_string8_empty(string)) return pl;
 	for (stc_byte *start = string->str, *end = string->str + string->len; start!= end; ++start) {
 		if (!stc_is_digit(*start)) continue;
 		pl = (u16)((pl * 10) + ((*start) ^ '0'));
@@ -372,6 +379,7 @@ thisfile u16 stc_string8_to_u16(struct stc_string8 *string)
 thisfile u32 stc_string8_to_u32(struct stc_string8 *string)
 {
 	u32 pl = 0;
+	if (stc_string8_empty(string)) return pl;
 	for (stc_byte *start = string->str, *end = string->str + string->len; start!= end; ++start) {
 		if (!stc_is_digit(*start)) continue;
 		pl = (pl * 10) + (u32)((*start) ^ '0');
@@ -385,6 +393,7 @@ thisfile u32 stc_string8_to_u32(struct stc_string8 *string)
 thisfile u64 stc_string8_to_u64(struct stc_string8 *string)
 {
 	u64 pl = 0;
+	if (stc_string8_empty(string)) return pl;
 	for (stc_byte *start = string->str, *end = string->str + string->len; start!= end; ++start) {
 		if (!stc_is_digit(*start)) continue;
 		pl = (pl * 10) + (u64)((*start) ^ '0');
@@ -396,6 +405,7 @@ thisfile u64 stc_string8_to_u64(struct stc_string8 *string)
 thisfile i8 stc_string8_to_i8(struct stc_string8 *string)
 {
 	u8 pl = 0;
+	if (stc_string8_empty(string)) return (i8)pl;
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
 	if (is_negative) {
@@ -414,6 +424,7 @@ thisfile i8 stc_string8_to_i8(struct stc_string8 *string)
 thisfile i16 stc_string8_to_i16(struct stc_string8 *string)
 {
 	u16 pl = 0;
+	if (stc_string8_empty(string)) return (i16)pl;
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
 	if (is_negative) {
@@ -432,6 +443,7 @@ thisfile i16 stc_string8_to_i16(struct stc_string8 *string)
 thisfile i32 stc_string8_to_i32(struct stc_string8 *string)
 {
 	u32 pl = 0;
+	if (stc_string8_empty(string)) return (i32)pl;
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
 	if (is_negative) {
@@ -450,6 +462,7 @@ thisfile i32 stc_string8_to_i32(struct stc_string8 *string)
 thisfile i64 stc_string8_to_i64(struct stc_string8 *string)
 {
 	u64 pl = 0;
+	if (stc_string8_empty(string)) return (i64)pl;
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
 	if (is_negative) {
@@ -469,6 +482,7 @@ thisfile f64 stc_string8_to_float(struct stc_string8 *string)
 {
 
 	f64 pl = 0.0f;
+	if (stc_string8_empty(string)) return pl;
 
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
