@@ -12,6 +12,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <inttypes.h>
+#include <stdarg.h>
 
 #define MAX_INCLUDES 4096
 #define MAX_FILES 1024
@@ -449,87 +450,115 @@ void set_out_file(struct stc_string8 out)
 	proj.out = out;
 }
 
+static int stcb_append_cmd(char *cmd, u64 *off, u64 cap, const char *fmt, ...)
+{
+	va_list args;
+	int written;
+	u64 remaining;
+
+	if (*off >= cap) {
+		fprintf(stderr, "build command exceeds %llu bytes\n", (unsigned long long)cap);
+		return 0;
+	}
+
+	remaining = cap - *off;
+
+	va_start(args, fmt);
+	written = vsnprintf(cmd + *off, remaining, fmt, args);
+	va_end(args);
+
+	if (written < 0 || (u64)written >= remaining) {
+		cmd[cap - 1] = '\0';
+		fprintf(stderr, "build command exceeds %llu bytes\n", (unsigned long long)cap);
+		return 0;
+	}
+
+	*off += (u64)written;
+	return 1;
+}
+
 
 void build_proj()
 {
-	u8 cmd[4096];
+	char cmd[4096];
 	u64 off = 0;
 
-	off += snprintf(
-		(u8*)(cmd + off), sizeof(cmd) - off,
+	if (!stcb_append_cmd(
+		cmd, &off, sizeof(cmd),
 		"%s ",
 		table_compilers[proj.compiler].str
-	);
+	)) goto build_cmd_error;
 
-	off += snprintf(
-	    (u8 *)(cmd + off), sizeof(cmd) - off,
-	    "-DSTORMC_ROOT='\"%s\"' ",
-	    STORMC_ROOT
-	);
+	if (!stcb_append_cmd(
+		cmd, &off, sizeof(cmd),
+		"-DSTORMC_ROOT='\"%s\"' ",
+		STORMC_ROOT
+	)) goto build_cmd_error;
 
 	for (u64 i = 0; i < proj.ct_compiler_flags; ++i) {
-		off += snprintf(
-		    (u8*)(cmd + off), sizeof(cmd) - off,
-		    "%s ",
-		    G_Commands_Map[proj.compiler_flags[i]].str
-		    );
+		if (!stcb_append_cmd(
+			cmd, &off, sizeof(cmd),
+			"%s ",
+			G_Commands_Map[proj.compiler_flags[i]].str
+		)) goto build_cmd_error;
 	}
 
 	for (u64 i = 0; i < proj.ct_include_paths; ++i) {
-		off += snprintf(
-		    (u8*)(cmd + off), sizeof(cmd) - off,
-		    "-I\"%s\" ",
-		    proj.include_paths[i].str
-		    );
+		if (!stcb_append_cmd(
+			cmd, &off, sizeof(cmd),
+			"-I\"%s\" ",
+			proj.include_paths[i].str
+		)) goto build_cmd_error;
 	}
 
 	for (u64 i = 0; i < proj.ct_sources; ++i) {
-		off += snprintf(
-			(u8*)(cmd + off), sizeof(cmd) - off,
+		if (!stcb_append_cmd(
+			cmd, &off, sizeof(cmd),
 			"%s ",
 			proj.sources[i].str
-		);
+		)) goto build_cmd_error;
 	}
 
 
 	for (u64 i = 0; i < proj.ct_library_paths; ++i) {
-		off += snprintf(
-			(u8*)(cmd + off), sizeof(cmd) - off,
+		if (!stcb_append_cmd(
+			cmd, &off, sizeof(cmd),
 			"%s ",
 			proj.library_paths[i].str
-		);
+		)) goto build_cmd_error;
 	}
 
 	for (u64 i = 0; i < proj.ct_objects; ++i) {
-		off += snprintf(
-			(u8*)(cmd + off), sizeof(cmd) - off,
+		if (!stcb_append_cmd(
+			cmd, &off, sizeof(cmd),
 			"%s ",
 			proj.objects[i].str
-		);
+		)) goto build_cmd_error;
 	}
 
 	for (u64 i = 0; i < proj.ct_libraries; ++i) {
-		off += snprintf(
-			(u8*)(cmd + off), sizeof(cmd) - off,
+		if (!stcb_append_cmd(
+			cmd, &off, sizeof(cmd),
 			"%s ",
 			proj.libraries[i].str
-		);
+		)) goto build_cmd_error;
 	}
 
 
 
 	if (proj.emit_symbols) {
-		off += snprintf(
-			(u8*)(cmd + off), sizeof(cmd) - off, "-g "
-		);
+		if (!stcb_append_cmd(
+			cmd, &off, sizeof(cmd),
+			"-g "
+		)) goto build_cmd_error;
 
 	}
 
-	off += snprintf(
-		(u8*)(cmd + off), sizeof(cmd) - off,
+	if (!stcb_append_cmd(
+		cmd, &off, sizeof(cmd),
 		"-o %s",
 		proj.out.str
-	);
+	)) goto build_cmd_error;
 
 
 
@@ -543,8 +572,10 @@ void build_proj()
 	printf("%s\n", cmd);
 
 	system(cmd);
-}
 
+build_cmd_error:
+	return;
+}
 
 
 
