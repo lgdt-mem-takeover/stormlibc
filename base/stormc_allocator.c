@@ -34,8 +34,8 @@ static struct stc_stack *stc_stack_gen(u64 rsrv)
 	pl->base_offset = 0;
 	pl->free_list.ptr = (u64*)stc_os_mem_rsrv(sizeof(u64) * ILT64_CAPACITY);
 	pl->free_list.size = (u64*)stc_os_mem_rsrv(sizeof(u64) * ILT64_CAPACITY);
-	stc_os_mem_cmt(pl->free_list.ptr, sizeof(u64) * PAGESIZE);
-	stc_os_mem_cmt(pl->free_list.size, sizeof(u64) * PAGESIZE);
+	stc_os_mem_cmt(pl->free_list.ptr, sizeof(u64) * ILT64_CAPACITY);
+	stc_os_mem_cmt(pl->free_list.size, sizeof(u64) * ILT64_CAPACITY);
 	pl->free_list.used_count = 0;
 	return pl;
 }
