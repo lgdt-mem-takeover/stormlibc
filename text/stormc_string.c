@@ -521,7 +521,9 @@ static struct stc_arena_string8 stc_arena_string8_init(u32 string_count_to_init)
 
 
 	pl.mem = (stc_byte*)stc_os_mem_rsrv(DEFAULT_RESERVATION);
-	stc_os_mem_cmt(pl.mem, commit_size);
+	if (commit_size && stc_os_mem_cmt(pl.mem, commit_size) == NULL) {
+		stc_exit(1);
+	}
 
 
 	pl.strings = (struct stc_string8 *)pl.mem;
@@ -541,7 +543,10 @@ static struct stc_string8 *stc_arena_string8_push(struct stc_arena_string8 *a, u
 	u64 next_offset = a->offset_mem + (sizeof(struct stc_string8) * count);
 	if (next_offset > a->mem_cmtd) {
 		u64 delta_aligned = STC_ALIGN_UP(next_offset - a->mem_cmtd, PAGESIZE);
-		stc_os_mem_cmt(current_ptr, delta_aligned);
+		stc_byte *commit_ptr = a->mem + a->mem_cmtd;
+		if (stc_os_mem_cmt(commit_ptr, delta_aligned) == NULL) {
+			stc_exit(1);
+		}
 		a->mem_cmtd += delta_aligned;
 	}
 
