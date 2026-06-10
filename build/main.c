@@ -334,6 +334,14 @@ static void exec_init_clangd(void)
 		stormc_root,
 		stormc_root
 	);
+	if (len < 0 || (u64)len >= sizeof(clangd)) {
+		fprintf(stderr, "stormc root path too long for .clangd\n");
+		try_syscall(close, (fd), {
+			perror("close");
+			exit(1);
+		});
+		exit(1);
+	}
 
 	try_syscall(write, (fd, clangd, len), {
 		perror("write");
