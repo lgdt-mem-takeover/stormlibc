@@ -424,7 +424,7 @@ static void exec_build(struct stag_string target)
 		snprintf(
 			cmd,
 			sizeof(cmd),
-			"gcc -std=gnu99 -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' -DSASM %s/obj_files/asm_stringlib.o scbuild.c -o scbuild && ./scbuild build run",
+			"gcc -std=gnu99 -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' -DSASM %s/obj_files/sasm_stringlib.o scbuild.c -o scbuild && ./scbuild build run",
 			stormc_root,
 			stormc_root,
 			stormc_root
