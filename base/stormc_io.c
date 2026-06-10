@@ -435,9 +435,9 @@ thisfile void stc_println_err(const char *fmt, ...)
 
 	va_list vargs;
 	va_start(vargs, fmt);
-	stc_print(STC_ANSI_BRIGHT_RED);
+	stc_strbldr_append(&_strbldr_print, STC_ANSI_BRIGHT_RED);
 	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);
-	stc_print(STC_ANSI_RESET);
+	stc_strbldr_append(&_strbldr_print, STC_ANSI_RESET);
 	va_end(vargs);
 	stc_strbldr_append(&_strbldr_print, "\n");
 	stc_print_os_stderr();
