@@ -6,7 +6,11 @@
 
 static void *stc_os_alloc_default(u64 size)
 {
-	return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1 , 0);
+	void *mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1 , 0);
+	if (mem == MAP_FAILED) {
+		return NULL;
+	}
+	return mem;
 
 }
 
