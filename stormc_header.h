@@ -855,6 +855,9 @@ struct stc_stack {
 	#ifndef STORMC_ALLOCATOR
 		#define STORMC_ALLOCATOR
 	#endif
+	#ifndef STORMC_IO
+		#define STORMC_IO
+	#endif
 	#ifndef STORMC_TIMER
 		#define STORMC_TIMER
 	#endif
