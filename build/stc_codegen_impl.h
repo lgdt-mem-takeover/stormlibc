@@ -47,7 +47,7 @@ thisfile char *strp_xt(char *s)
 	if (len == 0) return NULL;
 	i64 end = len - 1;
 	bool has_xt = false;
-	char *out = stc_os_alloc_default(len);
+	char *out = stc_os_alloc_default(len + 1);
 	strcpy(out, s);
 
 	while (end > 0) {
