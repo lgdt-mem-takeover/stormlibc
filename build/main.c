@@ -92,6 +92,40 @@ static char stormc_root[PATH_MAX] = { 0 };
 
 static void stormc_save_config(void);
 
+static void stormc_reset_config_payload(void)
+{
+	stc_memset(&stc_proj_mapper->payload, 0, sizeof(stc_proj_mapper->payload));
+	stc_proj_mapper->payload.magic = STORMC_CFG_META_MAGIC;
+	stc_proj_mapper->payload.version = STORMC_CFG_META_VERSION;
+}
+
+static stag_bool32 stormc_config_payload_is_valid(void)
+{
+	if (stc_proj_mapper->payload.magic != STORMC_CFG_META_MAGIC) {
+		return false;
+	}
+	if (stc_proj_mapper->payload.version != STORMC_CFG_META_VERSION) {
+		return false;
+	}
+	if (stc_proj_mapper->payload.ct_projects > MAX_PROJECTS) {
+		return false;
+	}
+	if (stc_proj_mapper->payload.stormc_root_len > sizeof(stc_proj_mapper->payload.stormc_root)) {
+		return false;
+	}
+
+	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
+		if (stc_proj_mapper->payload.projects[i].proj_name_len > sizeof(stc_proj_mapper->payload.projects[i].proj_name)) {
+			return false;
+		}
+		if (stc_proj_mapper->payload.projects[i].proj_path_len > sizeof(stc_proj_mapper->payload.projects[i].proj_path)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static int stormc_is_root_dir(const char *path)
 {
 	char header_path[PATH_MAX];
@@ -705,8 +739,7 @@ void stormc_check_system(void)
 {
 	stc_proj_mapper = stc_alloc(sizeof(*stc_proj_mapper));
 	stc_proj_mapper->config_file_location = DEFAULT_CONFIG_LOCATION;
-	stc_proj_mapper->payload.magic = STORMC_CFG_META_MAGIC;
-	stc_proj_mapper->payload.version = STORMC_CFG_META_VERSION;
+	stormc_reset_config_payload();
 	const char *home = getenv("HOME");
 	if (!home) {
 		fprintf(stderr, "Env variable HOME is not set\n");
@@ -741,9 +774,16 @@ void stormc_check_system(void)
 		perror("fopen");
 		return;
 	} else {
-		fread(&stc_proj_mapper->payload, 1, sizeof(stc_proj_mapper->payload), f);
+		size_t bytes_read = fread(&stc_proj_mapper->payload, 1, sizeof(stc_proj_mapper->payload), f);
 		if (ferror(f)) {
 			perror("fread");
+			stormc_reset_config_payload();
+		} else if (bytes_read != 0 && bytes_read != sizeof(stc_proj_mapper->payload)) {
+			fprintf(stderr, "Ignoring partial stormc config\n");
+			stormc_reset_config_payload();
+		} else if (bytes_read == sizeof(stc_proj_mapper->payload) && !stormc_config_payload_is_valid()) {
+			fprintf(stderr, "Ignoring invalid stormc config\n");
+			stormc_reset_config_payload();
 		}
 		if (fclose(f) != 0) {
 			perror("fclose");
