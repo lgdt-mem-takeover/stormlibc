@@ -795,6 +795,12 @@ void stag_register_callback_batch(struct stag_callback_desc *desc, stag_u64 coun
 void stag_register_deferred_args(enum stag_user_commands cmd_id, struct stag_cmd_call *args)
 {
 	stag_u64 *len = &stag_ctx.user_data[cmd_id].fptr_args_stack.len;
+	if (unlikely(*len >= MAX_FPTR_ARGS_STACK_LEN)) {
+		fprintf(stderr, "[STAG_ERROR] Too many deferred calls for command %s\n",
+			stag_ctx.user_data[cmd_id].cmd_name.str);
+		exit(1);
+	}
+
 	stag_ctx.user_data[cmd_id].fptr_args_stack.fptr_args[*len] = args;
 	++(*len);
 }
