@@ -196,12 +196,14 @@ struct __name {\
 #define array_make(_array, _max_cap) \
 	do{\
 		_array.ptr = stc_global_alloc(TYPEOF(*_array.ptr), _max_cap);\
+		_array.len = 0;\
 		_array.cap = _max_cap;\
 	}while(0)
 
 #define array_make_with_allocator(_array, _max_cap) \
 	do{\
 		_array.ptr = allocator(TYPEOF(*_array.ptr), _max_cap);\
+		_array.len = 0;\
 		_array.cap = _max_cap;\
 	}while(0)
 
