@@ -472,6 +472,15 @@ static void exec_embed(struct stag_string spec)
 	char in_path[1024];
 	char out_path[1024];
 
+	if (in.len >= sizeof(in_path)) {
+		fprintf(stderr, "embed input path too long\n");
+		exit(1);
+	}
+	if (out.len >= sizeof(out_path)) {
+		fprintf(stderr, "embed output path too long\n");
+		exit(1);
+	}
+
 	snprintf(in_path, sizeof(in_path), "%.*s", (int)in.len, in.str);
 	snprintf(out_path, sizeof(out_path), "%.*s", (int)out.len, out.str);
 
@@ -482,12 +491,12 @@ static void exec_embed(struct stag_string spec)
 	}
 
 	unsigned char buffer_fd_in[4096];
-	size_t file_size = fread(buffer_fd_in, 1, sizeof(buffer_fd_in), fin);
-	fclose(fin);
+	u64 file_size = 0;
 
 	int file_out = open(out_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (file_out == -1) {
 		perror("open");
+		fclose(fin);
 		exit(1);
 	}
 
@@ -497,7 +506,13 @@ static void exec_embed(struct stag_string spec)
 
 	for (u32 i = 0; i < in.len && i < sizeof(fmt_file_name) - 1; ++i) {
 		char c = in.str[i];
-		fmt_file_name[i] = (c == '.') ? '_' : c;
+		bool valid_ident = (c == '_') ||
+			(c >= 'a' && c <= 'z') ||
+			(c >= 'A' && c <= 'Z');
+		bool valid_ident_tail = valid_ident || (c >= '0' && c <= '9');
+		fmt_file_name[i] = (i == 0)
+			? (valid_ident ? c : '_')
+			: (valid_ident_tail ? c : '_');
 	}
 	fmt_file_name[in.len] = '\0';
 
@@ -509,21 +524,38 @@ static void exec_embed(struct stag_string spec)
 		exit(1);
 	});
 
-	for (u64 i = 0; i < file_size; ++i) {
-		char buf[16];
-		int len = snprintf(buf, sizeof(buf), "\t0x%02x,", buffer_fd_in[i]);
-		try(write, (file_out, buf, len), {
-			perror("write");
-			exit(1);
-		});
+read_loop:
+	{
+		size_t bytes_read = fread(buffer_fd_in, 1, sizeof(buffer_fd_in), fin);
+		if (bytes_read == 0) goto read_done;
 
-		if ((i + 1) % 12 == 0) {
-			try(write, (file_out, "\n", 1), {
+		for (u64 i = 0; i < bytes_read; ++i) {
+			char buf[16];
+			int len = snprintf(buf, sizeof(buf), "\t0x%02x,", buffer_fd_in[i]);
+			try(write, (file_out, buf, len), {
 				perror("write");
 				exit(1);
 			});
+
+			++file_size;
+			if (file_size % 12 == 0) {
+				try(write, (file_out, "\n", 1), {
+					perror("write");
+					exit(1);
+				});
+			}
 		}
+
+		goto read_loop;
 	}
+
+read_done:
+	if (ferror(fin)) {
+		perror("fread");
+		fclose(fin);
+		exit(1);
+	}
+	fclose(fin);
 
 	try(write, (file_out, "\n};\n", 4), {
 		perror("write");
@@ -531,8 +563,8 @@ static void exec_embed(struct stag_string spec)
 	});
 
 	u32 len_var_len = snprintf(var_len_buff, sizeof(var_len_buff),
-				   "\nconst unsigned int %s_len = %lu;\n",
-				   fmt_file_name, file_size);
+				   "\nconst unsigned int %s_len = %llu;\n",
+				   fmt_file_name, (unsigned long long)file_size);
 
 	try(write, (file_out, var_len_buff, len_var_len), {
 		perror("write");
