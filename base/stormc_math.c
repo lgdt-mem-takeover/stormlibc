@@ -10,9 +10,10 @@ static f32 stc_rsqrt_f32(f32 number)
 	f32 x2 = number * 0.5f;
 	f32 y = number;
 
-	u32 i = *(u32*)&y;
+	u32 i;
+	__builtin_memcpy(&i, &y, sizeof(i));
 	i = 0x5f3759df - (i >> 1);
-	y = *(f32*)&i;
+	__builtin_memcpy(&y, &i, sizeof(y));
 
 	y = y * (threehalfs - (x2 * y * y)); // 1 iteration
 
@@ -50,4 +51,3 @@ static struct vec2 stc_norm2(struct vec2 v)
 
 	return STC_STRUCT_LIT(vec2, v.x / len, v.y / len);
 }
-
