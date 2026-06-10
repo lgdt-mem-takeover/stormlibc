@@ -1,4 +1,5 @@
 #define STORMC_ALLOCATOR
+#define STORMC_IO
 #include "stormc_header.h"
 
 #define ALIGN_SIMD __attribute__((aligned(STC_SIMD_ALIGN)))

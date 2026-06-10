@@ -47,6 +47,8 @@ enum stc_perf_type {
 	STC_PERF_COUNT
 };
 
+#define STC_PERF_F_MASK ((1u << STC_PERF_COUNT) - 1)
+
 static const char *stc_perf_table_literal[] = {
 	"cpu cycles",
 	"instructions",
@@ -375,50 +377,50 @@ static void stc_perf_add_flags(u64 flags)
 
 
 
-#ifdef _WIN32
-
-#include <intrin.h>
-#include <windows.h>
-
-static u64 get_os_timer_freq(void)
-{
-	LARGE_INTEGER Freq;
-	QueryPerformanceFrequency(&Freq);
-	return Freq.QuadPart;
-}
-
-static u64 read_os_timer(void)
-{
-	LARGE_INTEGER Value;
-	QueryPerformanceCounter(&Value);
-	return Value.QuadPart;
-}
-
-#else
-
-#include <x86intrin.h>
-#include <time.h>
-
-
-static u64 get_os_timer_freq(void)
-{
-	return 1000000000llu;
-}
-
-static u64 read_os_timer(void)
-{
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-
-	return get_os_timer_freq() * (u64)ts.tv_sec + (u64)ts.tv_nsec;
-}
-
-#endif
-
-static inline u64 read_cpu_timer(void)
-{
-	return __rdtsc();
-}
+// #ifdef _WIN32
+//
+// #include <intrin.h>
+// #include <windows.h>
+//
+// static u64 get_os_timer_freq(void)
+// {
+// 	LARGE_INTEGER Freq;
+// 	QueryPerformanceFrequency(&Freq);
+// 	return Freq.QuadPart;
+// }
+//
+// static u64 read_os_timer(void)
+// {
+// 	LARGE_INTEGER Value;
+// 	QueryPerformanceCounter(&Value);
+// 	return Value.QuadPart;
+// }
+//
+// #else
+//
+// #include <x86intrin.h>
+// #include <time.h>
+//
+//
+// static u64 get_os_timer_freq(void)
+// {
+// 	return 1000000000llu;
+// }
+//
+// static u64 read_os_timer(void)
+// {
+// 	struct timespec ts;
+// 	clock_gettime(CLOCK_MONOTONIC, &ts);
+//
+// 	return get_os_timer_freq() * (u64)ts.tv_sec + (u64)ts.tv_nsec;
+// }
+//
+// #endif
+//
+// static inline u64 read_cpu_timer(void)
+// {
+// 	return __rdtsc();
+// }
 
 
 struct stc_perf_wclock {

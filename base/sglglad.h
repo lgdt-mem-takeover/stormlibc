@@ -111,7 +111,11 @@ typedef ptrdiff_t           GLsizeiptr;
 
 #define GL_TRIANGLES                      0x0004
 
+#define GL_LESS				  0x0201
+#define GL_LEQUAL			  0x0203
+
 #define GL_COLOR_BUFFER_BIT               0x00004000
+#define GL_DEPTH_BUFFER_BIT		  0x00000100
 #define GL_DEPTH_TEST                     0x0B71
 #define GL_BLEND                          0x0BE2
 #define GL_SRC_ALPHA                      0x0302
@@ -187,7 +191,8 @@ X(void,   glGetIntegerv,             (GLenum pname, GLint *data)) \
 X(GLenum, glGetError,                (void)) \
 X(void,   glUniformMatrix4fv,        (GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)) \
 X(void,   glUniform3f,               (GLint location, GLfloat v0, GLfloat v1, GLfloat v2)) \
-X(void,   glUniform4f,               (GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3))
+X(void,   glUniform4f,               (GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3))\
+X(void,	  glDepthFunc,		     (GLenum func))\
 
 /* ------------------------------------------------------------ */
 /* Typedefs + extern declarations                                */

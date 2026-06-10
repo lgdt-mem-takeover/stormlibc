@@ -1,6 +1,13 @@
 #pragma once
 #include "../stormc_header.h"
 
+
+enum stc_threading_phase_cmd {
+	STC_PHASE_CONTINUE,
+	STC_PHASE_EXIT,
+};
+
+
 #ifdef _WIN32
 	#define stc_thread HANDLE
 	#define stc_barrier SYNCHRONIZATION_BARRIER
@@ -43,16 +50,14 @@ struct stc_threading_ctx{
 	u64		off_bytes_func_ret[THREADING_MAX_THREADS_PER_GROUPS];
 	void		*func_ret[THREADING_MAX_THREADS_PER_GROUPS];
 	u64		accumulator[THREADING_MAX_THREADS_PER_GROUPS];
+	struct {
+		enum stc_threading_phase_cmd		request[THREADING_MAX_THREADS_PER_GROUPS];
+	}phase;
 	u64		ct_active_threads;
 };
 static stc_threadlocal u64 __stc_lane_id;
 static stc_threadlocal u64 __stc_group_id;
 
-
-
-static struct stc_threading_init_pl __stc_thread_init = {0};
-static struct stc_threading_ctx __stc_thread_ctx[THREADING_MAX_GROUPS];
-static u64 __stc_thread_ctx_group_count = 0;
 
 #define LANEID_MASK 0xffffffff
 #define THREADING_GROUP_COUNT __stc_thread_ctx_group_count
@@ -69,6 +74,14 @@ static u64 __stc_thread_ctx_group_count = 0;
 #define stc_lane_return_value(__group_id, __lane_id) __stc_thread_ctx[__group_id].func_ret[__lane_id]
 #define stc_total_lanes_in_group(__group_id) __stc_thread_ctx[__group_id].ct_active_threads
 
+
+
+static struct stc_threading_init_pl __stc_thread_init = {0};
+static struct stc_threading_ctx __stc_thread_ctx[THREADING_MAX_GROUPS];
+static u64 __stc_thread_ctx_group_count = 0;
+
+
+
 static void stc_threading_prepare_parallel(u64 array_len);
 static u64 stc_parallel_start(void);
 static u64 stc_sum_lanes_return_value_u64(u64 group_id);
@@ -78,8 +91,8 @@ static stc_threading_group_t stc_threading_create_new_group(void);
 static void stc_threading_thread_data_for_group(stc_threading_group_t group_id, u64 commit, u64 rsrv, u32 number_of_threads);
 static void stc_threading_append_ensure_capacity(u64 group_id, u64 thread_id, void *data, u64 size);
 static void stc_threading_init_func_ret(stc_threading_group_t group_id, u64 threads_count, u64 rsrv_size, u64 initial_size);
-static void stc_threading_system_begin(void);
-static void stc_threading_system_end(void);
+static void stc_threading_begin(void);
+static void stc_threading_end(void);
 static void stc_init_thread_groups(stc_threading_group_t groups_count);
 static void stc_threads_barrier_init(stc_barrier *restrict barrier, STC_T_ATTR restrict attr, u32 count);
 static void stc_threads_barrier_wait(stc_barrier *barrier);
@@ -104,6 +117,30 @@ static STC_T_FUN(STC_ENTRY_POINT, param);
 	#include "linux/stormc_threading.c"
 #endif
 
+
+static void stc_threading_phase_clear_request(void)
+{
+	struct stc_threading_ctx *ctx = &__stc_thread_ctx[stc_group_id()];
+
+	ctx->phase.request[stc_lane_id()] = STC_PHASE_CONTINUE;
+	stc_barrier_wait(stc_group_id());
+}
+
+static bool32 stc_threading_phase_any_exit(void)
+{
+	struct stc_threading_ctx *ctx = &__stc_thread_ctx[stc_group_id()];
+	for (u64 i = 0; i < ctx->ct_active_threads; ++i) {
+		if (ctx->phase.request[i] == STC_PHASE_EXIT) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static void stc_threading_phase_request(enum stc_threading_phase_cmd phase)
+{
+	__stc_thread_ctx[stc_group_id()].phase.request[stc_lane_id()] = phase;
+}
 
 
 static void stc_threading_init_func_ret(stc_threading_group_t group_id, u64 threads_count, u64 reservation_size, u64 initial_size_func_ret_array)
@@ -146,7 +183,7 @@ static void stc_init_thread_groups(stc_threading_group_t groups_count)
 
 
 
-static void stc_threading_system_begin(void)
+static void stc_threading_begin(void)
 {
 	stc_init_thread_groups(__stc_thread_init.groups_count);
 	for (u64 idx_group = 0; idx_group < __stc_thread_init.groups_count; ++idx_group) {
@@ -165,7 +202,7 @@ static void stc_threading_system_begin(void)
 }
 
 
-static void stc_threading_system_end(void)
+static void stc_threading_end(void)
 {
 	for (u64 idx_group = 0; idx_group < __stc_thread_init.groups_count; ++idx_group) {
 		u64 threads_count = __stc_thread_init.threads[idx_group];

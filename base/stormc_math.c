@@ -1,7 +1,6 @@
 #pragma once
 
 
-#include "../stormc_header.h"
 #include "stc_simd_codegen.h"
 
 static f32 stc_rsqrt_f32(f32 number)
@@ -51,5 +50,4 @@ static struct vec2 stc_norm2(struct vec2 v)
 
 	return STC_STRUCT_LIT(vec2, v.x / len, v.y / len);
 }
-
 

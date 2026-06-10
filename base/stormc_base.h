@@ -1,17 +1,16 @@
 #pragma once
 
 
-
 #include "stormc_error_table.h"
 
 #ifdef __cplusplus
-	#define stc_try(stc_func, ...)\
+	#define stc_try(__call, __err, ...)\
 		([&]() {\
-			enum stc_err_code ret = stc_func(__VA_ARGS__);\
-			if (ret != STC_ERR_OK) {\
-				stc_println_err("{cstring}", stc_err_table_literal[ret]);\
+			enum stc_err_code __err = (__call);\
+			if (__err != (enum stc_err_code)STC_ERR_OK) {\
+				__VA_ARGS__\
 			}\
-			return ret;\
+			return __err;\
 		}())
 #else
 	#define stc_try(__call, __err, ...)\
@@ -25,13 +24,53 @@
 #endif
 
 
-#define STC_ANSI_RESET   "\x1b[0m"
-#define STC_ANSI_DIM     "\x1b[2m"
-#define STC_ANSI_BOLD    "\x1b[1m"
-#define STC_ANSI_GREEN   "\x1b[32m"
-#define STC_ANSI_YELLOW  "\x1b[33m"
-#define STC_ANSI_RED     "\x1b[31m"
-#define STC_ANSI_CYAN    "\x1b[36m"
+#define STC_ANSI_RESET             "\x1b[0m"
+#define STC_ANSI_BOLD              "\x1b[1m"
+#define STC_ANSI_DIM               "\x1b[2m"
+#define STC_ANSI_ITALIC            "\x1b[3m"
+#define STC_ANSI_UNDERLINE         "\x1b[4m"
+#define STC_ANSI_BLINK             "\x1b[5m"
+#define STC_ANSI_REVERSE           "\x1b[7m"
+#define STC_ANSI_HIDDEN            "\x1b[8m"
+#define STC_ANSI_STRIKETHROUGH     "\x1b[9m"
+
+#define STC_ANSI_BLACK             "\x1b[30m"
+#define STC_ANSI_RED               "\x1b[31m"
+#define STC_ANSI_GREEN             "\x1b[32m"
+#define STC_ANSI_YELLOW            "\x1b[33m"
+#define STC_ANSI_BLUE              "\x1b[34m"
+#define STC_ANSI_MAGENTA           "\x1b[35m"
+#define STC_ANSI_CYAN              "\x1b[36m"
+#define STC_ANSI_WHITE             "\x1b[37m"
+#define STC_ANSI_DEFAULT           "\x1b[39m"
+
+#define STC_ANSI_BG_BLACK          "\x1b[40m"
+#define STC_ANSI_BG_RED            "\x1b[41m"
+#define STC_ANSI_BG_GREEN          "\x1b[42m"
+#define STC_ANSI_BG_YELLOW         "\x1b[43m"
+#define STC_ANSI_BG_BLUE           "\x1b[44m"
+#define STC_ANSI_BG_MAGENTA        "\x1b[45m"
+#define STC_ANSI_BG_CYAN           "\x1b[46m"
+#define STC_ANSI_BG_WHITE          "\x1b[47m"
+#define STC_ANSI_BG_DEFAULT        "\x1b[49m"
+
+#define STC_ANSI_BRIGHT_BLACK      "\x1b[90m"
+#define STC_ANSI_BRIGHT_RED        "\x1b[91m"
+#define STC_ANSI_BRIGHT_GREEN      "\x1b[92m"
+#define STC_ANSI_BRIGHT_YELLOW     "\x1b[93m"
+#define STC_ANSI_BRIGHT_BLUE       "\x1b[94m"
+#define STC_ANSI_BRIGHT_MAGENTA    "\x1b[95m"
+#define STC_ANSI_BRIGHT_CYAN       "\x1b[96m"
+#define STC_ANSI_BRIGHT_WHITE      "\x1b[97m"
+
+#define STC_ANSI_BG_BRIGHT_BLACK   "\x1b[100m"
+#define STC_ANSI_BG_BRIGHT_RED     "\x1b[101m"
+#define STC_ANSI_BG_BRIGHT_GREEN   "\x1b[102m"
+#define STC_ANSI_BG_BRIGHT_YELLOW  "\x1b[103m"
+#define STC_ANSI_BG_BRIGHT_BLUE    "\x1b[104m"
+#define STC_ANSI_BG_BRIGHT_MAGENTA "\x1b[105m"
+#define STC_ANSI_BG_BRIGHT_CYAN    "\x1b[106m"
+#define STC_ANSI_BG_BRIGHT_WHITE   "\x1b[107m"
 
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -100,7 +139,6 @@
 #define DATA_SECTION(name) __attribute__((section(name), used))
 
 
-#include <stdbool.h>
 #include <inttypes.h>
 #if defined(__wasm_simd128__)
 #include <wasm_simd128.h>
@@ -201,16 +239,17 @@ enum stc_std_file {
 };
 
 
-struct stc_fd {
-#ifdef _WIN32
-	HANDLE	fd;
-#else
-	int fd;
-#endif
-};
+// struct stc_fd {
+// };
 
 struct stc_file {
-	struct stc_fd	fd;
+	struct {
+#ifdef _WIN32
+		HANDLE	fd;
+#else
+		int fd;
+#endif
+	};
 	u64		file_size;
 };
 
@@ -232,3 +271,64 @@ thisfile void stc_exit(u32 code)
 #endif
 	stc_unreachable;
 }
+
+
+static bool f32_is_nan(f32 f)
+{
+	union {u32 u; f32 f;} x;
+	x.f = f;
+	return ((x.u & EXPONENTF32) == EXPONENTF32) && ((x.u & MANTISSAF32) != 0);
+}
+
+static bool is_prime(u64 n)
+{
+	if (n < 2) return false;
+	if ((n & 1) == 0) return n == 2;
+	for (u64 i = 3; i * i <= n; i += 2) {
+		if (n % i == 0) return false;
+	}
+	return true;
+}
+
+static u64 next_prime(u64 n)
+{
+	if (n <= 2) return 2;
+	if ((n & 1) == 0) n++;
+	while (!is_prime(n)) n += 2;
+	return n;
+}
+
+static bool is_pow2(u64 n)
+{
+	return (n != 0) && (n & (n - 1)) == 0;
+}
+
+static u64 next_pow2(u64 n)
+{
+	n--;
+	n |= n >> 1;
+	n |= n >> 2;
+	n |= n >> 4;
+	n |= n >> 8;
+	n |= n >> 16;
+	n |= n >> 32;
+	n++;
+	return n;
+}
+
+static f32 minf(f32 a, f32 b)
+{
+	return (a < b) ? a : b;
+}
+
+static f32 maxf(f32 a, f32 b)
+{
+	return (a > b) ? a : b;
+}
+
+
+static u32 stc_maxu32(u32 a, u32 b)
+{
+	return (a > b) ? a : b;
+}
+

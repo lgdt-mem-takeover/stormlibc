@@ -1,9 +1,6 @@
 #include "scbuild.h"
 
 
-
-
-
 int main(int argc, char **argv)
 {
 	enum compilers compiler = C_GCC;
@@ -21,13 +18,27 @@ int main(int argc, char **argv)
 		else if (stc_string8_cmp(arg, STR("gccgpp"))) compiler = C_GCCPP;
 	}
 
+	for (u64 i = 2; i < argc; ++i) {
+		stc_println("{cstring}", argv[i]);
+	}
+
 	proj.compiler = compiler;
+	set_include_paths(STR(STORMC_ROOT));
 	set_sources(STR("src/main.c"));
-	set_flags(STD_C99, OPTIM_1, WALL, WPEDANTIC, ALLSAN);
+	set_flags(STD_C99, OPTIM_3);
 	set_out_file(STR("src/main"));
 
 	bool linux_build = (compiler != C_MINGW64) && (compiler != C_MINGW32);
+	if (linux_build) {
+		set_objects(STR(STORMC_ROOT"/obj_files/sasm_stringlib.o"));
+	} else {
+		set_objects(STR(STORMC_ROOT"/obj_files/sasm_stringlib.obj"));
+	}
 	build_proj();
+
+	if (argv[2][0] == 'r' && argv[2][1] == 'u' && argv[2][2] == 'n' ) {
+		system("src/./main");
+	}
 	return 0;
 }
 

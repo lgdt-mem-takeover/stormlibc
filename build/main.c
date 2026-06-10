@@ -38,7 +38,7 @@
 	ENTRY(PROJECT_UPDATE,		"update",		"-update", 	"update project name for local path",	"", true, ' ')\
 	ENTRY(LIST_PROJECTS,		"--list-projects",	"-lstp", 	"list projects",			"", false, 0)\
 	ENTRY(GOTO_PROJ,		"goto",			"-g2p",		"go to project directory",		"", true, ' ')\
-	ENTRY(SEED,			"seed",			"-seed",	"go to project directory",		"", false, 0)\
+	ENTRY(SEED,			"seed",			"-seed",	"reserved for now",			"", false, 0)\
 	ENTRY(REBUILD,			"rebuild",		"-rbld",	"Stormc, rebuild yourself!",		"", false, 0)\
 	ENTRY(NEIYEHALL,		"neiyeh-all",		"-nya",		"View all of Neiyeh",			"", false, 0)\
 	ENTRY(NEIYEH,			"neiyeh",		"-ny",		"View random page from Neiyeh",		"", false, 0)
@@ -46,6 +46,7 @@
 #define STORMC_STAG
 #define STORMC_ALLOCATOR
 #define STORMC_STRING
+#define STORMC_IO
 #include "../stormc_header.h"
 #include "stormc_buildsystem.h"
 #include "defaults.h"
@@ -397,7 +398,7 @@ static void exec_run(void)
 	snprintf(
 		cmd,
 		sizeof(cmd),
-		"gcc -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild run",
+		"gcc -std=gnu99 -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild run",
 		stormc_root,
 		stormc_root
 	);
@@ -417,12 +418,14 @@ static void exec_build(struct stag_string target)
 		exit(1);
 	}
 
+
 	if (stag_strcmp(target, STAG_STR("run"))) {
 		char cmd[PATH_MAX * 2];
 		snprintf(
 			cmd,
 			sizeof(cmd),
-			"gcc -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild build run",
+			"gcc -std=gnu99 -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' -DSASM %s/obj_files/asm_stringlib.o scbuild.c -o scbuild && ./scbuild build run",
+			stormc_root,
 			stormc_root,
 			stormc_root
 		);
@@ -432,7 +435,7 @@ static void exec_build(struct stag_string target)
 		snprintf(
 			cmd,
 			sizeof(cmd),
-			"gcc -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild build asm",
+			"gcc -std=gnu99 -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild build asm",
 			stormc_root,
 			stormc_root
 		);
@@ -440,11 +443,14 @@ static void exec_build(struct stag_string target)
 	} else {
 		char cmd[PATH_MAX * 2];
 		snprintf(cmd, sizeof(cmd),
-			 "gcc -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' scbuild.c -o scbuild && ./scbuild %.*s",
+			 "gcc -std=gnu99 -mavx2 -I\"%s\" -DSTORMC_ROOT='\"%s\"' -DSASM %s/obj_files/sasm_stringlib.o scbuild.c -o scbuild && ./scbuild %.*s",
+			 stormc_root,
 			 stormc_root,
 			 stormc_root,
 			 (int)target.len, target.str);
 		ret = system(cmd);
+		// stc_println("executed: {cstring}", cmd);
+
 	}
 
 	if (ret == -1) {

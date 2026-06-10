@@ -1,11 +1,7 @@
-// #include "stc_utils.h"
-
-
-
-
-
 #define STORMC_ALLOCATOR
 #define STORMC_STRING
+#define STORMC_MATH
+#define STORMC_IO
 
 #include "../stormc_header.h"
 #include <stdio.h>
@@ -172,6 +168,7 @@ enum stcb_cmplr_flags{
 	STD_C2X,
 	STD_C2Y,
 	STD_GNU99,
+	STD_GNU11,
 
 	STD_CPP98,
 	STD_CPP03,
@@ -233,6 +230,7 @@ struct stc_string8 G_Commands_Map[STORMC_COMMANDS_COUNT] = {
 	[STD_C2X] 			= STR("-std=c2x"),
 	[STD_C2Y] 			= STR("-std=c2y"),
 	[STD_GNU99] 			= STR("-std=gnu99"),
+	[STD_GNU11] 			= STR("-std=gnu11"),
 
 	[STD_CPP98]			= STR("-std=c++98"),
 	[STD_CPP03] 			= STR("-std=c++03"),
@@ -463,6 +461,12 @@ void build_proj()
 		table_compilers[proj.compiler].str
 	);
 
+	off += snprintf(
+	    (u8 *)(cmd + off), sizeof(cmd) - off,
+	    "-DSTORMC_ROOT='\"%s\"' ",
+	    STORMC_ROOT
+	);
+
 	for (u64 i = 0; i < proj.ct_compiler_flags; ++i) {
 		off += snprintf(
 		    (u8*)(cmd + off), sizeof(cmd) - off,
@@ -527,305 +531,21 @@ void build_proj()
 		proj.out.str
 	);
 
-	cmd[off] = '\0';
-	printf(GREEN"%s\n"RESET_COL, cmd);
 
+
+	// off += snprintf(
+	//     (u8*)(cmd + off), sizeof(cmd) - off,
+	//     " 2> build.err"
+	//     );
+
+	cmd[off] = '\0';
+
+	printf("%s\n", cmd);
 
 	system(cmd);
 }
 
 
 
-#define STC_CODEGEN_ARRAY_INIT_TEMPLATE(__type_prefix)\
-	"\n"\
-	"static struct array_%.*s *stc_array_%.*s_emit(u64 reserve_size, u64 init_size)\n"\
-	"{\n"\
-	"\tstruct array_%.*s *pl;\n"\
-	"\tinit_size = STC_ALIGN_UP(sizeof(*pl) + init_size, PAGESIZE);\n"\
-	"\tu8 *block = (u8 *)stc_os_mem_rsrv(reserve_size + sizeof(*pl));\n"\
-	"\tstc_os_mem_cmt(block, init_size);\n"\
-	"\tpl = (struct array_%.*s *)block;\n"\
-	"\tpl->ptr = (" __type_prefix "%.*s *)((u64)block + sizeof(*pl));\n"\
-	"\tpl->mem_reserved = reserve_size;\n"\
-	"\tpl->mem_committed = init_size;\n"\
-	"\treturn pl;\n"\
-	"}\n"
 
 
-
-#define STC_CODEGEN_ARRAY_PUSH_TEMPLATE(__type_prefix)\
-	"\n"\
-	"static void stc_array_%.*s_push(struct array_%.*s *a, u64 count)\n"\
-	"{\n"\
-	"\tu64 next_count = a->len + count;\n"\
-	"\tu64 size_in_bytes = next_count * sizeof(*a->ptr);\n"\
-	"\tif (size_in_bytes > a->mem_committed) {\n"\
-	"\t\tu64 delta = STC_ALIGN_UP(size_in_bytes - a->mem_committed, PAGESIZE);\n"\
-	"\t\tstc_os_mem_cmt((u8*)a->ptr + a->mem_committed, delta);\n"\
-	"\t\ta->mem_committed += delta;\n"\
-	"\t}\n"\
-	"}\n"
-
-
-
-#define STC_CODEGEN_ARRAY_APPEND_TEMPLATE(__type_prefix)\
-	"\n"\
-	"static void stc_array_%.*s_append(struct array_%.*s *a, "__type_prefix"%.*s element)\n"\
-	"{\n"\
-	"\tu64 cur_max_elements = a->mem_committed / sizeof(*a->ptr);\n"\
-	"\tif (cur_max_elements < (a->len + 1))\n"\
-	"\t\tstc_array_%.*s_push(a, 1);\n"\
-	"\ta->ptr[a->len] = element;\n"\
-	"\ta->len++;\n"\
-	"}\n"
-
-
-
-#define STC_CODEGEN_ARRAY_SHRINK_TEMPLATE(__type_prefix)\
-	"\n"\
-	"static void stc_array_%.*s_shrink(struct array_%.*s *a, u64 count)\n"\
-	"{\n"\
-	"\tu64 new_len = (count >= a->len) ? 0 : (a->len - count);\n"\
-	"\ta->len = new_len;\n"\
-	"}\n"
-
-#define STC_CODEGEN_ARRAY_TOP_TEMPLATE(__type_prefix)\
-	"\n"\
-	"static "__type_prefix"%.*s stc_array_%.*s_top(struct array_%.*s *a)\n"\
-	"{\n"\
-	"\treturn a->ptr[a->len - 1];\n"\
-	"}\n"
-
-#define STC_CODEGEN_ARRAY_STRUCT_INIT_TEMPLATE    STC_CODEGEN_ARRAY_INIT_TEMPLATE("struct ")
-#define STC_CODEGEN_ARRAY_PRIMITIVE_INIT_TEMPLATE STC_CODEGEN_ARRAY_INIT_TEMPLATE("")
-#define STC_CODEGEN_ARRAY_STRUCT_PUSH_TEMPLATE    STC_CODEGEN_ARRAY_PUSH_TEMPLATE("struct ")
-#define STC_CODEGEN_ARRAY_PRIMITIVE_PUSH_TEMPLATE STC_CODEGEN_ARRAY_PUSH_TEMPLATE("")
-#define STC_CODEGEN_ARRAY_STRUCT_APPEND_TEMPLATE    STC_CODEGEN_ARRAY_APPEND_TEMPLATE("struct ")
-#define STC_CODEGEN_ARRAY_PRIMITIVE_APPEND_TEMPLATE STC_CODEGEN_ARRAY_APPEND_TEMPLATE("")
-#define STC_CODEGEN_ARRAY_STRUCT_SHRINK_TEMPLATE    STC_CODEGEN_ARRAY_SHRINK_TEMPLATE("struct ")
-#define STC_CODEGEN_ARRAY_PRIMITIVE_SHRINK_TEMPLATE STC_CODEGEN_ARRAY_SHRINK_TEMPLATE("")
-#define STC_CODEGEN_ARRAY_STRUCT_TOP_TEMPLATE    STC_CODEGEN_ARRAY_TOP_TEMPLATE("struct ")
-#define STC_CODEGEN_ARRAY_PRIMITIVE_TOP_TEMPLATE STC_CODEGEN_ARRAY_TOP_TEMPLATE("")
-
-
-
-
-
-#define MAX_LAYOUTS 4096
-#define INIT_SIZE (1 << 24)
-
-#define stc_codegen_layout(...)\
-	stc_codegen_layout_new((struct codegen_struct_layout){__VA_ARGS__})
-
-
-enum codegen_type{
-	CODEGEN_ARRAY_STRUCT,
-	CODEGEN_ARRAY_PRIMITIVE,
-	CODEGEN_TYPE_CT
-};
-
-
-struct codegen_struct_layout{
-	struct stc_string8	struct_name;
-	struct stc_string8	struct_field_type;
-	struct stc_string8	struct_field_name;
-	enum codegen_type	codegen_type;
-};
-
-struct codegen{
-	struct stc_string8    in;
-	struct stc_string8    out;
-	u8            *codegen_start;
-	u8            *codegen_end;
-};
-struct codegen c = {0};
-struct codegen_struct_layout layouts[MAX_LAYOUTS];
-static u64 ct_layouts;
-
-
-
-void stc_codegen_layout_new(struct codegen_struct_layout layout)
-{
-	layouts[ct_layouts++] = layout;
-}
-
-
-
-
-static void stc_codegen_make_array_primitive(struct codegen_struct_layout *l)
-{
-	struct stc_arena_string8 a = stc_arena_string8_init(2048);
-	stc_arena_string8_push(&a, 1024);
-
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "struct array_%.*s {\n", stc_string8_sized(l->struct_name));
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\t%.*s\t*ptr;\n", stc_string8_sized(l->struct_name));
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\tu64\tlen;\n");
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\tu64\tmem_committed;\n");
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\tu64\tmem_reserved;\n");
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "};\n");
-
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\n");
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_PRIMITIVE_INIT_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_PRIMITIVE_PUSH_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_PRIMITIVE_APPEND_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_PRIMITIVE_SHRINK_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_PRIMITIVE_TOP_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-}
-
-static void stc_codegen_make_array_struct(struct codegen_struct_layout *l)
-{
-	struct stc_arena_string8 a = stc_arena_string8_init(2048);
-	stc_arena_string8_push(&a, 1024);
-
-	struct stc_string8_split split_field_types = stc_string8_split(&a, &l->struct_field_type, ';');
-	struct stc_string8_split split_field_names = stc_string8_split(&a, &l->struct_field_name, ';');
-
-	if (split_field_types.ct_strings != split_field_names.ct_strings) {
-		printf("Field types count do not match with field names count\n");
-		exit(1);
-	}
-
-
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "struct %.*s {\n", stc_string8_sized(l->struct_name));
-
-	for (int i = 0; i < split_field_types.ct_strings; ++i) {
-		c.out.len += snprintf(
-		    c.out.str + c.out.len, INIT_SIZE,
-		    "\t%.*s\t%.*s;\n",
-		    stc_string8_sized(split_field_types.strings[i]),
-		    stc_string8_sized(split_field_names.strings[i])
-		    );
-	}
-
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "};\n");
-
-
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "struct array_%.*s {\n", stc_string8_sized(l->struct_name));
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\tstruct %.*s\t*ptr;\n", stc_string8_sized(l->struct_name));
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\tu64\t\tlen;\n");
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\tu64\t\tmem_committed;\n");
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\tu64\t\tmem_reserved;\n");
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "};\n");
-
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "\n");
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_STRUCT_INIT_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_STRUCT_PUSH_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_STRUCT_APPEND_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_STRUCT_SHRINK_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-
-	c.out.len += snprintf(
-		c.out.str + c.out.len,
-		INIT_SIZE,
-		STC_CODEGEN_ARRAY_STRUCT_TOP_TEMPLATE,
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name),
-		stc_string8_sized(l->struct_name)
-	    );
-}
-
-
-
-
-static void stc_codegen(struct stc_string8 codegen_in_file)
-{
-	c.out.str = (char *)stc_os_mem_rsrv(1llu << 35);
-	stc_os_mem_cmt(c.out.str, INIT_SIZE);
-	FILE *f = fopen(codegen_in_file.str, "w+");
-
-
-	struct codegen_struct_layout *layout_current = layouts;
-	struct codegen_struct_layout *layout_last = layouts + ct_layouts;
-
-	c.out.len += snprintf(c.out.str + c.out.len, INIT_SIZE, "#include \"stormc_header.h\"\n\n\n\n");
-	while (layout_current != layout_last) {
-		switch ((*layout_current).codegen_type) {
-		case CODEGEN_ARRAY_PRIMITIVE:
-			stc_codegen_make_array_primitive(layout_current);
-			break;
-		case CODEGEN_ARRAY_STRUCT:
-			stc_codegen_make_array_struct(layout_current);
-			break;
-		}
-
-
-		layout_current++;
-	}
-
-	fwrite(c.out.str, c.out.len, 1, f);
-	fclose(f);
-}

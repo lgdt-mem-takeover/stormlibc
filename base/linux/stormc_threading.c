@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../stormc_header.h"
 
 static void stc_threads_barrier_init(stc_barrier *restrict barrier, STC_T_ATTR restrict attr, u32 count)
 {

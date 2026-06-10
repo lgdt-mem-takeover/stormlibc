@@ -6,7 +6,6 @@
 #endif
 
 
-static stc_threadlocal struct stc_strbldr _strbldr_print = {};
 
 
 
@@ -32,6 +31,7 @@ stc_c_string_cmp (
 
 
 #define STRBLDR_TYPE_LIST(X)\
+	X(SB_T_CHAR,		char, parse_char)\
 	X(SB_T_U8,		u8, parse_u8)\
 	X(SB_T_U16,		u16, parse_u16)\
 	X(SB_T_U32, 		u32, parse_u32)\
@@ -82,6 +82,7 @@ static void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacit
 {
 	const u64 remaining = (a_capacity >= a->len) ? a_capacity - a->len : 0;
 	if (unlikely(remaining < b->len)) {
+		stc_println_err("Could not copy string: not enough space remaining");
 		return;
 	}
 	for (u64 i = 0; i < b->len; ++i) {
@@ -93,6 +94,7 @@ static void stc_string8_cpy(struct stc_string8 * restrict a, const u64 a_capacit
 
 static u64 stc_string8_len(const stc_byte *stc_string8)
 {
+	if (stc_string8 == NULL) return 0;
 	if(stc_string8[0] == '\0') return 0;
 	u64 count = 0;
 	while(stc_string8[++count]);
@@ -302,6 +304,12 @@ static u64 stc_len_c_string(stc_byte *c_string)
 	return len;
 }
 
+
+thisfile bool32 stc_is_whitespace(stc_byte c)
+{
+	return c == ' ' || c == '\r' || c == '\n' || c == '\t' || c == '\v' || c == '\f';
+}
+
 thisfile bool32 stc_is_alpha_upper(stc_byte c)
 {
 	return c >= 'A' && c <= 'Z';
@@ -339,6 +347,7 @@ thisfile stc_byte stc_string8_to_u8(struct stc_string8 *string)
 {
 	stc_byte pl = 0;
 	for (stc_byte *start = string->str, *end = string->str + string->len; start!= end; ++start) {
+		if (!stc_is_digit(*start)) continue;
 		pl = (pl * 10) + ((*start) ^ '0');
 	}
 
@@ -349,7 +358,8 @@ thisfile u16 stc_string8_to_u16(struct stc_string8 *string)
 {
 	u16 pl = 0;
 	for (stc_byte *start = string->str, *end = string->str + string->len; start!= end; ++start) {
-		pl = (pl * 10) + ((*start) ^ '0');
+		if (!stc_is_digit(*start)) continue;
+		pl = (u16)((pl * 10) + ((*start) ^ '0'));
 	}
 
 	return pl;
@@ -360,7 +370,8 @@ thisfile u32 stc_string8_to_u32(struct stc_string8 *string)
 {
 	u32 pl = 0;
 	for (stc_byte *start = string->str, *end = string->str + string->len; start!= end; ++start) {
-		pl = (pl * 10) + ((*start) ^ '0');
+		if (!stc_is_digit(*start)) continue;
+		pl = (pl * 10) + (u32)((*start) ^ '0');
 	}
 
 	return pl;
@@ -372,7 +383,8 @@ thisfile u64 stc_string8_to_u64(struct stc_string8 *string)
 {
 	u64 pl = 0;
 	for (stc_byte *start = string->str, *end = string->str + string->len; start!= end; ++start) {
-		pl = (pl * 10) + ((*start) ^ '0');
+		if (!stc_is_digit(*start)) continue;
+		pl = (pl * 10) + (u64)((*start) ^ '0');
 	}
 
 	return pl;
@@ -380,7 +392,7 @@ thisfile u64 stc_string8_to_u64(struct stc_string8 *string)
 
 thisfile i8 stc_string8_to_i8(struct stc_string8 *string)
 {
-	i8 pl = 0;
+	u8 pl = 0;
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
 	if (is_negative) {
@@ -389,15 +401,16 @@ thisfile i8 stc_string8_to_i8(struct stc_string8 *string)
 		start = string->str;
 	}
 	for (stc_byte *end = string->str + string->len; start!= end; ++start) {
-		pl = (pl * 10) + ((*start) ^ '0');
+		if (!stc_is_digit(*start)) continue;
+		pl = (u8)((pl * 10) + ((*start) ^ '0'));
 	}
 
-	return is_negative ? -pl : pl;
+	return is_negative ? (i8)(0 - pl) : (i8)pl;
 }
 
 thisfile i16 stc_string8_to_i16(struct stc_string8 *string)
 {
-	i16 pl = 0;
+	u16 pl = 0;
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
 	if (is_negative) {
@@ -406,15 +419,16 @@ thisfile i16 stc_string8_to_i16(struct stc_string8 *string)
 		start = string->str;
 	}
 	for (stc_byte *end = string->str + string->len; start!= end; ++start) {
-		pl = (pl * 10) + ((*start) ^ '0');
+		if (!stc_is_digit(*start)) continue;
+		pl = (u16)((pl * 10) + ((*start) ^ '0'));
 	}
 
-	return is_negative ? -pl : pl;
+	return is_negative ? (i16)(0 - pl) : (i16)pl;
 }
 
 thisfile i32 stc_string8_to_i32(struct stc_string8 *string)
 {
-	i32 pl = 0;
+	u32 pl = 0;
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
 	if (is_negative) {
@@ -423,15 +437,16 @@ thisfile i32 stc_string8_to_i32(struct stc_string8 *string)
 		start = string->str;
 	}
 	for (stc_byte *end = string->str + string->len; start!= end; ++start) {
-		pl = (pl * 10) + ((*start) ^ '0');
+		if (!stc_is_digit(*start)) continue;
+		pl = (pl * 10) + (u32)((*start) ^ '0');
 	}
 
-	return is_negative ? -pl : pl;
+	return is_negative ? (i32)(0 - pl) : (i32)pl;
 }
 
 thisfile i64 stc_string8_to_i64(struct stc_string8 *string)
 {
-	i64 pl = 0;
+	u64 pl = 0;
 	bool is_negative = string->str[0] == '-';
 	stc_byte *start;
 	if (is_negative) {
@@ -440,10 +455,11 @@ thisfile i64 stc_string8_to_i64(struct stc_string8 *string)
 		start = string->str;
 	}
 	for (stc_byte *end = string->str + string->len; start!= end; ++start) {
-		pl = (pl * 10) + ((*start) ^ '0');
+		if (!stc_is_digit(*start)) continue;
+		pl = (pl * 10) + (u64)((*start) ^ '0');
 	}
 
-	return is_negative ? -pl : pl;
+	return is_negative ? (i64)(0 - pl) : (i64)pl;
 }
 
 thisfile f64 stc_string8_to_float(struct stc_string8 *string)
@@ -461,13 +477,15 @@ thisfile f64 stc_string8_to_float(struct stc_string8 *string)
 
 	stc_byte *end = string->str + string->len;
 
-	for (; (*start) != '.' && start != end; ++start) {
+	for (; start != end && (*start) != '.'; ++start) {
+		if (!stc_is_digit(*start)) continue;
 		pl = (pl * 10) + ((*start) ^ '0');
 	}
-	++start; /*eat dot '.' */
+	if (start != end) ++start; /*eat dot '.' */
 
 	f64 divisor = 10.0f;
 	for (; start != end; ++start) {
+		if (!stc_is_digit(*start)) continue;
 		f64 fractional = (*start) ^ '0';
 		pl = pl + fractional / divisor;
 		divisor *= 10.0f;
@@ -608,17 +626,15 @@ thisfile inline u64 stc_ftoa(f64 n, stc_byte *s)
 static u64 stc_itoa(i64 n, stc_byte *s)
 {
 	stc_byte *start = s;
-	i64 sign;
-	if ((sign = n) < 0) {
-		n = -n;
-	}
+	bool is_negative = n < 0;
+	u64 value = is_negative ? (0 - (u64)n) : (u64)n;
 
 	do {
-		(*s) = n % 10 + '0';
+		(*s) = value % 10 + '0';
 		++s;
-	} while((n /= 10) > 0);
+	} while((value /= 10) > 0);
 
-	if (sign < 0) {
+	if (is_negative) {
 		*s = '-';
 		++s;
 	}
@@ -653,6 +669,9 @@ static u64 stc_utobin(u64 n, stc_byte *s)
 
 static u64 stc_utoa(u64 n, stc_byte *s)
 {
+#ifdef SASM
+	return sasm_utoa64(s, n);
+#else
 	stc_byte *start = s;
 
 	do {
@@ -663,6 +682,7 @@ static u64 stc_utoa(u64 n, stc_byte *s)
 	*s = '\0';
 	stc_c_string_reverse(start, s - start);
 	return s - start;
+#endif
 }
 
 
@@ -687,6 +707,11 @@ static struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init)
 	return pl;
 }
 
+static void stc_strbldr_free(struct stc_strbldr *b)
+{
+	stc_free(b->ptr, b->cmt);
+}
+
 
 static void check_alloc(struct stc_strbldr *b, u64 new_size)
 {
@@ -707,6 +732,13 @@ static void stc_strbldr_append(struct stc_strbldr *b, const stc_byte *s, ...)
 	va_start(args, s);
 	stc_strbldr_add_v(b, s, args);
 	va_end(args);
+}
+
+
+static void stc_strbldr_reset(struct stc_strbldr *b)
+{
+	stc_memset(b->ptr, 0, b->off);
+	b->off = 0;
 }
 
 static void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end)
@@ -755,6 +787,20 @@ loop:
 		goto loop;
 	}
 	++start;
+	if (*start == '{') {
+		while (*start != '}') {
+			b->ptr[b->off++] = *start;
+			++start;
+		}
+		b->ptr[b->off++] = *start;
+		++start;
+		if (*start != '}') {
+			stc_println("Missing closing curly brace '}'");
+			stc_exit(1);
+		}
+		++start;
+		goto loop;
+	}
 	rem = (u64)(end - start);
 
 #define X(_id, _type, _label)                                                   \
@@ -804,10 +850,10 @@ parse_stc_stack:
 
 parse_stack_pretty:
 {
-	const struct stc_string8 stack_cur_baseoff_txt = STR8LIT("[Stack base offset: ");
-	const struct stc_string8 stack_cur_mem_rsrv   = STR8LIT("[Stack reserved memory: ");
-	const struct stc_string8 stack_cur_mem_cmt    = STR8LIT("[Stack committed memory: ");
-	const struct stc_string8 stack_cur_base_ptr   = STR8LIT("[Stack base pointer address: ");
+	static const struct stc_string8 stack_cur_baseoff_txt = STR8LIT("[Stack base offset: ");
+	static const struct stc_string8 stack_cur_mem_rsrv   = STR8LIT("[Stack reserved memory: ");
+	static const struct stc_string8 stack_cur_mem_cmt    = STR8LIT("[Stack committed memory: ");
+	static const struct stc_string8 stack_cur_base_ptr   = STR8LIT("[Stack base pointer address: ");
 
 	// base offset
 	stc_memcpy(b->ptr + b->off, stack_cur_baseoff_txt.str, stack_cur_baseoff_txt.len);
@@ -898,6 +944,18 @@ parse_signed:
 	check_alloc(b, new_size);
 	stc_memcpy(b->ptr + b->off, buff_digits, len_buff_digits);
 	b->off += len_buff_digits;
+	if (unlikely(*start != '}')) {
+		stc_println_err("Expected closing bracket '}' for formatting");
+		stc_exit(1);
+	}
+	goto advance;
+
+
+parse_char:
+	start += strbldr_types_lit[SB_T_CHAR].len;
+	cur_unsigned_int = va_arg(args, int);
+	check_alloc(b, new_size + 1);
+	b->ptr[b->off++] = (stc_byte)cur_unsigned_int;
 	if (unlikely(*start != '}')) {
 		stc_println_err("Expected closing bracket '}' for formatting");
 		stc_exit(1);
@@ -1013,89 +1071,4 @@ parse_hex_pointer:
 	goto advance;
 fin:
 	return;
-}
-
-static void stc_print_init(void)
-{
-	_strbldr_print = stc_strbldr_emit(MEGABYTE(64), PAGESIZE);
-}
-
-static void stc_print_os_stderr(void)
-{
-#ifdef _WIN32
-	HANDLE stc_stderr = GetStdHandle(STD_ERROR_HANDLE);
-	DWORD written = 0;
-	WriteFile(stc_stderr, _strbldr_print.ptr, (DWORD)_strbldr_print.off, &written, NULL);
-#else
-	write(2, _strbldr_print.ptr, _strbldr_print.off);
-#endif
-
-	_strbldr_print.off = 0;
-}
-
-static void stc_print_os_stdout(void)
-{
-#ifdef _WIN32
-	HANDLE stc_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
-	DWORD written = 0;
-	WriteFile(stc_stdout, _strbldr_print.ptr, (DWORD)_strbldr_print.off, &written, NULL);
-#else
-	write(1, _strbldr_print.ptr, _strbldr_print.off);
-#endif
-	_strbldr_print.off = 0;
-}
-
-static void stc_print_err(const char *fmt, ...)
-{
-	if (unlikely(_strbldr_print.rsrv == 0)) {
-		stc_print_init();
-	}
-
-	va_list vargs;
-	va_start(vargs, fmt);
-	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);
-	va_end(vargs);
-	stc_print_os_stderr();
-}
-
-static void stc_println_err(const char *fmt, ...)
-{
-	if (unlikely(_strbldr_print.rsrv == 0)) {
-		stc_print_init();
-	}
-
-	va_list vargs;
-	va_start(vargs, fmt);
-	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);
-	va_end(vargs);
-	stc_strbldr_append(&_strbldr_print, "\n");
-	stc_print_os_stderr();
-}
-
-static void stc_print(const char *fmt, ...)
-{
-	if (unlikely(_strbldr_print.rsrv == 0)) {
-		stc_print_init();
-	}
-
-	va_list vargs;
-	va_start(vargs, fmt);
-	stc_strbldr_add_v(&_strbldr_print, fmt, vargs);
-	va_end(vargs);
-	stc_print_os_stdout();
-}
-
-static void stc_println(const char *fmt, ...)
-{
-	if (unlikely(_strbldr_print.rsrv == 0)) {
-		stc_print_init();
-	}
-
-	va_list va_args;
-	va_start(va_args, fmt);
-	stc_strbldr_add_v(&_strbldr_print, fmt, va_args);
-	va_end(va_args);
-
-	stc_strbldr_append(&_strbldr_print, "\n");
-	stc_print_os_stdout();
 }

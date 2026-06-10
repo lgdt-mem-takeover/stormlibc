@@ -10,13 +10,29 @@
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_surface.h>
-#include "stormc_base.h"
 #include <math.h>
+#include "stormc_base.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winitializer-overrides"
 #pragma GCC diagnostic ignored "-Woverride-init"
 #pragma GCC diagnostic ignored "-Woverride-init-side-effects"
 
+
+#ifndef SGL_UI_MAX_QUADS
+	#define SGL_UI_MAX_QUADS 16384
+#endif
+
+#ifndef SGL_VERTS_UI_CAP
+	#define SGL_VERTS_UI_CAP SGL_UI_MAX_QUADS * 6
+#endif
+
+#ifndef SGL_VERTS_GLYPHS_CAP
+	#define SGL_VERTS_GLYPHS_CAP SGL_UI_MAX_QUADS * 6
+#endif
+
+#ifndef SGL_VERTS_TEXTURES_CAP
+	#define SGL_VERTS_TEXTURES_CAP SGL_UI_MAX_QUADS * 6
+#endif
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -584,6 +600,7 @@ struct sgl_pipeline {
 
 
 struct sgl_ctx{
+	enum sgl_pipeline_type	current_pipeline;
 	bool64			running;
 	SDL_Event		events;
 	SDL_Window		*window;
@@ -667,13 +684,13 @@ static struct sgl_ctx sgl = {
 	.running = true,
 	.cfg_init_time = {
 		.ui = {
-			.ui_max_quads = 4096,
-			.ui_max_vertices = 4096 * 4,
+			.ui_max_quads = SGL_VERTS_UI_CAP,
+			.ui_max_vertices = SGL_VERTS_UI_CAP * 4,
 			.txt_size_max = 48,
 			.txt_font = (u8 *)FONT_PATH_DEJAVU_SANS,
 		},
 		.textures_generic = {
-			.max_textures_generic = 2048,
+			.max_textures_generic = SGL_VERTS_TEXTURES_CAP,
 		},
 		.ui_softness_default = 1.0f,
 		.vsync = true,
@@ -685,19 +702,21 @@ static struct sgl_ctx sgl = {
 
 
 /*@FUNCS SIGNATURES*/
+static void sgl_init(int window_width, int window_height, struct stc_string8 window_name);
+static void _sgl_create_pipeline(enum sgl_pipeline_type pipeline_type);
 static void sgl_scissor_begin(f32 x, f32 y, f32 w, f32 h);
 static void sgl_scissor_end(void);
 static void sgl_draw_sprite(struct sgl_texture texture, struct sgl_sprite sprite, f32 x, f32 y, f32 w, f32 h, struct color color);
 static void sgl_draw_texture_region(struct sgl_texture texture, f32 x, f32 y, f32 w, f32 h, f32 u0, f32 v0, f32 u1, f32 v1, struct color color);
 static struct sgl_atlas sgl_make_atlas(struct sgl_texture *textures, u32 count, u32 atlas_w, u32 atlas_h, u32 pad);
-inline void sgl_start_text_input(void);
-inline void sgl_stop_text_input(void);
-inline struct sgl_mouse sgl_get_mouse(void);
-inline u32  sgl_files_dropped_count(void);
-inline bool32 sgl_any_text_input(void);
-inline bool32 sgl_is_mouse_in_rect(struct rect r);
-inline bool32 sgl_has_keyboard_focus(void);
-inline bool32 sgl_has_mouse_focus(void);
+void sgl_start_text_input(void);
+void sgl_stop_text_input(void);
+static inline struct sgl_mouse sgl_get_mouse(void);
+static inline u32  sgl_files_dropped_count(void);
+static inline bool32 sgl_any_text_input(void);
+static inline bool32 sgl_is_mouse_in_rect(struct rect r);
+static inline bool32 sgl_has_keyboard_focus(void);
+static inline bool32 sgl_has_mouse_focus(void);
 static inline i32  sgl_window_width(void);
 static inline i32  sgl_window_height(void);
 static inline bool32 sgl_running(void);
@@ -708,6 +727,8 @@ static void sgl_input_process_event(void);
 static void sgl_end_draw(void);
 static void sgl_begin_draw(void);
 static inline void sgl_dispatch_pipeline(enum sgl_pipeline_type);
+static inline void sgl_flush_current_pipeline(void);
+static inline void sgl_touch_pipeline(enum sgl_pipeline_type next);
 static inline void sgl_input_begin_frame(void);
 static inline void sgl_input_init(void);
 static inline void sgl_poll_input(void);
@@ -725,10 +746,11 @@ static inline bool32 sgl_is_mouse_pressed(i32);
 static inline bool32 sgl_is_mouse_released(i32);
 static inline u64 sgl_mouse_flag(i32 button, u64 l, u64 r, u64 m);
 static inline bool32 sgl_mouse_left_pressed(struct sgl_mouse m);
+static inline bool32 sgl_mouse_left_down(struct sgl_mouse m);
 static inline bool32 sgl_mouse_left_released(struct sgl_mouse m);
 static inline bool32 sgl_mouse_right_pressed(struct sgl_mouse m);
+static inline bool32 sgl_mouse_right_down(struct sgl_mouse m);
 static inline bool32 sgl_mouse_right_released(struct sgl_mouse m);
-static inline bool32 sgl_mouse_left_pressed(struct sgl_mouse m);
 
 void sgl_draw_sprite(
     struct sgl_texture texture,
@@ -757,6 +779,8 @@ sgl_draw_texture_region(
     struct color color)
 {
 	if (texture.gl_id == 0) return;
+
+	sgl_touch_pipeline(SGL_PIPELINE_TEX_GENERIC);
 
 	if (sgl.textures_generic.ct_quads > 0 &&
 	    sgl.textures_generic.current_texture != texture.gl_id) {
@@ -918,16 +942,16 @@ sgl_sprite_from_grid(struct sgl_texture tex, u32 cols, u32 rows, u32 frame)
 	};
 }
 
-f32 sgl_get_dt(void)
+f64 sgl_get_dt(void)
 {
-	static f32 last_counter = 0.0f;
+	static u64 last_counter = 0;
 	u64 counter = SDL_GetPerformanceCounter();
 	u64 freq = SDL_GetPerformanceFrequency();
 
-	f32 dt = 0.0f;
+	f64 dt = 0.0f;
 
 	if (last_counter != 0) {
-		dt = (f32)(counter - last_counter) / (f32)freq;
+		dt = (f64)(counter - last_counter) / (f64)freq;
 	}
 
 	last_counter = counter;
@@ -946,12 +970,12 @@ void sgl_stop_text_input(void)
 }
 
 
-inline bool32 sgl_mouse_left_pressed(struct sgl_mouse m)
+static inline bool32 sgl_mouse_left_pressed(struct sgl_mouse m)
 {
 	return (m.flags & SGL_MOUSEF_LPRESS) != 0;
 }
 
-inline bool32 sgl_mouse_left_down(struct sgl_mouse m)
+static inline bool32 sgl_mouse_left_down(struct sgl_mouse m)
 {
 	return (m.flags & SGL_MOUSEF_LDOWN) != 0;
 }
@@ -968,7 +992,7 @@ static inline bool32 sgl_mouse_right_pressed(struct sgl_mouse m)
 
 
 
-inline bool32 sgl_mouse_right_down(struct sgl_mouse m)
+static inline bool32 sgl_mouse_right_down(struct sgl_mouse m)
 {
 	return (m.flags & SGL_MOUSEF_RDOWN) != 0;
 }
@@ -1050,7 +1074,7 @@ sgl_is_mouse_released(i32 button)
 // }
 
 
-inline struct sgl_mouse
+static inline struct sgl_mouse
 sgl_get_mouse(void)
 {
 	return (struct sgl_mouse){
@@ -1219,13 +1243,13 @@ void sgl_init_vertices_texture_generic(void)
 void sgl_init_quads_ui(void)
 {
 	sgl.ui.quads = stc_rsrv(1llu << 38);
-	u64 commit = sizeof(struct quad) * PAGESIZE;
+	u64 commit = sizeof(struct quad) * SGL_UI_MAX_QUADS;
 	if (stc_commit(sgl.ui.quads, commit) == NULL) {
 		perror("mprotect");
 		exit(1);
 	}
 	sgl.ui.cmted_bytes_quads = commit;
-	sgl.ui.quads_cap = PAGESIZE;
+	sgl.ui.quads_cap = SGL_UI_MAX_QUADS;
 
 
 	for (u64 i = 0; i < sgl.ui.quads_cap; ++i) {
@@ -1270,7 +1294,7 @@ void sgl_init_vertices_glyphs(void)
 		exit(1);
 	}
 	sgl.glyphs.cmted_bytes_verts = commit;
-	sgl.glyphs.verts_cap = PAGESIZE * 6;
+	sgl.glyphs.verts_cap = SGL_VERTS_GLYPHS_CAP;
 }
 
 void *sgl_add_vertex_glyph(struct vertex_glyph v)
@@ -1299,7 +1323,7 @@ void sgl_init_vertices_ui(void)
 		exit(1);
 	}
 	sgl.ui.cmted_bytes_verts = commit;
-	sgl.ui.verts_cap = PAGESIZE * 6;
+	sgl.ui.verts_cap = SGL_VERTS_UI_CAP;
 }
 
 void *sgl_add_vertex_ui(struct vertex_ui v)
@@ -1462,6 +1486,10 @@ void sgl_init(int window_width, int window_height, struct stc_string8 window_nam
 
 	SDL_GL_SetSwapInterval(1);
 	sgl_input_init();
+
+	_sgl_create_pipeline(SGL_PIPELINE_UI);
+	_sgl_create_pipeline(SGL_PIPELINE_GLYPHS);
+	_sgl_create_pipeline(SGL_PIPELINE_TEX_GENERIC);
 }
 
 
@@ -1681,8 +1709,10 @@ _sgl_make_pipeline(struct params_shader_program params)
 
 
 
-void sgl_draw_uibox(struct ui_box r)
+void sgl_draw_ui_box(struct ui_box r)
 {
+	sgl_touch_pipeline(SGL_PIPELINE_UI);
+
 	struct vec2 h = { r.w * 0.5f, r.h * 0.5f };
 
 	struct vertex_ui top_left = {
@@ -1749,21 +1779,30 @@ void sgl_draw_uibox(struct ui_box r)
 
 
 
-#define sgl_create_pipeline(vs_path, fs_path, type)\
-	_sgl_create_pipeline(STR(vs_path), STR(fs_path), type)
 
-void _sgl_create_pipeline(struct stc_string8 vs_path, struct stc_string8 fs_path, enum sgl_pipeline_type pipeline_type)
+void _sgl_create_pipeline(enum sgl_pipeline_type pipeline_type)
 {
+	struct stc_strbldr temp = stc_strbldr_emit(1llu << 22, 4096);
+	struct stc_string8 path_vs = {};
+	struct stc_string8 path_fs = {};
+	stc_global_stack_start();
+	path_vs.str = stc_global_alloc(char, 4096);
+	path_fs.str = stc_global_alloc(char, 4096);
 	switch (pipeline_type) {
 	default:
 		fprintf(stderr, "Unknown Pipeline Type Code: %d", pipeline_type);
 		exit(1);
 	case SGL_PIPELINE_UI:
+		stc_strbldr_append(&temp, "{cstring}/base/ui_vert_shader.glsl", STORMC_ROOT);
+		stc_memcpy(path_vs.str, temp.ptr, temp.off);
+		stc_strbldr_reset(&temp);
+		stc_strbldr_append(&temp, "{cstring}/base/ui_frag_shader.glsl", STORMC_ROOT);
+		stc_memcpy(path_fs.str, temp.ptr, temp.off);
 		sgl_init_vertices_ui();
 		sgl_init_quads_ui();
 		sgl.ui.pipeline = sgl_make_pipeline(
-		    .vert_filepath = vs_path,
-		    .frag_filepath = fs_path,
+		    .vert_filepath = path_vs,
+		    .frag_filepath = path_fs,
 		    .attribs = {
 			    [0] = SGL_SET_ATTR(GL_FALSE, struct vertex_ui, 3, struct vec3, pos),
 			    [1] = SGL_SET_ATTR(GL_FALSE, struct vertex_ui, 4, struct color, color),
@@ -1788,11 +1827,17 @@ void _sgl_create_pipeline(struct stc_string8 vs_path, struct stc_string8 fs_path
 		break;
 
 	case SGL_PIPELINE_GLYPHS:
+		stc_strbldr_append(&temp, "{cstring}/base/glyph_vert_shader.glsl", STORMC_ROOT);
+		stc_memcpy(path_vs.str, temp.ptr, temp.off);
+		stc_strbldr_reset(&temp);
+		stc_strbldr_append(&temp, "{cstring}/base/glyph_frag_shader.glsl", STORMC_ROOT);
+		stc_memcpy(path_fs.str, temp.ptr, temp.off);
+
 		sgl_init_vertices_glyphs();
 
 		sgl.glyphs.pipeline = sgl_make_pipeline(
-		    .vert_filepath = vs_path,
-		    .frag_filepath = fs_path,
+		    .vert_filepath = path_vs,
+		    .frag_filepath = path_fs,
 
 		    .attribs = {
 			    [0] = SGL_SET_ATTR(GL_FALSE, struct vertex_glyph, 3, struct vec3, pos),
@@ -1814,11 +1859,17 @@ void _sgl_create_pipeline(struct stc_string8 vs_path, struct stc_string8 fs_path
 	case SGL_PIPELINE_TEX:
 		break;
 	case SGL_PIPELINE_TEX_GENERIC:
+		stc_strbldr_append(&temp, "{cstring}/base/tex_generic_vert_shader.glsl", STORMC_ROOT);
+		stc_memcpy(path_vs.str, temp.ptr, temp.off);
+		stc_strbldr_reset(&temp);
+		stc_strbldr_append(&temp, "{cstring}/base/tex_generic_frag_shader.glsl", STORMC_ROOT);
+		stc_memcpy(path_fs.str, temp.ptr, temp.off);
+
 		sgl_init_vertices_texture_generic();
 		sgl_init_quads_texture_generic();
 		sgl.textures_generic.pipeline = sgl_make_pipeline(
-		    .vert_filepath = vs_path,
-		    .frag_filepath = fs_path,
+		    .vert_filepath = path_vs,
+		    .frag_filepath = path_fs,
 
 		    .attribs = {
 			    [0] = SGL_SET_ATTR(GL_FALSE, struct vertex_tex_generic, 3, struct vec3, pos),
@@ -1835,10 +1886,11 @@ void _sgl_create_pipeline(struct stc_string8 vs_path, struct stc_string8 fs_path
 		    .ebo_data = sgl.textures_generic.quads,
 		    .ebo_size = sgl.textures_generic.cmted_bytes_quads,
 		    .primitive = GL_TRIANGLES,
-		    .ct_attribs = 3,
-		    );
+		    .ct_attribs = 3,);
 		break;
 	}
+	stc_global_stack_end();
+	stc_strbldr_free(&temp);
 }
 
 
@@ -1848,6 +1900,7 @@ void sgl_draw_text(struct stc_string8 text, f32 x, f32 y, f32 size, struct color
 		return;
 	}
 
+	sgl_touch_pipeline(SGL_PIPELINE_GLYPHS);
 
 	f32 scale = size / (f32)sgl.cfg_init_time.ui.txt_size_max;
 	f32 pen_x = x;
@@ -1941,17 +1994,18 @@ void sgl_begin_draw(void)
 
 	glViewport(0, 0, sgl.ww, sgl.wh);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_BLEND);
-	glDisable(GL_SCISSOR_TEST);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_SCISSOR_TEST);
+	sgl.current_pipeline = SGL_PIPELINE_CT;
 }
 
 void sgl_scissor_begin(f32 x, f32 y, f32 w, f32 h)
 {
-	sgl_dispatch_pipeline(SGL_PIPELINE_UI);
-	sgl_clear_batch(SGL_PIPELINE_UI);
+	sgl_flush_current_pipeline();
 
 	glEnable(GL_SCISSOR_TEST);
 
@@ -1965,14 +2019,13 @@ void sgl_scissor_begin(f32 x, f32 y, f32 w, f32 h)
 
 void sgl_scissor_end(void)
 {
-	sgl_dispatch_pipeline(SGL_PIPELINE_UI);
-	sgl_clear_batch(SGL_PIPELINE_UI);
+	sgl_flush_current_pipeline();
 
 	glDisable(GL_SCISSOR_TEST);
 }
 
 
-inline void sgl_clear_batch(enum sgl_pipeline_type type)
+static inline void sgl_clear_batch(enum sgl_pipeline_type type)
 {
 	switch (type) {
 	case SGL_PIPELINE_UI:
@@ -1996,7 +2049,29 @@ inline void sgl_clear_batch(enum sgl_pipeline_type type)
 }
 
 
-inline void sgl_dispatch_pipeline(enum sgl_pipeline_type pipeline_type)
+static inline void sgl_flush_current_pipeline(void)
+{
+	if (sgl.current_pipeline == SGL_PIPELINE_CT) {
+		return;
+	}
+
+	sgl_dispatch_pipeline(sgl.current_pipeline);
+	sgl.current_pipeline = SGL_PIPELINE_CT;
+}
+
+
+static inline void sgl_touch_pipeline(enum sgl_pipeline_type next)
+{
+	if (sgl.current_pipeline != SGL_PIPELINE_CT &&
+	    sgl.current_pipeline != next) {
+		sgl_dispatch_pipeline(sgl.current_pipeline);
+	}
+
+	sgl.current_pipeline = next;
+}
+
+
+static inline void sgl_dispatch_pipeline(enum sgl_pipeline_type pipeline_type)
 {
 
 	switch (pipeline_type) {
@@ -2005,7 +2080,7 @@ inline void sgl_dispatch_pipeline(enum sgl_pipeline_type pipeline_type)
 		exit(1);
 	case SGL_PIPELINE_UI:
 	{
-		if (sgl.ui.ct_quads == 0) return;
+		if (sgl.ui.ct_quads == 0) goto exit;
 		struct sgl_pipeline *ui = &sgl.ui.pipeline;
 
 		glUseProgram(ui->program);
@@ -2023,7 +2098,7 @@ inline void sgl_dispatch_pipeline(enum sgl_pipeline_type pipeline_type)
 	}
 	case SGL_PIPELINE_GLYPHS:
 	{
-		if (sgl.glyphs.ct_vertices == 0) return;
+		if (sgl.glyphs.ct_vertices == 0) goto exit;
 		struct sgl_pipeline *glyph = &sgl.glyphs.pipeline;
 
 		glUseProgram(glyph->program);
@@ -2049,13 +2124,13 @@ inline void sgl_dispatch_pipeline(enum sgl_pipeline_type pipeline_type)
 	}
 	case SGL_PIPELINE_TEX:
 	{
-		if (sgl.textures.ct_vertices == 0) return;
+		if (sgl.textures.ct_vertices == 0) goto exit;
 		struct sgl_pipeline *textures = &sgl.textures.pipeline;
 		break;
 	}
 	case SGL_PIPELINE_TEX_GENERIC:
 	{
-		if (sgl.textures_generic.ct_quads == 0) return;
+		if (sgl.textures_generic.ct_quads == 0) goto exit;
 		struct sgl_pipeline *textures_generic = &sgl.textures_generic.pipeline;
 
 
@@ -2077,16 +2152,14 @@ inline void sgl_dispatch_pipeline(enum sgl_pipeline_type pipeline_type)
 
 	}
 	}
+exit:
 	sgl_clear_batch(pipeline_type);
 }
 
 
 void sgl_end_draw(void)
 {
-	sgl_dispatch_pipeline(SGL_PIPELINE_UI);
-	sgl_dispatch_pipeline(SGL_PIPELINE_GLYPHS);
-	sgl_dispatch_pipeline(SGL_PIPELINE_TEX);
-	sgl_dispatch_pipeline(SGL_PIPELINE_TEX_GENERIC);
+	sgl_flush_current_pipeline();
 
 	SDL_GL_SwapWindow(sgl.window);
 }
@@ -2283,32 +2356,32 @@ sgl_is_key_released(SDL_Scancode sc)
 
 
 
-inline i32  sgl_window_width(void)  { return sgl.ww; }
-inline i32  sgl_window_height(void) { return sgl.wh; }
-inline bool32 sgl_running(void)     { return sgl.running; }
+static inline i32  sgl_window_width(void)  { return sgl.ww; }
+static inline i32  sgl_window_height(void) { return sgl.wh; }
+static inline bool32 sgl_running(void)     { return sgl.running; }
 
-inline u64  sgl_text_input_len(void) { return sgl.sgl_input.text_data_len; }
-inline const char *sgl_text_input_data(void) { return sgl.sgl_input.text_data; }
+static inline u64  sgl_text_input_len(void) { return sgl.sgl_input.text_data_len; }
+static inline const char *sgl_text_input_data(void) { return sgl.sgl_input.text_data; }
 
-inline u32  sgl_files_dropped_count(void) { return sgl.sgl_input.files_drop_count; }
+static inline u32  sgl_files_dropped_count(void) { return sgl.sgl_input.files_drop_count; }
 
 
-inline bool32 sgl_any_text_input(void)
+static inline bool32 sgl_any_text_input(void)
 {
 	return sgl.sgl_input.text_data_len > 0;
 }
 
-inline bool32 sgl_is_mouse_in_rect(struct rect r)
+static inline bool32 sgl_is_mouse_in_rect(struct rect r)
 {
 	return sgl_col_rec_point(r, (struct vec2){sgl.sgl_input.mouse_x, sgl.sgl_input.mouse_y});
 }
 
-inline bool32 sgl_has_keyboard_focus(void)
+static inline bool32 sgl_has_keyboard_focus(void)
 {
 	return SDL_GetKeyboardFocus() == sgl.window;
 }
 
-inline bool32 sgl_has_mouse_focus(void)
+static inline bool32 sgl_has_mouse_focus(void)
 {
 	return SDL_GetMouseFocus() == sgl.window;
 }
@@ -2324,7 +2397,7 @@ void sgl_text_append(struct stc_string8 *s, u32 cap)
 	u64 n = sgl.sgl_input.text_data_len;
 	if (n > free_space) n = free_space;
 
-	memcpy(s->str + s->len, sgl.sgl_input.text_data, n);
+	stc_memcpy(s->str + s->len, sgl.sgl_input.text_data, n);
 	s->len += n;
 	s->str[s->len] = '\0';
 
@@ -2336,7 +2409,7 @@ void sgl_draw_circle(f32 cx, f32 cy, f32 radius, struct color c)
 {
 	f32 d = radius * 2.0f;
 
-	sgl_draw_uibox((struct ui_box){
+	sgl_draw_ui_box((struct ui_box){
 		.x = cx - radius,
 		.y = cy - radius,
 		.w = d,
@@ -2358,7 +2431,7 @@ void sgl_draw_circle_ex(
 	f32 y = cy - radius;
 	f32 d = radius * 2.0f;
 
-	sgl_draw_uibox((struct ui_box){
+	sgl_draw_ui_box((struct ui_box){
 		.x = x,
 		.y = y,
 		.w = d,
@@ -2471,7 +2544,7 @@ struct vec2 sgl_measure_text(struct stc_string8 s, u32 size)
 }
 
 
-inline bool32 sgl_items_dropped(void)
+static inline bool32 sgl_items_dropped(void)
 {
 	return sgl.sgl_input.files_drop_count > 0;
 }
@@ -2529,7 +2602,7 @@ struct sgl_texture sgl_load_texture(const char *path)
 
 
 
-inline const char *sgl_dropped_path(u32 index)
+static inline const char *sgl_dropped_path(u32 index)
 {
 	return sgl.sgl_input.files_dropped_paths[index];
 }

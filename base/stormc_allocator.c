@@ -1,7 +1,6 @@
 #pragma once
 
 #include "stormc_error_table.h"
-#include "../stormc_header.h"
 
 #ifndef STC_GLOBAL_STACK_DEFAULT_RSRV
 #define STC_GLOBAL_STACK_DEFAULT_RSRV GIGABYTE(1)
@@ -17,13 +16,13 @@ static struct stc_stack *stc_stack_gen(u64 rsrv)
 	stc_byte *block = (stc_byte *)stc_os_mem_rsrv(rsrv);
 	stc_byte *stack_ptr_start = (stc_byte *)STC_ALIGN_UP((u64)block + STACK_HEADER_SIZE, PAGESIZE);
 	if (stc_os_mem_cmt(block, STACK_HEADER_SIZE) == NULL) {
-		printf("Failed block header size\n");
+		stc_println("[{u32}]Failed block header size\n", __LINE__);
 		perror("mprotect");
 		stc_exit(1);
 	}
 	rsrv = ((u64)block + rsrv) - (u64)stack_ptr_start;
 	if (stc_os_mem_cmt(stack_ptr_start, PAGESIZE) == NULL) {
-		printf("Failed at stack ptr start\n");
+		stc_println("[{u32}]Failed at stack ptr start\n", __LINE__);
 		perror("mprotect");
 		stc_exit(1);
 	}
@@ -84,6 +83,7 @@ static void *_stc_stack_push(struct stc_stack *s, u64 alignment, u64 total_size)
 		u64 new_total_commit = delta_commit + s->mem_committed;
 		assert((s->mem_committed % 4096) == 0);
 		if (stc_os_mem_cmt((stc_byte*)s->base + s->mem_committed, delta_commit) == NULL) {
+			stc_print("[{u32}]", __LINE__);
 			perror("mprotect");
 			stc_exit(1);
 		}
@@ -156,8 +156,6 @@ static void *stc_global_alloc_raw(u64 alignment, u64 size)
 	return _stc_stack_push(stc_tls_stack, alignment, size);
 }
 
-#define stc_global_alloc(type, count) \
-	((type *)stc_global_alloc_raw(ALIGNOF(type), sizeof(type) * (count)))
 
 
 static enum stc_err_code stc_global_stack_start(void)

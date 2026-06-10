@@ -6,6 +6,22 @@
 #pragma GCC diagnostic ignored "-Winitializer-overrides"
 #pragma GCC diagnostic ignored "-Wc23-extensions"
 #endif
+
+#define stc_cc(...)		(void)0
+#define stc_fin(...)		(void)0
+#define stc_fout(...)		(void)0
+#define stc_run(...)		(void)0
+#define stc_nasm(...)		(void)0
+#define stc_objs(...)		(void)0
+#define stc_defs(...)		(void)0
+#define stc_inc_files(...)	(void)0
+#define stc_optim(...)		(void)0
+#define stc_inc_paths(...)	(void)0
+#define stc_inc_libs(...)	(void)0
+#define stc_arch(...)		(void)0
+#define stc_std(...)		(void)0
+
+
 #define MAX_UINT64 ((u64)-1)
 #define MAX_U(type) ((type)-1)
 
@@ -113,11 +129,30 @@ typedef  int64_t   		i64;
 typedef  double			f64;
 typedef  float			f32;
 
-#include "base/stormc_base.h"
+
+extern i32 sasm_atoi32(const char *string, u32 len);
+extern i64 sasm_atoi64(const char *string, u32 len);
+extern u32 sasm_atou32(const char *string, u32 len);
+extern u64 sasm_atou64(const char *string, u32 len);
+
+extern u32 sasm_utoa32(char *buff_out, u32 value);
+extern u32 sasm_itoa32(char *buff_out, u32 value);
+extern u64 sasm_utoa64(char *buff_out, u64 value);
+extern u64 sasm_itoa64(char *buff_out, u64 value);
 
 
-#ifdef STC_SIMD
-#include "stc_simd_codegen.h"
+
+#ifndef __cplusplus
+#ifndef bool
+	typedef u8 bool;
+#endif
+#ifndef true
+	#define true 1
+#endif
+
+#ifndef false
+	#define false 0
+#endif
 #endif
 
 
@@ -132,15 +167,80 @@ typedef  float			f32;
 	typedef u64 bool64;
 #endif
 
-typedef u8	uflags_8;
-typedef u16	uflags_16;
-typedef u32 	uflags_32;
-typedef u64 	uflags_64;
+static const u32 SIGNF32 = 0x80000000;
+static const u32 EXPONENTF32 = 0x7F800000;
+static const u32 MANTISSAF32 = 0x7FFFFF;
 
-typedef i8	iflags_8;
-typedef i16	iflags_16;
-typedef i32 	iflags_32;
-typedef i64 	iflags_64;
+static u32 stc_maxu32(u32 a, u32 b);
+static f32 stc_min_f32(f32 a, f32 b);
+static f32 stc_max_f32(f32 a, f32 b);
+static bool is_prime(u64 n);
+static u64 next_prime(u64 n);
+static bool is_pow2(u64 n);
+static u64 next_pow2(u64 n);
+static f32 minf(f32 a, f32 b);
+static f32 maxf(f32 a, f32 b);
+
+#include "base/stormc_base.h"
+
+
+#define STC_ARRAY(__name, _type) \
+struct __name {\
+	_type	*ptr;\
+	u64	len;\
+	u64	cap;\
+}
+
+
+
+#define array_make(_array, _max_cap) \
+	do{\
+		_array.ptr = stc_global_alloc(TYPEOF(*_array.ptr), _max_cap);\
+		_array.cap = _max_cap;\
+	}while(0)
+
+#define array_make_with_allocator(_array, _max_cap) \
+	do{\
+		_array.ptr = allocator(TYPEOF(*_array.ptr), _max_cap);\
+		_array.cap = _max_cap;\
+	}while(0)
+
+
+#define array_push(_array, _value) \
+	do{\
+		if (_array.len >= _array.cap) {\
+			stc_println_err("[{u64}]Cannot push more values to array", __LINE__);\
+			break;\
+		}\
+		_array.ptr[_array.len++] = _value;\
+	}while(0)
+
+#define array_reset(_array) \
+	do{\
+		_array.len = 0;\
+	}while(0)
+
+
+
+#define loop_iter(_array, _value, _index, ...) \
+	do{\
+		TYPEOF(*_array.ptr) *start = _array.ptr;\
+		TYPEOF(*_array.ptr) *end = _array.ptr + _array.len;\
+		while (start != end) {\
+			TYPEOF(*_array.ptr) *_value = start;\
+			u64 _index = start - _array.ptr;\
+			__VA_ARGS__ ;\
+			++start;\
+		}\
+	}while(0);
+
+
+#ifdef STC_SIMD
+#include "base/stc_simd_codegen.h"
+#endif
+
+
+
 
 struct mat4 {
 	f32 v[16];
@@ -238,18 +338,20 @@ static enum stc_err_code	stc_os_mem_free(void *mem, u64 size);
 
 
 
+#define stc_global_alloc(__type, __count) \
+	((__type *)stc_global_alloc_raw(ALIGNOF(__type), sizeof(__type) * (__count)))
 
-#define stc_rsrv(size)\
-	stc_os_mem_rsrv(size)
+#define stc_rsrv(__size)\
+	stc_os_mem_rsrv(__size)
 
-#define stc_commit(addrs, size)\
-	stc_os_mem_cmt(addrs, size)
+#define stc_commit(__addrs, __size)\
+	stc_os_mem_cmt(__addrs, __size)
 
-#define stc_alloc(size)\
-	stc_os_alloc_default(size)
+#define stc_alloc(__size)\
+	stc_os_alloc_default(__size)
 
-#define stc_free(ptr, size)\
-	stc_os_mem_free(ptr, size);
+#define stc_free(__ptr, __size)\
+	stc_os_mem_free(__ptr, __size);
 
 
 
@@ -267,13 +369,8 @@ static enum stc_err_code	stc_os_mem_free(void *mem, u64 size);
 #define stc_stack_push_simd(__stack, __type, __count) \
 	_stc_stack_push((__stack), STC_SIMD_ALIGN, sizeof(__type) * (__count))
 
-static const u32 SIGNF32 = 0x80000000;
-static const u32 EXPONENTF32 = 0x7F800000;
-static const u32 MANTISSAF32 = 0x7FFFFF;
 
 /*@FUNCS_MATH SIGNATURES*/
-static f32 stc_min_f32(f32 a, f32 b);
-static f32 stc_max_f32(f32 a, f32 b);
 static f32 stc_clamp_f32(f32 x, f32 min, f32 max);
 static f32 stc_lerp_f32(f32 a, f32 b, f32 t);
 static f32 stc_inv_lerp_f32(f32 a, f32 b, f32 v);
@@ -333,59 +430,13 @@ static f32 stc_smoothstep(f32 edge0, f32 edge1, f32 x);
 static f32 stc_step(f32 edge, f32 x);
 static f32 stc_deg_to_rad(f32 deg);
 static f32 stc_rad_to_deg(f32 rad);
+static bool f32_is_nan(f32 f);
 
-static inline bool f32_is_nan(f32 f)
-{
-	union {u32 u; f32 f;} x;
-	x.f = f;
-	return ((x.u & EXPONENTF32) == EXPONENTF32) && ((x.u & MANTISSAF32) != 0);
-}
 
-static inline bool is_prime(u64 n)
-{
-	if (n < 2) return false;
-	if ((n & 1) == 0) return n == 2;
-	for (u64 i = 3; i * i <= n; i += 2) {
-		if (n % i == 0) return false;
-	}
-	return true;
-}
+static u64 stc_os_timer_freq(void);
+static inline u64 stc_cpu_timer_read(void);
+static u64 stc_os_timer_read(void);
 
-static inline u64 next_prime(u64 n)
-{
-	if (n <= 2) return 2;
-	if ((n & 1) == 0) n++;
-	while (!is_prime(n)) n += 2;
-	return n;
-}
-
-static inline bool is_pow2(u64 n)
-{
-	return (n != 0) && (n & (n - 1)) == 0;
-}
-
-static inline u64 next_pow2(u64 n)
-{
-	n--;
-	n |= n >> 1;
-	n |= n >> 2;
-	n |= n >> 4;
-	n |= n >> 8;
-	n |= n >> 16;
-	n |= n >> 32;
-	n++;
-	return n;
-}
-
-static inline f32 minf(f32 a, f32 b)
-{
-	return (a < b) ? a : b;
-}
-
-static inline f32 maxf(f32 a, f32 b)
-{
-	return (a > b) ? a : b;
-}
 
 #define defer_loop(start, end) for(int _i_ = ((start), 0); _i_ == 0; (_i_ += 1, (end)))
 
@@ -427,15 +478,16 @@ thisfile void check_alloc(struct stc_strbldr *b, u64 new_size);
 thisfile void stc_strbldr_add_v(struct stc_strbldr * restrict b, const stc_byte * restrict s, va_list args);
 thisfile void stc_strbldr_append(struct stc_strbldr *b, const stc_byte *s, ...);
 thisfile void stc_strbldr_fprint_range(struct stc_strbldr *b, int start, int end);
+thisfile void stc_strbldr_reset(struct stc_strbldr *b);
 
 thisfile enum stc_err_code		stc_io_read(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
 thisfile enum stc_err_code 		stc_io_write(struct stc_file *f, stc_byte *buffer, u64 size, u64 *size_out);
-thisfile enum stc_err_code 		stc_io_open_r(const char *path, struct stc_file *out);
-thisfile enum stc_err_code 		stc_io_open_rw(const char *path, struct stc_file *out);
-thisfile enum stc_err_code 		stc_io_open_w(const char *path, struct stc_file *out);
-thisfile enum stc_err_code 		stc_io_open_w_new(const char *path, struct stc_file *out);
-thisfile enum stc_err_code 		stc_io_open_w_append(const char *path, struct stc_file *out);
-thisfile enum stc_err_code  		stc_io_get_file_size(const char *path, u64 *size_out);
+thisfile enum stc_err_code 		stc_io_open_r(struct stc_string8 path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_rw(struct stc_string8 path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w(struct stc_string8 path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w_new(struct stc_string8 path, struct stc_file *out);
+thisfile enum stc_err_code 		stc_io_open_w_append(struct stc_string8 path, struct stc_file *out);
+thisfile enum stc_err_code  		stc_io_get_file_size(struct stc_file *f, u64 *size_out);
 thisfile enum stc_err_code		stc_io_file_to_string8(struct stc_file *f, struct stc_string8 *out, u64 *size_out);
 thisfile void stc_print_init(void);
 thisfile void stc_print_os_stderr(void);
@@ -588,10 +640,6 @@ struct stc_stack {
 };
 
 
-static inline u32 stc_maxu32(u32 a, u32 b)
-{
-	return (a > b) ? a : b;
-}
 
 
 #ifndef DEFAULT_RESERVATION
@@ -785,7 +833,9 @@ static inline u32 stc_maxu32(u32 a, u32 b)
 
 #endif
 
+
 /* Feature dependency normalization. Keep implementation includes ordered below. */
+
 #ifdef STORMC_STRING
 	#ifndef STORMC_ALLOCATOR
 		#define STORMC_ALLOCATOR
@@ -799,9 +849,21 @@ static inline u32 stc_maxu32(u32 a, u32 b)
 	#ifndef STORMC_ALLOCATOR
 		#define STORMC_ALLOCATOR
 	#endif
+	#ifndef STORMC_TIMER
+		#define STORMC_TIMER
+	#endif
 #endif
 
 #ifdef STORMC_THREADING
+	#ifndef STORMC_ALLOCATOR
+		#define STORMC_ALLOCATOR
+	#endif
+	#ifndef STORMC_STRING
+		#define STORMC_STRING
+	#endif
+#endif
+
+#ifdef STORMC_IO
 	#ifndef STORMC_ALLOCATOR
 		#define STORMC_ALLOCATOR
 	#endif
@@ -822,6 +884,9 @@ static inline u32 stc_maxu32(u32 a, u32 b)
 	#endif
 	#ifndef STORMC_HASHFUNC
 		#define STORMC_HASHFUNC
+	#endif
+	#ifndef STORMC_IO
+		#define STORMC_IO
 	#endif
 #endif
 
@@ -854,10 +919,6 @@ static inline u32 stc_maxu32(u32 a, u32 b)
 #include "base/stormc_math.c"
 #endif
 
-#ifdef STORMC_IO
-#include "base/stormc_io.c"
-#endif
-
 #ifdef STORMC_THREADING
 #ifndef _WIN32
 	#include <pthread.h>
@@ -881,6 +942,9 @@ static inline u32 stc_maxu32(u32 a, u32 b)
 #endif
 /*@TEXT END*/
 
+#ifdef STORMC_IO
+#include "base/stormc_io.c"
+#endif
 
 
 /*@PROFILE START*/
@@ -911,11 +975,6 @@ static inline u32 stc_maxu32(u32 a, u32 b)
 /*@STORMC RANDOM END*/
 
 
-/*@STORMC_SGL START*/
-#ifdef STORMC_SGL
-#include "base/stormc_sgl.c"
-#endif
-/*@STORMC SGL END*/
 
 
 /*@STORMC_STAG START*/
@@ -923,5 +982,19 @@ static inline u32 stc_maxu32(u32 a, u32 b)
 #include "utils/stormc_argument_parser.h"
 #endif
 /*@STORMC_STAG END*/
+
+
+/*@STORMC_SGL START*/
+#ifdef STORMC_SGL
+	#include "base/stormc_sgl.c"
+#endif
+/*@STORMC SGL END*/
+
+
+/*@STORMC_TIMER START*/
+#ifdef STORMC_TIMER
+	#include "base/stormc_timer.c"
+#endif
+/*@STORMC_TIMER END*/
 
 #pragma GCC diagnostic pop

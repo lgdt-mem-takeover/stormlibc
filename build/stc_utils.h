@@ -59,8 +59,8 @@
 
 
 struct stc_string8{
-	u8	*str;
-	u64	len;
+	stc_byte	*str;
+	u64		len;
 };
 
 
