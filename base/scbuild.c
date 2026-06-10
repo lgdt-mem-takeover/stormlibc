@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 
 	proj.compiler = compiler;
 	set_sources(STR("src/main.c"));
-	set_flags(STD_C99, MARCH_AVX2, OPTIM_3, WALL, WPEDANTIC
+	set_flags(STD_C99, MARCH_AVX2, OPTIM_3, WALL, WPEDANTIC);
 	set_out_file(STR("src/main"));
 
 	bool linux_build = (compiler != C_MINGW64) && (compiler != C_MINGW32);
