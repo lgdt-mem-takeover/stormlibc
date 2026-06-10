@@ -717,7 +717,7 @@ static struct stc_strbldr stc_strbldr_emit(u64 sz_rsrv, u64 sz_init)
 
 static void stc_strbldr_free(struct stc_strbldr *b)
 {
-	stc_free(b->ptr, b->cmt);
+	stc_free(b->ptr, b->rsrv);
 }
 
 
