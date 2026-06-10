@@ -836,16 +836,20 @@ void exec_goto_dir(struct stag_string proj_name)
 
 void exec_add_proj(struct stag_array_string sarr)
 {
-	struct stag_string proj_name = sarr.strings[0];
-	struct stag_string proj_path = sarr.strings[1];
-
-	if (sarr.len != 2 || sarr.strings[1].len == 0) {
+	if (sarr.len != 2 || sarr.strings[0].len == 0 || sarr.strings[1].len == 0) {
 		fprintf(stderr, "add requires: <name>|<path>\n");
 		return;
 	}
 
+	struct stag_string proj_name = sarr.strings[0];
+	struct stag_string proj_path = sarr.strings[1];
+
 	if (proj_name.len > 1024) {
 		STORMC_ERROR_FMT("Project exceeds max length of 1024: %.*s\n", proj_name);
+		return;
+	}
+	if (proj_path.len > 1024) {
+		STORMC_ERROR_FMT("Project path exceeds max length of 1024: %.*s\n", proj_path);
 		return;
 	}
 	if (!proj_exists(proj_name)) {
@@ -857,8 +861,19 @@ void exec_add_proj(struct stag_array_string sarr)
 
 void exec_update_proj(struct stag_array_string sarr)
 {
+	if (sarr.len != 2 || sarr.strings[0].len == 0 || sarr.strings[1].len == 0) {
+		fprintf(stderr, "update requires: <old_name>|<new_name>\n");
+		return;
+	}
+
 	struct stag_string old_name = sarr.strings[0];
 	struct stag_string new_name = sarr.strings[1];
+
+	if (new_name.len > 1024) {
+		STORMC_ERROR_FMT("Project exceeds max length of 1024: %.*s\n", new_name);
+		return;
+	}
+
 	for (u64 i = 0; i < stc_proj_mapper->payload.ct_projects; ++i) {
 		struct stag_string current = { .str = stc_proj_mapper->payload.projects[i].proj_name, .len = stc_proj_mapper->payload.projects[i].proj_name_len};
 		if (stag_strcmp(old_name, current)) {
