@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-  cd build
+  script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
+  cd "$script_dir/build"
 
   if ! command -v clang >/dev/null 2>&1; then
       echo "clang not found" >&2
