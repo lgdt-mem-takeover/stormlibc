@@ -901,7 +901,17 @@ static void exec_start(void)
 
 void exec_goto_dir(struct stag_string proj_name)
 {
+	if (proj_name.str == NULL || proj_name.len == 0) {
+		fprintf(stderr, "goto requires a project name\n");
+		return;
+	}
+
 	struct stag_string proj_path = get_project_path_from_name(proj_name);
+	if (proj_path.str == NULL) {
+		fprintf(stderr, "Project not found: %.*s\n", (int)proj_name.len, proj_name.str);
+		return;
+	}
+
 	fprintf(stdout, "%.*s\n", (int)proj_path.len, proj_path.str);
 }
 
