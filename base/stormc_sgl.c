@@ -1581,6 +1581,12 @@ _sgl_make_pipeline(struct params_shader_program params)
 {
 	struct sgl_pipeline pl = {};
 
+	if (params.ct_attribs < 0 || params.ct_attribs > SGL_MAX_ATTRIBS) {
+		fprintf(stderr, "SGL shader attribute count %d exceeds %d\n",
+			params.ct_attribs, SGL_MAX_ATTRIBS);
+		exit(1);
+	}
+
 	FILE *vertf = fopen((const char *)params.vert_filepath.str, "rb");
 	if (!vertf) {
 		fprintf(stderr, "Failed to open %s\n", params.vert_filepath.str);
