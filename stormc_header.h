@@ -182,6 +182,7 @@ static f32 minf(f32 a, f32 b);
 static f32 maxf(f32 a, f32 b);
 
 #include "base/stormc_base.h"
+#include "base/stormc_bitops.c"
 
 
 #define STC_ARRAY(__name, _type) \
