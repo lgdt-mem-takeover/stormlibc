@@ -433,20 +433,20 @@ struct stc_perf_wclock {
 
 static void stc_perf_wclock_start(struct stc_perf_wclock *w)
 {
-	w->os_freq = get_os_timer_freq();
-	u64 wait = read_os_timer();
-	while ((read_os_timer() - wait) < w->os_freq);
+	w->os_freq = stc_os_timer_freq();
+	u64 wait = stc_os_timer_read();
+	while ((stc_os_timer_read() - wait) < w->os_freq);
 
 
-	w->os_start = read_os_timer();
-	w->cpu_start = read_cpu_timer();
+	w->os_start = stc_os_timer_read();
+	w->cpu_start = stc_cpu_timer_read();
 }
 
 
 static void stc_perf_wclock_end(struct stc_perf_wclock *w)
 {
-	w->cpu_end = read_cpu_timer();
-	w->os_end = read_os_timer();
+	w->cpu_end = stc_cpu_timer_read();
+	w->os_end = stc_os_timer_read();
 }
 
 static f64 stc_perf_wclock_report_ms(struct stc_perf_wclock *w)
