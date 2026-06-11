@@ -583,11 +583,26 @@ void build_proj()
 
 	printf("%s\n", cmd);
 
-	system(cmd);
+	int ret = system(cmd);
+	if (ret == -1) {
+		fprintf(stderr, "build command failed to launch\n");
+		stc_exit(1);
+	}
+
+	if (WIFEXITED(ret) && WEXITSTATUS(ret) == 0) {
+		return;
+	}
+
+	if (WIFEXITED(ret)) {
+		fprintf(stderr, "build command exited with code %d\n", WEXITSTATUS(ret));
+	} else if (WIFSIGNALED(ret)) {
+		fprintf(stderr, "build command terminated by signal %d\n", WTERMSIG(ret));
+	} else {
+		fprintf(stderr, "build command failed with status %d\n", ret);
+	}
 
 build_cmd_error:
-	return;
+	stc_exit(1);
 }
-
 
 
