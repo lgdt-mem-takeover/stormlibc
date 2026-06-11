@@ -916,6 +916,15 @@ struct stc_stack {
 	#endif
 #endif
 
+#ifdef STORMC_ALLOCATOR
+	#ifndef STORMC_STRING
+		#define STORMC_STRING
+	#endif
+	#ifndef STORMC_IO
+		#define STORMC_IO
+	#endif
+#endif
+
 /*@CORE START*/
 #ifdef STORMC_ALLOCATOR
 #ifdef _WIN32
