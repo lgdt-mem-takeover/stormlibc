@@ -342,7 +342,7 @@ struct proj{
 	struct stc_string8	sources[MAX_SOURCES];
 	u64			ct_sources;
 
-	u64			compiler_flags[MAX_SOURCES];
+	u64			compiler_flags[MAX_FLAGS];
 	u64			ct_compiler_flags;
 
 	struct stc_string8	include_paths[MAX_INCLUDE_PATHS];
@@ -352,10 +352,10 @@ struct proj{
 	struct stc_string8	library_paths[MAX_INCLUDE_PATHS];
 	u64			ct_library_paths;
 
-	struct stc_string8	libraries[MAX_INCLUDE_PATHS];
+	struct stc_string8	libraries[MAX_LIBRARIES];
 	u64			ct_libraries;
 
-	struct stc_string8	objects[MAX_INCLUDE_PATHS];
+	struct stc_string8	objects[MAX_OBJECTS];
 	u64			ct_objects;
 
 	enum stcb_extra_capabilities	extras[STCB_EXTRA_CAPABILITIES_CT];
@@ -366,14 +366,21 @@ struct proj{
 
 struct proj proj = {};
 
+static void stcb_proj_capacity_error(const char *kind, u64 cap)
+{
+	fprintf(stderr, "scbuild %s exceeds %llu entries\n", kind, (unsigned long long)cap);
+	stc_exit(1);
+}
+
 
 
 void _set_sources(struct stc_string8 *s)
 {
-	struct stc_string8 *start = s;
-	while (start->str != NULL) {
+	for (struct stc_string8 *start = s; start->str != NULL; ++start) {
+		if (proj.ct_sources >= MAX_SOURCES) {
+			stcb_proj_capacity_error("sources", MAX_SOURCES);
+		}
 		proj.sources[proj.ct_sources++] = *start;
-		start++;
 	}
 }
 
@@ -384,10 +391,11 @@ void _set_sources(struct stc_string8 *s)
 
 void _set_library_paths(struct stc_string8 *s)
 {
-	struct stc_string8 *start = s;
-	while (start->str != NULL) {
+	for (struct stc_string8 *start = s; start->str != NULL; ++start) {
+		if (proj.ct_library_paths >= MAX_INCLUDE_PATHS) {
+			stcb_proj_capacity_error("library paths", MAX_INCLUDE_PATHS);
+		}
 		proj.library_paths[proj.ct_library_paths++] = *start;
-		start++;
 	}
 }
 
@@ -396,10 +404,11 @@ void _set_library_paths(struct stc_string8 *s)
 
 void _set_objects(struct stc_string8 *s)
 {
-	struct stc_string8 *start = s;
-	while (start->str != NULL) {
+	for (struct stc_string8 *start = s; start->str != NULL; ++start) {
+		if (proj.ct_objects >= MAX_OBJECTS) {
+			stcb_proj_capacity_error("objects", MAX_OBJECTS);
+		}
 		proj.objects[proj.ct_objects++] = *start;
-		start++;
 	}
 }
 
@@ -409,10 +418,11 @@ void _set_objects(struct stc_string8 *s)
 
 void _set_include_paths(struct stc_string8 *s)
 {
-	struct stc_string8 *start = s;
-	while (start->str != NULL) {
+	for (struct stc_string8 *start = s; start->str != NULL; ++start) {
+		if (proj.ct_include_paths >= MAX_INCLUDE_PATHS) {
+			stcb_proj_capacity_error("include paths", MAX_INCLUDE_PATHS);
+		}
 		proj.include_paths[proj.ct_include_paths++] = *start;
-		start++;
 	}
 }
 
@@ -422,10 +432,11 @@ void _set_include_paths(struct stc_string8 *s)
 
 void _set_libraries(struct stc_string8 *s)
 {
-	struct stc_string8 *start = s;
-	while (start->str != NULL) {
+	for (struct stc_string8 *start = s; start->str != NULL; ++start) {
+		if (proj.ct_libraries >= MAX_LIBRARIES) {
+			stcb_proj_capacity_error("libraries", MAX_LIBRARIES);
+		}
 		proj.libraries[proj.ct_libraries++] = *start;
-		start++;
 	}
 }
 
@@ -434,11 +445,12 @@ void _set_libraries(struct stc_string8 *s)
 
 void _set_flags(enum stcb_cmplr_flags *f)
 {
-	enum stcb_cmplr_flags *start = f;
-	while (*start != INVALID) {
+	for (enum stcb_cmplr_flags *start = f; *start != INVALID; ++start) {
+		if (proj.ct_compiler_flags >= MAX_FLAGS) {
+			stcb_proj_capacity_error("compiler flags", MAX_FLAGS);
+		}
 		proj.compiler_flags[proj.ct_compiler_flags++] = *start;
 		// printf("%s\n", G_Commands_Map[*start].str);
-		start++;
 	}
 }
 
@@ -576,7 +588,6 @@ void build_proj()
 build_cmd_error:
 	return;
 }
-
 
 
 
