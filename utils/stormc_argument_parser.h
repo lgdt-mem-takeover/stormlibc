@@ -342,6 +342,18 @@ struct stag_stack *stag_stack_gen(stag_u64 rsrv)
 	pl->mem_rsrv = rsrv;
 	pl->mem_committed = PAGESIZE;
 	pl->base_offset = 0;
+	pl->stag_free_list.ptr = (stag_u64 *)stag_os_mem_rsrv(sizeof(stag_u64) * ILT_TOTAL_INDICES);
+	pl->stag_free_list.size = (stag_u64 *)stag_os_mem_rsrv(sizeof(stag_u64) * ILT_TOTAL_INDICES);
+	if (unlikely(stag_os_mem_cmt(pl->stag_free_list.ptr, sizeof(stag_u64) * ILT_TOTAL_INDICES) == NULL)) {
+		printf("Failed to commit stag free list pointers\n");
+		perror("mprotect");
+		exit(1);
+	}
+	if (unlikely(stag_os_mem_cmt(pl->stag_free_list.size, sizeof(stag_u64) * ILT_TOTAL_INDICES) == NULL)) {
+		printf("Failed to commit stag free list sizes\n");
+		perror("mprotect");
+		exit(1);
+	}
 	return pl;
 }
 
