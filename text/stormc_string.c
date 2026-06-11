@@ -581,6 +581,7 @@ static void stc_string8_to_upper(struct stc_string8 *s)
 
 static inline void stc_c_string_reverse (stc_byte *s, u64 len)
 {
+	if (s == NULL || len < 2) return;
 	--len;
 	stc_byte *end = s + len;
 	while (s < end) {
