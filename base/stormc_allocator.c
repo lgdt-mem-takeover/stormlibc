@@ -9,6 +9,9 @@
 
 static struct stc_stack *stc_stack_gen(u64 rsrv)
 {
+	u64 min_rsrv = STC_ALIGN_UP(STACK_HEADER_SIZE, PAGESIZE) + PAGESIZE;
+	if (rsrv < min_rsrv)
+		rsrv = min_rsrv;
 
 	if (!is_pow2(rsrv))
 		rsrv = STC_ALIGN_UP(next_pow2(rsrv), PAGESIZE);
