@@ -26,7 +26,7 @@ static void *stc_os_mem_cmt(void* addrs, u64 size)
 	if (unlikely(res != 0)) {
 		stc_println("[{cstring}][{u32}]", __FUNCTION__, __LINE__);
 		stc_println("{u64}", size);
-		printf("mprotect code: %d\n", res);
+		stc_println("mprotect code: {i32}", res);
 		return NULL;
 	}
 	return addrs;
