@@ -316,12 +316,12 @@ static u64 next_pow2(u64 n)
 	return n;
 }
 
-static f32 minf(f32 a, f32 b)
+static f32 stc_minf32(f32 a, f32 b)
 {
 	return (a < b) ? a : b;
 }
 
-static f32 maxf(f32 a, f32 b)
+static f32 stc_maxf32(f32 a, f32 b)
 {
 	return (a > b) ? a : b;
 }
@@ -331,4 +331,3 @@ static u32 stc_maxu32(u32 a, u32 b)
 {
 	return (a > b) ? a : b;
 }
-

@@ -709,8 +709,8 @@ static void sgl_scissor_end(void);
 static void sgl_draw_sprite(struct sgl_texture texture, struct sgl_sprite sprite, f32 x, f32 y, f32 w, f32 h, struct color color);
 static void sgl_draw_texture_region(struct sgl_texture texture, f32 x, f32 y, f32 w, f32 h, f32 u0, f32 v0, f32 u1, f32 v1, struct color color);
 static struct sgl_atlas sgl_make_atlas(struct sgl_texture *textures, u32 count, u32 atlas_w, u32 atlas_h, u32 pad);
-void sgl_start_text_input(void);
-void sgl_stop_text_input(void);
+static void sgl_start_text_input(void);
+static void sgl_stop_text_input(void);
 static inline struct sgl_mouse sgl_get_mouse(void);
 static inline u32  sgl_files_dropped_count(void);
 static inline bool32 sgl_any_text_input(void);
@@ -751,6 +751,13 @@ static inline bool32 sgl_mouse_left_released(struct sgl_mouse m);
 static inline bool32 sgl_mouse_right_pressed(struct sgl_mouse m);
 static inline bool32 sgl_mouse_right_down(struct sgl_mouse m);
 static inline bool32 sgl_mouse_right_released(struct sgl_mouse m);
+static inline void sgl_text_input_clear(void);
+
+static inline void sgl_text_input_clear(void)
+{
+	sgl.sgl_input.text_data_len = 0;
+	sgl.sgl_input.text_data[0] = '\0';
+}
 
 void sgl_draw_sprite(
     struct sgl_texture texture,
@@ -959,12 +966,12 @@ f64 sgl_get_dt(void)
 }
 
 
-void sgl_start_text_input(void)
+static void sgl_start_text_input(void)
 {
 	SDL_StartTextInput(sgl.window);
 }
 
-void sgl_stop_text_input(void)
+static void sgl_stop_text_input(void)
 {
 	SDL_StopTextInput(sgl.window);
 }
@@ -2408,7 +2415,10 @@ static inline bool32 sgl_has_mouse_focus(void)
 void sgl_text_append(struct stc_string8 *s, u32 cap)
 {
 	if (cap == 0 || sgl.sgl_input.text_data_len == 0) return;
-	if (s->len >= cap - 1) return;
+	if (s->len >= cap - 1) {
+		sgl_text_input_clear();
+		return;
+	}
 
 	u64 free_space = cap - 1 - s->len;
 	u64 n = sgl.sgl_input.text_data_len;

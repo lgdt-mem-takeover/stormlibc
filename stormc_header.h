@@ -172,14 +172,12 @@ static const u32 EXPONENTF32 = 0x7F800000;
 static const u32 MANTISSAF32 = 0x7FFFFF;
 
 static u32 stc_maxu32(u32 a, u32 b);
-static f32 stc_min_f32(f32 a, f32 b);
-static f32 stc_max_f32(f32 a, f32 b);
+static f32 stc_minf32(f32 a, f32 b);
+static f32 stc_maxf32(f32 a, f32 b);
 static bool is_prime(u64 n);
 static u64 next_prime(u64 n);
 static bool is_pow2(u64 n);
 static u64 next_pow2(u64 n);
-static f32 minf(f32 a, f32 b);
-static f32 maxf(f32 a, f32 b);
 
 #include "base/stormc_base.h"
 #include "base/stormc_bitops.c"
