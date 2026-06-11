@@ -1582,24 +1582,24 @@ _sgl_make_pipeline(struct params_shader_program params)
 	struct sgl_pipeline pl = {};
 
 	if (params.ct_attribs < 0 || params.ct_attribs > SGL_MAX_ATTRIBS) {
-		fprintf(stderr, "SGL shader attribute count %d exceeds %d\n",
+		stc_println_err("SGL shader attribute count {u32} exceeds {u32}",
 			params.ct_attribs, SGL_MAX_ATTRIBS);
 		exit(1);
 	}
 
 	FILE *vertf = fopen((const char *)params.vert_filepath.str, "rb");
 	if (!vertf) {
-		fprintf(stderr, "Failed to open %s\n", params.vert_filepath.str);
-		exit(1);
+		stc_println_err("Failed to open {string}", params.vert_filepath);
+		stc_exit(1);
 	}
 	if(fseek(vertf, 0, SEEK_END) != 0) {
 		perror("fseek");
-		exit(1);
+		stc_exit(1);
 	}
 	i32 len_shader_vert = ftell(vertf);
 	if (len_shader_vert < 0) {
 		perror("ftell");
-		exit(1);
+		stc_exit(1);
 	}
 	rewind(vertf);
 	struct stc_string8 vert_shader_src = {.str = stc_alloc(len_shader_vert + 1), .len = len_shader_vert};
