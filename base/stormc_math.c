@@ -39,9 +39,14 @@ static struct vec2 stc_scale2(struct vec2 v, f32 s)
 	return STC_STRUCT_LIT(vec2, v.x * s, v.y * s);
 }
 
+static f32 stc_len2_sq(struct vec2 v)
+{
+	return (v.x * v.x) + (v.y * v.y);
+}
+
 static f32 stc_len2(struct vec2 v)
 {
-	return stc_sqrt_f32((v.x * v.x) + (v.y * v.y));
+	return stc_sqrt_f32(stc_len2_sq(v));
 }
 
 static struct vec2 stc_norm2(struct vec2 v)
